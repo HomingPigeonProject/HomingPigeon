@@ -21,7 +21,7 @@
 </head>
 <body>
     <div id="wrapper">
-    <nav class="navbar navbar-default navbar-static-top" role="navigation" style="margin-bottom: 0">
+    <nav class="navbar navbar-default navbar-fixed-top topnav" role="navigation" style="margin-bottom: 0">
             <div class="navbar-header">
                 <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
                     <span class="sr-only">Toggle navigation</span>
@@ -239,6 +239,12 @@
                     </ul>
                     <!-- /.dropdown-user -->
                 </li>
+                <li>
+                    <button class="btn btn-default">log in</button>
+                </li>
+                <li>
+                    <button class="btn btn-primary">register</button>
+                </li>
                 <!-- /.dropdown -->
             </ul>
             <!-- /.navbar-top-links -->
@@ -268,7 +274,7 @@
         
         
         
-        <br/><br/>
+        <br/><br/><br/><br/>
         <div id="contenu">
             
             <div class="col-lg-12">
@@ -322,6 +328,13 @@ friend("Hun","","Kaist");
 friend("Lee","","Kaist");            
 friend("Sang","","Kaist");            
 friend("Park","","Kaist");            
+friend("Lee","","Kaist");            
+friend("Sang","","Kaist");            
+friend("Park","","Kaist");
+friend("Park","","Kaist");            
+friend("Lee","","Kaist");            
+friend("Sang","","Kaist");            
+friend("Park","","Kaist");
 ?>
                                     </ul>
                         </div>
@@ -336,7 +349,7 @@ friend("Park","","Kaist");
         
     </div>
                 <div class="col-lg-4">
-                    <br/><br/>
+                    <br/><br/><br/><br/>
                     <div class="chat-panel panel panel-default">
                         <div class="panel-heading">
                             <i class="fa fa-comments fa-fw"></i> Chat
@@ -437,7 +450,7 @@ friend("Park","","Kaist");
     
     
     <div class="col-lg-4">
-                    <br/><br/>
+                    <br/><br/><br/><br/>
                     <div class="chat-panel panel panel-default">
                         <div class="panel-heading">
                             <i class="fa fa-comments fa-fw"></i> Chat2
@@ -529,6 +542,7 @@ friend("Park","","Kaist");
                 <!-- /.col-lg-8 -->
                 </div>
     
+ 
     
     
     
@@ -536,14 +550,8 @@ friend("Park","","Kaist");
     
     
     
-    
-    
-    
-    
-    
-    
-    <div class="row">    
-<div class="col-lg-6">
+<div class="row">    
+<div class="col-lg-7">
     <br/><br/>
     <div class="chat-panel panel panel-default">
         <div class="panel-heading mapdiv">
@@ -562,9 +570,58 @@ friend("Park","","Kaist");
   src="https://www.google.com/maps/embed/v1/search?key=AIzaSyDvhhb3FV9damxkdZxZ4qXUCjJdpyPDlQc&q=Kaist" allowfullscreen>
 </iframe>
     </div>
-</div></div>
+</div>
     
     
+    
+<div class="col-lg-7">
+    <br/><br/>
+    <div class="chat-panel panel panel-default">
+        <div class="panel-heading calendardiv">
+            <i class="fa fa-calendar fa-fw"></i> Calendar
+            <div class="btn-group pull-right">
+                <button type="button" class="btn btn-default btn-xs calendarToggle">
+                    <i class="fa fa-chevron-down calendarChevron"></i>
+                </button>
+            </div>
+        </div>    
+<iframe
+  class="calendar"
+  width="600"
+  height="450"
+  frameborder="0" style="border:0"
+  src="https://www.google.com/maps/embed/v1/search?key=AIzaSyDvhhb3FV9damxkdZxZ4qXUCjJdpyPDlQc&q=Kaist" allowfullscreen>
+</iframe>
+   </div>
+</div>
+
+
+<div class="col-lg-7">
+    <br/><br/>
+    <div class="chat-panel panel panel-default">
+        <div class="panel-heading questiondiv">
+            <i class="fa fa-question fa-fw"></i> form
+            <div class="btn-group pull-right">
+                <button type="button" class="btn btn-default btn-xs questionToggle">
+                    <i class="fa fa-chevron-down questionChevron"></i>
+                </button>
+            </div>
+        </div>    
+<iframe
+  class="question"
+  width="600"
+  height="450"
+  frameborder="0" style="border:0"
+  src="https://www.google.com/maps/embed/v1/search?key=AIzaSyDvhhb3FV9damxkdZxZ4qXUCjJdpyPDlQc&q=Kaist" allowfullscreen>
+</iframe>
+   </div>
+</div>
+
+
+
+
+
+</div>
     
 <?php /*
     <div class="content-section-a">
