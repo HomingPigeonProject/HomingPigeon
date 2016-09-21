@@ -1,5 +1,5 @@
 -- Created by Vertabelo (http://vertabelo.com)
--- Last modification date: 2016-09-21 05:00:07.123
+-- Last modification date: 2016-09-21 05:14:40.63
 
 -- tables
 -- Table: Accounts
@@ -41,7 +41,7 @@ CREATE TABLE Friends (
 CREATE TABLE Localisations (
     id int NOT NULL,
     position varchar(25) NOT NULL,
-    account int NULL,
+    accountId int NULL,
     eventId int NULL,
     date timestamp NOT NULL,
     CONSTRAINT Localisations_pk PRIMARY KEY (id)
@@ -50,12 +50,21 @@ CREATE TABLE Localisations (
 -- Table: Messages
 CREATE TABLE Messages (
     id int NOT NULL,
-    accountid int NOT NULL,
+    accountId int NOT NULL,
     accountId2 int NOT NULL,
     date timestamp NOT NULL,
     status int NOT NULL,
     CONSTRAINT Messages_pk PRIMARY KEY (id)
 );
+
+-- foreign keys
+-- Reference: Friends_Accounts (table: Friends)
+ALTER TABLE Friends ADD CONSTRAINT Friends_Accounts FOREIGN KEY Friends_Accounts (accountId)
+    REFERENCES Accounts (id);
+
+-- Reference: Messages_Accounts (table: Messages)
+ALTER TABLE Messages ADD CONSTRAINT Messages_Accounts FOREIGN KEY Messages_Accounts (accountId)
+    REFERENCES Accounts (id);
 
 -- End of file.
 
