@@ -16,7 +16,6 @@
                 width: 100%;
                 height: 100%;
             }
-
         </style>
 
         <link href="../../bootstrap/css/landing-page.css" rel="stylesheet">
@@ -32,7 +31,7 @@
     </head>
 
 
-    <body>
+    <body id="body">
         <h2 id="title">Start a room</h2>
         <!--
           <button id="screenShareButton"></button>
@@ -40,8 +39,8 @@
         <p id="subTitle"></p>
 
         <form id="createRoom">
-            <input id="sessionInput"/>
-            <button type="submit">Create it!</button>
+            <input id="createRoomInput"/>
+            <button type="submit" id="createRoomBtn">Create it!</button>
         </form>
 
         <!-- Local Video -->
@@ -70,18 +69,45 @@
 
               <div class="panel-footer chatTog">
                 <div class="input-group">
+
                   <input id="btn-input" type="text" class="form-control input-sm" placeholder="Type your message here..." />
                   <span class="input-group-btn">
                     <button class="btn btn-warning btn-sm" id="btn-chat">Send</button>
                   </span>
+
+                    <form>
+                      <select id="importance-list" size="1">
+                        <option>normal
+                        <option>important
+                        <option>very important
+                      </select>
+                    </form>
+
                 </div>
               </div>
+
             </div>
           </div>
         </div>
 
         <!-- End of Text chat -->
 
+        <!--- Download summary option -->
+
+        <div id="summary-option">
+
+          <form>
+            <select id="importance-choice-dl" size="1">
+              <option>normal
+              <option>important
+              <option>very important
+            </select>
+          </form>
+          <button id="imp-dl-btn" type="submit">Download Summary</button>
+
+        </div>
+
+        <!---End of download summary option -->
 
         <script type="text/javascript"></script>
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
@@ -90,6 +116,7 @@
         <script src="latest-v2.js"></script>
         <script src='page.js'></script>
 
+        <script src="summary.js"></script>
 
 
     </body>

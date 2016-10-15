@@ -24,6 +24,32 @@ var webrtc = new SimpleWebRTC({
     */
 });
 
+
+if (room) {
+    // create the room
+    setRoom(room);
+} else {
+    var f = document.getElementById("createRoom");
+    var sessionInput = document.getElementById("sessionInput");
+
+    $(f).submit(function () {
+        var val = $('#createRoomInput').val().toLowerCase().replace(/\s/g, '-').replace(/[^A-Za-z0-9_\-]/g, '');
+        webrtc.createRoom(val, function (err, name) {
+            console.log(' create room cb', arguments);
+
+            var newUrl = location.pathname + '?' + name;
+            if (!err) {
+                history.replaceState({foo: 'bar'}, null, newUrl);
+                setRoom(name);
+            } else {
+                console.log(err);
+            }
+        });
+        return false;
+    });
+}
+
+
 /* ------------------- */
 /*       Messages      */
 /* ------------------- */
@@ -45,23 +71,18 @@ SimpleWebRTC.prototype.sendMessage= function(msg, event , peer, opts){
   });
 };
 
-document.getElementById("btn-chat").addEventListener("click", function() {
-  var msg = document.getElementById("btn-input").value;
-
-  sendMessage(msg);
-}, false);
-
 
 function sendMessage(msg) {
   var date =  new Date();
   var author = "Pierre";
+  var importance = document.getElementById("importance-list").selectedIndex;
+
 
   // MESSAGE PROTOCOL
-  var toSend = date + "-" + author + "-" + msg;
+  var toSend = date + "-" + author + "-" + importance + "-" + msg;
 
   webrtc.sendMessage(toSend);
-
-  displayMessage(msg, date, author, 1);
+  displayMessage(msg, date, author, importance, 1);
 }
 
 function receiveMessage(data) {
@@ -71,12 +92,13 @@ function receiveMessage(data) {
   var pre = data.split("-");
   var date = pre[0];
   var author = pre[1];
-  var msg = pre.slice(2);
+  var importance = pre[2];
+  var msg = pre.slice(3);
 
-  displayMessage(msg, date, author, 0);
+  displayMessage(msg, date, author, importance, 0);
 }
 
-function displayMessage(msg, date, author, sender) {
+function displayMessage(msg, date, author, importance, sender) {
     var ul = document.getElementById("chat-list");
     var li = document.createElement("li");
 
@@ -110,14 +132,15 @@ function displayMessage(msg, date, author, sender) {
           var i = document.createElement("i");
           i.className = "fa fa-clock-o fa-fw";
 
-          small.appendChild(i);
-          var stringDate = document.createTextNode(date.toString());
-          small.appendChild(stringDate);
+          var string = importance + " " + date.toString();
+          var dateP = document.createTextNode(string);
+          dateP.id="importance&date"
+          small.appendChild(dateP);
 
           var strong = document.createElement("strong");
           strong.className = "pull-right primary-font";
-          var author = document.createTextNode("Bhaumik Patel");
-          strong.appendChild(author);
+          var authorP = document.createTextNode(author);
+          strong.appendChild(authorP);
 
           div2.appendChild(small);
           div2.appendChild(strong);
@@ -131,15 +154,65 @@ function displayMessage(msg, date, author, sender) {
 
       li.appendChild(span);
       li.appendChild(div1);
+      li.id = date + "-" + author + "-" + importance + "-" + msg;
     ul.appendChild(li);
 
-    p.innerHtml += msg;
 }
 
 
 /* ------------------- */
 /*    Event Handlers   */
 /* ------------------- */
+
+document.getElementById("btn-chat").addEventListener("click", function() {
+  var msg = document.getElementById("btn-input").value;
+  sendMessage(msg);
+}, false);
+
+
+document.getElementById("imp-dl-btn").addEventListener("click", function() {
+  var level = document.getElementById("importance-choice-dl").selectedIndex;
+
+  // selecting every message with the same importance or higher
+
+  var chatList = document.getElementById("chat-list");
+  var children = chatList.children;
+
+  var result = "";
+  for (var i = 0; i < children.length; i++) {
+    var item = children[i];
+    var data = item.id;
+
+    var pre = data.split("-");
+    var importance = pre[2];
+
+    // selecting enough importance
+    if(importance >= level) {
+      // treatment
+      var date = pre[0];
+      var author = pre[1];
+      var msg = pre.slice(3);
+
+      var string =  'Date: "' + date + '" Author: "' + author + '" Importance: "' + importance + '" Message: "' + msg + '";' + "\n";
+      result += string;
+    }
+  }
+
+  var filename = "summary.txt";
+  var pom = document.createElement('a');
+  pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(result));
+  pom.setAttribute('download', filename);
+
+  if (document.createEvent) {
+    var event = document.createEvent('MouseEvents');
+    event.initEvent('click', true, true);
+    pom.dispatchEvent(event);
+  }
+  else {
+    pom.click();
+  }
+
+}, false);
 
 // when it's ready, join if we got a room from the URL
 webrtc.on('readyToCall', function () {
@@ -203,33 +276,17 @@ webrtc.on('volumeChange', function (volume, treshold) {
 
 // Since we use this twice we put it here
 function setRoom(name) {
-    $('form').remove();
-    $('h1').text(name);
-    $('#subTitle').text('Link to join: ' + location.href);
-    $('body').addClass('active');
+  var parent = document.getElementById("body");
+
+  var child = document.getElementById("createRoom");
+  parent.removeChild(child);
+
+  child = document.getElementById("title");
+  parent.removeChild(child);
+
+  //$('#subTitle').text('Link to join: ' + location.href);
+  $('body').addClass('active');
 }
-if (room) {
-    // create the room
-    setRoom(room);
-} else {
-    $('form').submit(function () {
-        var val = $('#sessionInput').val().toLowerCase().replace(/\s/g, '-').replace(/[^A-Za-z0-9_\-]/g, '');
-        webrtc.createRoom(val, function (err, name) {
-            console.log(' create room cb', arguments);
-
-            var newUrl = location.pathname + '?' + name;
-            if (!err) {
-                history.replaceState({foo: 'bar'}, null, newUrl);
-                setRoom(name);
-            } else {
-                console.log(err);
-            }
-        });
-        return false;
-    });
-}
-
-
 
 
 
