@@ -14,7 +14,7 @@ var webrtc = new SimpleWebRTC({
 
     enableDataChannels: true,
 
-    url: "https://localhost:8888/"
+    url: "https://143.248.177.95:8888/"
 
     /* TODO
     url: ,
