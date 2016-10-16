@@ -28,8 +28,8 @@ if (config.uid) process.setuid(config.uid);
 
 var httpUrl;
 if (config.server.secure) {
-    httpUrl = "https://localhost:" + port;
+    httpUrl = "https://143.248.177.95:" + port;
 } else {
-    httpUrl = "http://localhost:" + port;
+    httpUrl = "http://143.248.177.95:" + port;
 }
 console.log('Signaling Server (signal master) is running at: ' + httpUrl);
