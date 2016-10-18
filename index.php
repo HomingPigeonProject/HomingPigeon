@@ -240,7 +240,7 @@
                     <!-- /.dropdown-user -->
                 </li>
                 <li>
-                    <button class="btn btn-default">log in</button>
+                    <button class="btn btn-default" data-toggle="modal" data-target="#myModal">log in</button>
                 </li>
                 <li>
                     <button class="btn btn-primary">register</button>
@@ -281,7 +281,7 @@
             <!-- /.panel -->
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <i class="fa fa-users fa-fw"></i> Friends list
+                        <i class="fa fa-users fa-fw"></i> Contacts list
                     </div>
                 <!-- /.panel-heading -->
                 <div class="panel-body">
@@ -299,8 +299,6 @@
                                            <div class="pull-right">
                                             <small class=" text-muted">
                                                 <button class="btn btn-primary"><i class="fa fa-video-camera fa-fw"></i></button>
-                                            </small><small class=" text-muted">
-                                                <button class="btn btn-primary"><i class="fa fa-volume-control-phone fa-fw"></i></button>
                                             </small>
                                             <small class=" text-muted">
                                                 <button class="btn btn-primary"><i class="fa fa-user-secret fa-fw"></i></button>
@@ -320,7 +318,7 @@
                                 ');
                 
             }
-friend("billy el machanos de la puerta holla","","Kaist");            
+friend("billy","","Kaist");            
 friend("Patrick","","Kaist");            
 friend("Martin","","Kaist");            
 friend("Kim","","Kaist");            
@@ -348,7 +346,7 @@ friend("Park","","Kaist");
         
         
     </div>
-                <div class="col-lg-4">
+                <div class="col-lg-8">
                     <br/><br/><br/><br/>
                     <div class="chat-panel panel panel-default">
                         <div class="panel-heading">
@@ -374,7 +372,7 @@ friend("Park","","Kaist");
                                             </small>
                                         </div>
                                         <p>
-                                            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur bibendum ornare dolor, quis ullamcorper ligula sodales.
+                                            Hey how are you ?
                                         </p>
                                     </div>
                                 </li>
@@ -389,7 +387,7 @@ friend("Park","","Kaist");
                                             <strong class="pull-right primary-font">Bhaumik Patel</strong>
                                         </div>
                                         <p>
-                                            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur bibendum ornare dolor, quis ullamcorper ligula sodales.
+                                            Just working a bit at the moment and you ?
                                         </p>
                                     </div>
                                 </li>
@@ -404,7 +402,7 @@ friend("Park","","Kaist");
                                                 <i class="fa fa-clock-o fa-fw"></i> 14 mins ago</small>
                                         </div>
                                         <p>
-                                            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur bibendum ornare dolor, quis ullamcorper ligula sodales.
+                                            Yeah same but I have no motivation :'(
                                         </p>
                                     </div>
                                 </li>
@@ -419,7 +417,22 @@ friend("Park","","Kaist");
                                             <strong class="pull-right primary-font">Bhaumik Patel</strong>
                                         </div>
                                         <p>
-                                            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur bibendum ornare dolor, quis ullamcorper ligula sodales.
+                                            Just take a break and start again after :)
+                                        </p>
+                                    </div>
+                                </li>
+                                <li class="left clearfix">
+                                    <span class="chat-img pull-left">
+                                        <img src="http://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" />
+                                    </span>
+                                    <div class="chat-body clearfix">
+                                        <div class="header">
+                                            <strong class="primary-font">Jack Sparrow</strong>
+                                            <small class="pull-right text-muted">
+                                                <i class="fa fa-clock-o fa-fw"></i> 14 mins ago</small>
+                                        </div>
+                                        <p>
+                                            Ok see you later !
                                         </p>
                                     </div>
                                 </li>
@@ -448,7 +461,7 @@ friend("Park","","Kaist");
     
     
     
-    
+    <?php /*
     <div class="col-lg-4">
                     <br/><br/><br/><br/>
                     <div class="chat-panel panel panel-default">
@@ -543,7 +556,7 @@ friend("Park","","Kaist");
                 </div>
     
  
-    
+    */ ?>
     
     
     
@@ -571,9 +584,35 @@ friend("Park","","Kaist");
 </iframe>
     </div>
 </div>
+<!-- Modal -->
+                <div id="myModal" class="modal fade" role="dialog">
+                  <div class="modal-dialog">
+
+                    <!-- Modal content-->
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h4 class="modal-title">Login</h4>
+                      </div>
+                      <div class="modal-body">
+                        <p>Please enter your login and your password</p>
+                        <input class="text" placeholder="login"/><br/><br/>
+                        <input class="text" placeholder="password"/><br/><br/>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" data-dismiss="modal">Connect</button>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>    
     
-    
-    
+
+
+
+
+
 <div class="col-lg-7">
     <br/><br/>
     <div class="chat-panel panel panel-default">
