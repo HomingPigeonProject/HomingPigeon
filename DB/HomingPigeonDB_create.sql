@@ -1,7 +1,7 @@
 CREATE TABLE Accounts (
     id int NOT NULL,
     login char(25) NOT NULL,
-    password varchar(25) NOT NULL,
+    password varchar(60) NOT NULL,
     lastSeen timestamp NOT NULL,
     CONSTRAINT Accounts_pk PRIMARY KEY (id)
 );
