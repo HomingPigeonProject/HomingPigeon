@@ -15,14 +15,14 @@ CREATE TABLE Contacts (
     id int NOT NULL,
     accountId int NOT NULL,
     accountId2 int NOT NULL,
-    groupId int,                                 /* Group id for one to one chat */
+    groupId int,                                     /* Group id for two users' chat */
     CONSTRAINT Contacts_pk PRIMARY KEY (id)
 );
 
 -- Group
 CREATE TABLE Groups (
     id int NOT NULL AUTO_INCREMENT,
-    name varchar(24) NOT NULL,
+    name varchar(24) DEFAULT NULL,                   /* Group name */
     CONSTRAINT Groups_pk PRIMARY KEY (id)
 );
 
@@ -39,28 +39,34 @@ CREATE TABLE Messages (
     groupId int NOT NULL,
     accountId int NOT NULL,
     date timestamp NOT NULL,
-    status int NOT NULL DEFAULT 1,                   /* Number of read */
+    read int NOT NULL DEFAULT 1,                     /* Number of read */
     importance decimal(1) NOT NULL DEFAULT 0,        /* 0: Normal, 1: Important, 2: Very Important */
     content varchar(500) NOT NULL,
+    location int DEFAULT NULL,                       /* Location sharing */
     CONSTRAINT Messages_pk PRIMARY KEY (id)
 );
 
+CREATE TABLE Locations (
+    id int NOT NULL AUTO_INCREMENT,
+    position varchar(25) NOT NULL,             /* Position of location */
+    CONSTRAINT Locations_pk PRIMARY KEY(id)
+);
+-- 
 CREATE TABLE Localisations (
     id int NOT NULL AUTO_INCREMENT,
-    position varchar(25) NOT NULL,
-    accountId int NULL,
-    eventId int NULL,
-    date timestamp NOT NULL,
+    eventId int,
+    location int NOT NULL,                     /* Location to meet */
+    date timestamp NOT NULL,                   /* Time for meeting */
     CONSTRAINT Localisations_pk PRIMARY KEY (id)
 );
 
 CREATE TABLE Events (
     id int NOT NULL AUTO_INCREMENT,
-    localisation varchar(25) NOT NULL,
-    date timestamp NOT NULL,
     nbParticipants int NOT NULL DEFAULT 0,
     nbParticipantsMax int NOT NULL,
-    length int NOT NULL,
+    length int NOT NULL,                       /* ??? */
+    date timestamp NOT NULL,                   /* Meeting time in chat */
+    description varchar(1024),                 /* Text description of event */
     CONSTRAINT Events_pk PRIMARY KEY (id)
 );
 
@@ -97,7 +103,7 @@ ALTER TABLE GroupMembers ADD CONSTRAINT GroupMembers_Account_Id FOREIGN KEY (acc
     REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
 -- Messages
-ALTER TABLE Messages ADD INDEX Messages_Timestamp_Id (date, id);
+ALTER TABLE Messages ADD INDEX Messages_Timestamp_Id (groupId, date, id);
 
 ALTER TABLE Messages ADD CONSTRAINT Messages_Accounts FOREIGN KEY (accountId) 
     REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
@@ -105,6 +111,8 @@ ALTER TABLE Messages ADD CONSTRAINT Messages_Accounts FOREIGN KEY (accountId)
 ALTER TABLE Messages ADD CONSTRAINT Messages_Group_Id FOREIGN KEY (groupId)
     REFERENCES Groups (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
+ALTER TABLE Messages ADD CONSTRAINT Messages_Location FOREIGN KEY (location)
+    REFERENCES Locations (position) ON UPDATE CASCADE ON DELETE CASCADE;
     
 -- Localisations
 ALTER TABLE Localisations ADD CONSTRAINT Localisations_Account_Id FOREIGN KEY (accountId)
@@ -112,6 +120,9 @@ ALTER TABLE Localisations ADD CONSTRAINT Localisations_Account_Id FOREIGN KEY (a
     
 ALTER TABLE Localisations ADD CONSTRAINT Localisations_Event_Id FOREIGN KEY (eventId)
     REFERENCES Events (id) ON UPDATE CASCADE ON DELETE CASCADE;
+    
+ALTER TABLE Localisations ADD CONSTRAINT Localisations_Location FOREIGN KEY (location)
+    REFERENCES Locations (position) ON UPDATE CASCADE ON DELETE CASCADE;
     
 -- Events
 ALTER TABLE EventParticipants ADD INDEX EventParticipants_Accounts_Events (accountId, eventId);
