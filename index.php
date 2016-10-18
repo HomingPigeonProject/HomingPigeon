@@ -712,6 +712,8 @@ friend("Park","","Kaist");
     <script src="bootstrap/js/jquery.js"></script>
     <script src="bootstrap/js/bootstrap.min.js"></script>
     <script src="mainJQuery.js"></script>
+    <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+    <script src="server/script.js"></script> <!-- our script for the server--!>
     
 
 </body>

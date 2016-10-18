@@ -15,14 +15,14 @@ else{
 }
 $(".map").width($(".mapdiv").width()+30);
 $(".map").height($(".map").width()/1.4);
-console.log($(".mapdiv").width());
-console.log($(".map").width());
+//console.log($(".mapdiv").width());
+//console.log($(".map").width());
 });
 //////////////ADAPT SIZE MAP/////////////////////
 $(".map").width($(".mapdiv").width()+30);
 $(".map").height($(".map").width()/1.4);
-console.log($(".mapdiv").width());
-console.log($(".map").width());
+//console.log($(".mapdiv").width());
+//console.log($(".map").width());
 
 //////////////TOGGLE CALENDAR/////////////////////
 $(".calendarToggle").on('click',function(){
@@ -37,8 +37,8 @@ else{
 }
 $(".calendar").width($(".calendardiv").width()+30);
 $(".calendar").height($(".calendar").width()/1.4);
-console.log($(".calendardiv").width());
-console.log($(".calendar").width());
+//console.log($(".calendardiv").width());
+//console.log($(".calendar").width());
 });
 
 //////////////TOGGLE QUESTION/////////////////////
@@ -54,8 +54,8 @@ else{
 }
 $(".question").width($(".questiondiv").width()+30);
 $(".question").height($(".question").width()/1.4);
-console.log($(".questiondiv").width());
-console.log($(".question").width());
+//console.log($(".questiondiv").width());
+//console.log($(".question").width());
 });
 
 //////////////CHAT TOGGLE/////////////////////
