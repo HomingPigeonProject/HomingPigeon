@@ -35,11 +35,11 @@ CREATE TABLE GroupMembers (
 
 -- Message in a Group
 CREATE TABLE Messages (
-    id int UNSIGNED NOT NULL AUTO_INCREMENT,
+    id int unsigned NOT NULL AUTO_INCREMENT,
     groupId int NOT NULL,
     accountId int NOT NULL,
     date timestamp NOT NULL,
-    read int NOT NULL DEFAULT 1,                     /* Number of read */
+    nbread int NOT NULL DEFAULT 1,                     /* Number of read */
     importance decimal(1) NOT NULL DEFAULT 0,        /* 0: Normal, 1: Important, 2: Very Important */
     content varchar(500) NOT NULL,
     location int DEFAULT NULL,                       /* Location sharing */
@@ -112,17 +112,14 @@ ALTER TABLE Messages ADD CONSTRAINT Messages_Group_Id FOREIGN KEY (groupId)
     REFERENCES Groups (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
 ALTER TABLE Messages ADD CONSTRAINT Messages_Location FOREIGN KEY (location)
-    REFERENCES Locations (position) ON UPDATE CASCADE ON DELETE CASCADE;
+    REFERENCES Locations (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
 -- Localisations
-ALTER TABLE Localisations ADD CONSTRAINT Localisations_Account_Id FOREIGN KEY (accountId)
-    REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
-    
 ALTER TABLE Localisations ADD CONSTRAINT Localisations_Event_Id FOREIGN KEY (eventId)
     REFERENCES Events (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
 ALTER TABLE Localisations ADD CONSTRAINT Localisations_Location FOREIGN KEY (location)
-    REFERENCES Locations (position) ON UPDATE CASCADE ON DELETE CASCADE;
+    REFERENCES Locations (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
 -- Events
 ALTER TABLE EventParticipants ADD INDEX EventParticipants_Accounts_Events (accountId, eventId);
