@@ -30,7 +30,6 @@ var queries = {
 };
 
 var dbPrototype = {
-	conn: null,
 	release: function() {
 		this.conn.release();
 	},
@@ -71,9 +70,11 @@ module.exports = {
 		pool.getConnection(function(err, conn) {
 			if (err) {
 				console.log('Failed to get db connection');
-				dbInstance = null;
+				Object.defineProperty(dbInstance, 'conn', 
+						{value: null, configurable: false, writable: false, enumerable: false});
 			} else {
-				dbInstance.conn = conn;
+				Object.defineProperty(dbInstance, 'conn', 
+						{value: conn, configurable: false, writable: false, enumerable: false});
 			}
 			callback(err, dbInstance);
 		})
@@ -82,44 +83,88 @@ module.exports = {
 
 // test codes
 // this is how to use
+
+// Code without async
 if (require.main == module) {
 	console.log('file: ' + __filename + '\ndir: ' + __dirname);
 	
 	var manager = require('./dbManager');
-	var async = require('async');
-	async.waterfall([
-	    function(callback) {
-	        callback(null, 'one', 'two');
-	    },
-	    function(arg1, arg2, callback) {
-	        // arg1 now equals 'one' and arg2 now equals 'two'
-	        callback(null, 'three');
-	    },
-	    function(arg1, callback) {
-	        // arg1 now equals 'three'
-	        callback(null, 'done');
-	    }
-	], function (err, result) {
-	    // result now equals 'done'
+	
+	console.log('request connection');
+	manager.getConnection(function(err, conn) {
+		if (err)
+			throw err;
+		console.log('start transaction');
+		conn.beginTransaction(function(err) {
+			if (err) {
+				conn.release();
+				throw err;
+			}
+			console.log('insert an account');
+			conn.addUser('a030603@kaist.ac.kr', '1234567890', function(err, result) {
+				if(err) {
+					conn.rollback(function() {
+						conn.release();
+						throw err;
+					});
+				}
+				console.log('select account');
+				conn.getUserByEmail('a030603@kaist.ac.kr', function(err, result) {
+					if(err) {
+						conn.rollback(function() {
+							conn.release();
+							throw err;
+						});
+					}
+					for (var i = 0; i < result.length; i++) {
+						console.log('id: ' + result[i].email + '(' + typeof result[i].email + ')');
+						console.log('pwd: ' + result[i].password + '(' + typeof result[i].password + ')');
+					}
+					console.log('delete account');
+					conn.deleteUser('a030603@kaist.ac.kr', function(err, result) {
+						if(err) {
+							conn.rollback(function() {
+								conn.release();
+								throw err;
+							});
+						}
+						conn.commit(function(err) {
+							if(err) {
+								conn.rollback(function() {
+									conn.release();
+									throw err;
+								});
+							}
+							console.log('release connection');
+							conn.release();
+						});
+					});
+				});
+			});
+		});
 	});
+}
+
+// Code doing same thing as above, but with async
+// this is more readable and no callback nesting, easy to write
+if (require.main == module) {
+	
+	var manager = require('./dbManager');
+	var async = require('async');
+
 	var connection;
 	async.waterfall([
 		function(callback) {
-			console.log('request connection');
 			manager.getConnection(callback);
 		},
 		function(conn, callback) {
-			console.log('got connection');
 			connection = conn;
-			console.log('start transaction');
 			connection.beginTransaction(callback);
 		},
 		function(result, fields, callback) {
-			console.log('insert an account');
 			connection.addUser('a030603@kaist.ac.kr', '1234567890', callback);
 		},
 		function(result, fields, callback) {
-			console.log('select account');
 			connection.getUserByEmail('a030603@kaist.ac.kr', callback);
 		},
 		function(result, fields, callback) {
@@ -130,11 +175,9 @@ if (require.main == module) {
 			callback(null);
 		},
 		function(callback) {
-			console.log('delete account');
 			connection.deleteUser('a030603@kaist.ac.kr', callback);
 		},
 		function(result, fields, callback) {
-			console.log('commit');
 			connection.commit(callback);
 		},
 		function(result, fields, callback) {
@@ -144,7 +187,6 @@ if (require.main == module) {
 	function(err, results) {
 		try {
 			if (err) {
-				console.log('abort');
 				if (connection) {
 					connection.rollback(function() {
 						console.log('rolled back');
@@ -154,9 +196,7 @@ if (require.main == module) {
 			}
 		} finally {
 			if (connection) {
-				console.log('release connection');
 				connection.release();
-				connection = null;
 			}
 		}
 		process.exit();
