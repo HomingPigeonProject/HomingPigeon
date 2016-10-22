@@ -3,6 +3,7 @@ USE HomingPigeon;
 
 CREATE TABLE Accounts (
     id int NOT NULL AUTO_INCREMENT,
+    nickname varchar(32) NOT NULL,             /* User name in chat */
     email char(64) NOT NULL,
     password char(64) NOT NULL,                /* password hash string */
     lastSeen timestamp NOT NULL,
@@ -39,6 +40,7 @@ CREATE TABLE Groups (
 CREATE TABLE GroupMembers (
     groupId int NOT NULL,
     accountId int NOT NULL,
+    ackStart int NOT NULL,                          /* the member start read from this message id */
     ackMessageId int DEFAULT NULL,                  /* the member have read until this message id */
     CONSTRAINT GroupsMembers_pk PRIMARY KEY (groupId, accountId)
 );
