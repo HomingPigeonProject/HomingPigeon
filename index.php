@@ -441,7 +441,7 @@ friend("Park","","Kaist");
                         <!-- /.panel-body -->
                         <div class="panel-footer chatTog">
                             <div class="input-group">
-                                <input id="btn-input" type="text" class="form-control input-sm" placeholder="Type your message here..." />
+                                <input id="btn-input" type="text" class="form-control input-sm messageInput" placeholder="Type your message here..." />
                                 <span class="input-group-btn">
                                     <button class="btn btn-warning btn-sm" id="btn-chat">
                                         Send
@@ -556,8 +556,6 @@ friend("Park","","Kaist");
                 </div>
     
  
-    */ ?>
-    
     
     
     
@@ -658,7 +656,8 @@ friend("Park","","Kaist");
 
 
 
-
+*/ ?>
+    
 
 </div>
     

@@ -9,19 +9,60 @@ var server = require('http').createServer(app);
 var io = require('socket.io')(server);
 server.listen(app.get('port'));
 
+var connectedLobby = {
+    connected : [],
+    push : function (newConnected){
+        if (typeof newConnected === 'object'
+            && newConnected.id
+            && newConnected.pseudo){
+                this.connected.push(newConnected);
+        }
+    },
+    remove : function(pseudo){
+        var conn = [];
+        this.connected.forEach(function(data){
+           if(data.pseudo != pseudo){
+               conn.push(data);
+           }
+        });
+        this.connected = conn;
+    },
+    getPseudoList : function(){
+        var conn = [];
+        this.connected.forEach(function(data){
+                conn.push(data.pseudo);
+        });
+        return conn;
+    },
+    getPseudoById: function(id){
+        var conn = null;
+        this.connected.forEach(function(data){
+            if(data.id == id){
+                conn = data.pseudo;
+            }
+        });
+        return conn;
+    }
+}
+
 io.on('connection', function(socket){
-    socket.on('pseudo', function (data){
-      socket.set('pseudo', data);
+  console.log("socket.io connection.....");
+    socket.on('Pseudo', function (pseudo){
+      //socket.set('pseudo', data);
+      connectedLobby.push({pseudo:pseudo, id:socket.id});
     });
     socket.on('message', function(message){
-        socket.get('pseudo',function(error, name){
+      console.log("received message");
+        var pseudo = connectedLobby.getPseudoById(socket.id);
+        console.log("user" + pseudo + "send this " + message);
+        /*socket.get('pseudo',function(error, name){
             var data = { 'message' : message, pseudo : name};
             socket.broadcast.emit('message',data);
-            console.log("user" + name + "send this " + message);
-        });
+        });*/
     });
 });
 
+console.log("listening....");
 /*
 server.listen(3000, function(){
   console.log('listening on 3000');

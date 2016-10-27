@@ -1,0 +1,10 @@
+Root user
+user = 'root'
+pwd = 'HomingPigeon0!'
+has all privileges
+
+Access user
+user = 'user'
+pwd = 'HomingPigeon0!'
+has only select, insert, update, delete privileges
+will be used by nodejs server
