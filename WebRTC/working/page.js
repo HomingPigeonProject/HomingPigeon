@@ -14,7 +14,8 @@ var webrtc = new SimpleWebRTC({
 
     enableDataChannels: true,
 
-    url: "https://143.248.177.95:8888/"
+    //url: "https://143.248.177.95:8888/"
+    url: "http://localhost:8888/"
 
     /* TODO
     url: ,
@@ -156,6 +157,8 @@ function displayMessage(msg, date, author, importance, sender) {
       li.appendChild(div1);
       li.id = date + "-" + author + "-" + importance + "-" + msg;
     ul.appendChild(li);
+    
+    $('.chatTog').animate({ scrollTop: 50000 }, 1);
 
 }
 
@@ -193,7 +196,7 @@ document.getElementById("imp-dl-btn").addEventListener("click", function() {
       var author = pre[1];
       var msg = pre.slice(3);
 
-      var string =  'Date: "' + date + '" Author: "' + author + '" Importance: "' + importance + '" Message: "' + msg + '";' + "\n";
+      var string =  'Date: "' + date + '" Author: "' + author + '" Importance: "' + importance + '" Message: "' + msg + '";' + "\r\n";
       result += string;
     }
   }
