@@ -19,7 +19,7 @@ if (isset($_POST['login'])) {
         $_SESSION['usr_name'] = $row['name'];
         header("Location: index.php");
     } else {
-        $errormsg = "Incorrect Email or Password!!!";
+        $errormsg = "Incorrect Email or Password";
     }
 }
 ?>
@@ -33,38 +33,36 @@ if (isset($_POST['login'])) {
 
 <body>
 
-<div class="container">
-    <div class="row">
-        <div>
-            <form role="form" action="<?php echo $_SERVER['PHP_SELF']; ?>" method="post" name="loginform">
-                <fieldset>
-                    <legend>Login</legend>
+  <div>
+    <form role="form" action="<?php echo $_SERVER['PHP_SELF']; ?>" method="post" name="loginform">
+        <fieldset>
+            <legend>Login</legend>
 
-                    <div class="form-group">
-                        <label for="name">Email</label>
-                        <input type="text" name="email" placeholder="Your Email" required class="form-control" />
-                    </div>
+            <div class="form-group">
+                <label for="name">Email</label>
+                <input type="text" name="email" placeholder="Your Email" required class="form-control" />
+            </div>
 
-                    <div class="form-group">
-                        <label for="name">Password</label>
-                        <input type="password" name="password" placeholder="Your Password" required class="form-control" />
-                    </div>
+            <div class="form-group">
+                <label for="name">Password</label>
+                <input type="password" name="password" placeholder="Your Password" required class="form-control" />
+            </div>
 
-                    <div class="form-group">
-                        <input type="submit" name="login" value="Login" class="btn btn-primary" />
-                    </div>
-                </fieldset>
-            </form>
-            <span class="text-danger"><?php if (isset($errormsg)) { echo $errormsg; } ?></span>
-        </div>
-    </div>
+            <div class="form-group">
+                <input type="submit" name="login" value="Login" class="btn btn-primary" />
+            </div>
+        </fieldset>
+    </form>
+    <span class="text-danger"><?php if (isset($errormsg)) { echo $errormsg; } ?></span>
+  </div>
 
-    <div class="row">
-        <div>
-          New User? <a href="register.php">Sign Up Here</a>
-        </div>
-    </div>
-</div>
+
+  <div class="row">
+      <div>
+        New User? <a href="register.php">Sign Up Here</a>
+      </div>
+  </div>
+
 </body>
 
 </html>
