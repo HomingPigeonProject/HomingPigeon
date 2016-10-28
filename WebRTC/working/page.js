@@ -157,7 +157,7 @@ function displayMessage(msg, date, author, importance, sender) {
       li.appendChild(div1);
       li.id = date + "-" + author + "-" + importance + "-" + msg;
     ul.appendChild(li);
-    
+
     $('.chatTog').animate({ scrollTop: 50000 }, 1);
 
 }
