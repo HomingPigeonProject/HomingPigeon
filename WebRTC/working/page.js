@@ -14,8 +14,8 @@ var webrtc = new SimpleWebRTC({
 
     enableDataChannels: true,
 
-    //url: "https://143.248.177.95:8888/"
-    url: "http://localhost:8888/"
+
+    url: "http://vps332892.ovh.net:8888/"
 
     /* TODO
     url: ,
