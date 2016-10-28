@@ -47,10 +47,33 @@ if (isset($_POST['signup'])) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Register</title>
+    <title>User Registration Script</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" >
+    <link rel="stylesheet" href="css/bootstrap.min.css" type="text/css" />
 </head>
 <body>
 
+<nav class="navbar navbar-default" role="navigation">
+    <div class="container-fluid">
+        <!-- add header -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="index.php">Koding Made Simple</a>
+        </div>
+        <!-- menu items -->
+        <div class="collapse navbar-collapse" id="navbar1">
+            <ul class="nav navbar-nav navbar-right">
+                <li><a href="login.php">Login</a></li>
+                <li class="active"><a href="register.php">Sign Up</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
 
 <div class="container">
     <div class="row">
@@ -93,11 +116,12 @@ if (isset($_POST['signup'])) {
         </div>
     </div>
     <div class="row">
-        <div>
+        <div class="col-md-4 col-md-offset-4 text-center">
         Already Registered? <a href="login.php">Login Here</a>
         </div>
     </div>
 </div>
-
+<script src="js/jquery-1.10.2.js"></script>
+<script src="js/bootstrap.min.js"></script>
 </body>
 </html>
