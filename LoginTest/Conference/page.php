@@ -1,7 +1,13 @@
 <?php
+//session_start();
+//include_once '../dbconnect.php';
+
   session_start();
-  include_once '../dbconnect.php';
+  if(!isset($_SESSION['usr_name'])){
+     header("Location:../login.php");
+  }
 ?>
+
 
 <!DOCTYPE html>
 <html>
@@ -37,6 +43,21 @@
 
 
     <body id="body">
+
+      <!-- Session info and logout option -->
+      <ul>
+          <?php if (isset($_SESSION['usr_id'])) { ?>
+          <li><p>Signed in as <?php echo $_SESSION['usr_name']; ?></p></li>
+          <li><a href="../logout.php">Log Out</a></li>
+          <?php } else { ?>
+          <li><a href="../login.php">Login</a></li>
+          <li><a href="../register.php">Sign Up</a></li>
+          <?php } ?>
+      </ul>
+
+
+
+
         <h2 id="title">Start a room</h2>
         <!--
           <button id="screenShareButton"></button>
@@ -122,16 +143,7 @@
         <script src='page.js'></script>
 
 
-        <!-- Session info and logout option -->
-        <ul>
-            <?php if (isset($_SESSION['usr_id'])) { ?>
-            <li><p>Signed in as <?php echo $_SESSION['usr_name']; ?></p></li>
-            <li><a href="logout.php">Log Out</a></li>
-            <?php } else { ?>
-            <li><a href="login.php">Login</a></li>
-            <li><a href="register.php">Sign Up</a></li>
-            <?php } ?>
-        </ul>
+
 
 
 
