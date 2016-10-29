@@ -22,7 +22,7 @@ CREATE TABLE Sessions (
 
 -- Contacts(Friends)
 CREATE TABLE Contacts (
-    id int NOT NULL,
+    id int NOT NULL AUTO_INCREMENT,
     accountId int NOT NULL,
     accountId2 int NOT NULL,
     groupId int,                                     /* Group id for two users' chat */
