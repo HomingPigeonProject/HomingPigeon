@@ -5,6 +5,9 @@ var async = require('async');
 var dbManager = require('./dbManager');
 var session = require('./session');
 var contact = require('./contact');
+var group = require('./group');
+var chat = require('./chat');
+var event = require('./event');
 
 // initialize server
 var app = require('express')();
@@ -30,6 +33,7 @@ io.on('connection', function(user) {
 	
 	session.init(user);
 	contact.init(user);
+	group.init(user);
 	
 });
 

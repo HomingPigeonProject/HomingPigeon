@@ -45,17 +45,30 @@ var queries = {
 			"UNION " + 
 			"(SELECT c.id, a.email, a.nickname, a.picture, a.login, c.groupId " + 
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
-			"WHERE c.accountId = ? and a.id = ?)) result ",
+			"WHERE c.accountId = ? and a.id = ?)) result " +
+			"ORDER BY result.nickname",
 	
-	getGroupListByUser: "SELECT g.id, g.name " +
+	getGroupListByUser: "SELECT g.id, g.name, g.alias, " +
+			"g.nbMembers, max(m.date) as lastMessageDate " +
+			"FROM Messages m RIGHT JOIN " +
+			"(SELECT g.id, g.name, g.alias, count(*) as nbMembers " +
+			"FROM GroupMembers gm INNER JOIN " +
+			"(SELECT g.id, g.name, gm.alias " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
-			"WHERE gm.accountId = ?",
-	
+			"WHERE gm.accountId = ? " +
+			"LOCK IN SHARE MODE) g on g.id = gm.groupId " +
+			"GROUP BY g.id " +
+			"LOCK IN SHARE MODE) g on g.id = m.groupId " +
+			"GROUP BY g.id " +
+			"ORDER BY lastMessageDate desc",
+			
 	getGroupMembers: "SELECT a.id, a.email, a.nickname, a.picture, a.login " +
 			"FROM Accounts a INNER JOIN " +
 			"(SELECT gm.accountId, gm.ackStart, gm.ackMessageId " +
-			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId" +
-			"WHERE g.id = ?) m ON a.id = m.accountId",
+			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
+			"WHERE g.id = ? " +
+			"LOCK IN SHARE MODE) m ON a.id = m.accountId " +
+			"LOCK IN SHARE MODE",
 	
 	getGroupMemberNumber: "SELECT count(*) " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
@@ -76,7 +89,7 @@ var queries = {
 			
 	getEventParticipantNumber: "SELECT nbParticipants FROM Events WHERE id = ?",
 			
-	addUser: "INSERT INTO Accounts(email, password, login) VALUES(?)",
+	addUser: "INSERT INTO Accounts(email, password, login, nickname) VALUES(?)",
 	
 	addSession: "INSERT INTO Sessions(sessionId, accountId, expire) VALUES(?)",
 	
@@ -92,7 +105,20 @@ var queries = {
 	
 	addEventParticipant: "INSERT INTO EventParticipants SET ?",
 	
-	deleteUser: "DELETE FROM Accounts WHERE email = ?"
+	removeUser: "DELETE FROM Accounts WHERE email = ?",
+		
+	removeContact: "DELETE FROM Contacts " +
+			"WHERE (accountId = ? and accountId2 = ?) or (accountId2 = ? and accountId = ?)",
+	
+	removeGroup: "DELETE FROM Groups WHERE id = ? ",
+	
+	removeGroupMember: "DELETE FROM GroupMembers WHERE accountId = ? ",
+		
+	removeEvent: "DELETE FROM Events WHERE id = ? ",
+	
+	removeEventParticipant: "DELETE FROM EventParticipants WHERE accountId = ? ",
+	
+	lastInsertId: "SELECT LAST_INSERT_ID() as lastInsertId"
 };
 
 // db operations
@@ -112,43 +138,46 @@ var dbPrototype = {
 	query: function(query, args, callback) {
 		this.conn.query(query, args, callback);
 	},
-	getUserByEmail: function(email, callback) {
-		this.conn.query(queries.getUserByEmail, [email], callback);
+	getUserByEmail: function(data, callback) {
+		this.conn.query(queries.getUserByEmail, [data.email], callback);
 	},
-	getUserBySession: function (session, callback) {
-		this.conn.query(queries.getUserBySession, [session], callback);
+	getUserBySession: function (data, callback) {
+		this.conn.query(queries.getUserBySession, [data.sessionId], callback);
 	},
-	getContactListByUser: function (userId, callback) {
-		this.conn.query(queries.getContactListByUser, [userId, userId], callback);
+	getContactListByUser: function (data, callback) {
+		this.conn.query(queries.getContactListByUser, 
+				[data.userId, data.userId], callback);
 	},
 	// get info of userId2 contacted by userId 
-	getContact: function (userId, userId2, callback) {
-		this.conn.query(queries.getContact, [userId, userId2, userId, userId2], callback);
+	getContact: function (data, callback) {
+		this.conn.query(queries.getContact, 
+				[data.userId, data.userId2, data.userId, data.userId2], 
+				callback);
 	},
-	getGroupListByUser: function (userId, callback) {
-		this.conn.query(queries.getGroupListByUser, [userId], callback);
+	getGroupListByUser: function (data, callback) {
+		this.conn.query(queries.getGroupListByUser, [data.userId], callback);
 	},
-	getGroupMembers: function (groupId, callback) {
-		this.conn.query(queries.getGroupMembers, [groupId], callback);
+	getGroupMembers: function (data, callback) {
+		this.conn.query(queries.getGroupMembers, [data.groupId], callback);
 	},
-	getGroupMemberNumber: function (groupId, callback) {
-		this.conn.query(queries.getGroupMembers, [groupId], callback);
+	getGroupMemberNumber: function (data, callback) {
+		this.conn.query(queries.getGroupMembers, [data.groupId], callback);
 	},
-	getEventById: function (eventId, callback) {
-		this.conn.query(queries.getEventById, [eventId], callback);
+	getEventById: function (data, callback) {
+		this.conn.query(queries.getEventById, [data.eventId], callback);
 	},
-	getEventListByUser: function (userId, callback) {
-		this.conn.query(queries.getEventListByUser, [userId], callback);
+	getEventListByUser: function (data, callback) {
+		this.conn.query(queries.getEventListByUser, [data.userId], callback);
 	},
-	getEventParticipants: function (eventId, callback) {
-		this.conn.query(queries.getEventParticipants, [eventId], callback);
+	getEventParticipants: function (data, callback) {
+		this.conn.query(queries.getEventParticipants, [data.eventId], callback);
 	},
-	getEventParticipantNumber: function (eventId, callback) {
-		this.conn.query(queries.getEventParticipantNumber, [eventId], callback);
+	getEventParticipantNumber: function (data, callback) {
+		this.conn.query(queries.getEventParticipantNumber, [data.eventId], callback);
 	},
 	addUser: function(data, callback)  {
 		this.conn.query(queries.addUser, 
-				[[data.email, data.password, 'NO']], callback);
+				[[data.email, data.password, 'NO', data.nickname]], callback);
 	},
 	addSession: function(data, callback)  {
 		this.conn.query(queries.addSession, 
@@ -184,9 +213,17 @@ var dbPrototype = {
 				{eventId:data.eventId, accountId:data.accountId, 
 			status:data.status}, callback);
 	},
-	deleteUser: function(email, callback)  {
-		this.conn.query(queries.deleteUser, [email], callback);
-	}
+	removeUser: function(data, callback)  {
+		this.conn.query(queries.removeUser, [data.email], callback);
+	},
+	removeContact: function(data, callback)  {
+		this.conn.query(queries.removeContact, 
+				[data.accountId, data.accountId2, data.accountId, data.accountId2], 
+				callback);
+	},
+	lastInsertId: function(callback)  {
+		this.conn.query(queries.lastInsertId, callback);
+	},
 };
 
 function db() {
@@ -233,7 +270,7 @@ if (require.main == module) {
 					throw err;
 				}
 				console.log('insert an account');
-				conn.addUser({email:'a030603@kaist.ac.kr', password:'1234567890'}, function(err, result) {
+				conn.addUser({email:'test@kaist.ac.kr', password:'1234567890', nickname: 'test'}, function(err, result) {
 					if(err) {
 						conn.rollback(function() {
 							conn.release();
@@ -241,7 +278,7 @@ if (require.main == module) {
 						});
 					}
 					console.log('select account');
-					conn.getUserByEmail('a030603@kaist.ac.kr', function(err, result) {
+					conn.getUserByEmail({email:'test@kaist.ac.kr'}, function(err, result) {
 						if(err) {
 							conn.rollback(function() {
 								conn.release();
@@ -253,7 +290,7 @@ if (require.main == module) {
 							console.log('pwd: ' + result[i].password + '(' + typeof result[i].password + ')');
 						}
 						console.log('delete account');
-						conn.deleteUser('a030603@kaist.ac.kr', function(err, result) {
+						conn.removeUser({email:'test@kaist.ac.kr'}, function(err, result) {
 							if(err) {
 								conn.rollback(function() {
 									conn.release();
@@ -295,10 +332,10 @@ if (require.main == module) {
 				connection.beginTransaction(callback);
 			},
 			function(result, fields, callback) {
-				connection.addUser({email:'a030603@kaist.ac.kr', password:'1234567890'}, callback);
+				connection.addUser({email:'test@kaist.ac.kr', password:'1234567890', nickname: 'test'}, callback);
 			},
 			function(result, fields, callback) {
-				connection.getUserByEmail('a030603@kaist.ac.kr', callback);
+				connection.getUserByEmail({email:'test@kaist.ac.kr'}, callback);
 			},
 			function(result, fields, callback) {
 				for (var i = 0; i < result.length; i++) {
@@ -308,7 +345,7 @@ if (require.main == module) {
 				callback(null);
 			},
 			function(callback) {
-				connection.deleteUser('a030603@kaist.ac.kr', callback);
+				connection.removeUser({email:'test@kaist.ac.kr'}, callback);
 			},
 			function(result, fields, callback) {
 				connection.commit(callback);

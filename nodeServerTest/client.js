@@ -1,11 +1,14 @@
 var logined = false;
+var server = io.connect('http://localhost:4000');
 window.addEventListener('load', function() {
-	var server = io.connect('http://localhost:4000');
+	var controlDiv = document.getElementById('control');
+	
 	server.on('connect', function() {
 		console.log('connected to server');
 	});
 	server.on('reconnect', function() {
 		console.log('reconnected to server');
+		reset();
 	});
 	server.on('login', function(data) {
 		console.log(data);
@@ -13,15 +16,16 @@ window.addEventListener('load', function() {
 			console.log(data['data']);
 			$('#loginStatus').text('status : logined');
 			logined = true;
-			$('body').append("<button id='contactList' type='button'>get contact list</button>");
+			$('#control').append("<button id='contactList' type='button'>get contact list</button>");
 			$('#contactList').click(function() {
 				server.emit('getContactList');
 			});
 			
 			// create contact list manage panel
 			var contactForm = document.createElement('form');
-			var contactInput= document.createElement('input');
+			var contactInput = document.createElement('input');
 			var contactAddButton = document.createElement('button');
+			var contactRemoveButton = document.createElement('button');
 			contactForm.action = 'javascript:void(0);';
 			contactInput.id = 'contactInput';
 			contactInput.placeholder = 'put contact email';
@@ -29,28 +33,114 @@ window.addEventListener('load', function() {
 			contactAddButton.id = 'contactAddButton';
 			contactAddButton.type = 'button';
 			contactAddButton.innerHTML = 'add contact';
+			contactRemoveButton.id = 'contactRemoveButton';
+			contactRemoveButton.type = 'button';
+			contactRemoveButton.innerHTML = 'remove contact';
 			contactForm.appendChild(contactInput);
 			contactForm.appendChild(contactAddButton);
-			document.body.appendChild(contactForm);
+			contactForm.appendChild(contactRemoveButton);
+			
+			var groupListButton = document.createElement('button');
+			groupListButton.id = 'groupListButton';
+			groupListButton.type = 'button';
+			groupListButton.innerHTML = 'get group list';
+			
+			var groupForm = document.createElement('form');
+			var groupNameInput = document.createElement('input');
+			var memberNameInput = document.createElement('input');
+			var groupAddButton = document.createElement('button');
+			var inviteMemberButton = document.createElement('button');
+			groupNameInput.id = 'groupNameInput';
+			groupNameInput.placeholder = 'put group name';
+			groupNameInput.type = 'text';
+			memberNameInput.id = 'memberNameInput';
+			memberNameInput.placeholder = 'put member name(a, b, c)';
+			memberNameInput.type = 'text';
+			groupAddButton.id = 'groupAddButton';
+			groupAddButton.type = 'button';
+			groupAddButton.innerHTML = 'add group';
+			inviteMemberButton.id = 'inviteMemberButton';
+			inviteMemberButton.type = 'button';
+			inviteMemberButton.innerHTML = 'invite contacts';
+			
+			groupForm.appendChild(groupNameInput);
+			groupForm.appendChild(memberNameInput);
+			groupForm.appendChild(groupAddButton);
+			groupForm.appendChild(inviteMemberButton);
+			
+			controlDiv.appendChild(contactForm);
+			controlDiv.appendChild(groupListButton);
+			controlDiv.appendChild(groupForm);
+			
 			$('#contactAddButton').click(function() {
 				server.emit('addContact', { email: $('#contactInput').val() });
 			});
-			server.on('addedContact', function(data) {
-				if (data.status == 'success') {
-					console.log('added contact!');
-				} else {
-					console.log('failed to add contact...');
-				}
+			$('#contactRemoveButton').click(function() {
+				server.emit('removeContact', { email: $('#contactInput').val() });
 			});
-			
-			// TODO: create contact list panel
+			$('#groupListButton').click(function() {
+				server.emit('getGroupList');
+			});
+			$('#groupAddButton').click(function() {
+				var members = $('#memberNameInput').val().split(',');
+				for (var i = 0; i < members.length; i++) 
+					members[i] = members[i].trim();
+				
+				server.emit('addGroup', {name: $('#groupNameInput').val(), 
+					members: members});
+			});
 		} 
 	});
-	server.on('contactList', function(data) {
-		console.log(data);
+	
+	server.on('addGroup', function(data) {
+		if (data.status == 'success') {
+			console.log('added group!');
+			console.log(data);
+		} else {
+			console.log('failed to add group...');
+		}
 	});
+	server.on('addContact', function(data) {
+		if (data.status == 'success') {
+			console.log('added contact!');
+		} else {
+			console.log('failed to add contact...');
+		}
+	});
+	server.on('removeContact', function(data) {
+		if (data.status == 'success') {
+			console.log('removed contact!');
+		} else {
+			console.log('failed to remove contact...');
+		}
+	});
+	
+	server.on('getGroupList', function(data) {
+		if (data.status == 'success') {
+			console.log(data);
+		} else {
+			console.log('failed to get group list...');
+		}
+	});
+	// TODO: create contact list panel
+	server.on('getContactList', function(data) {
+		if (data.status == 'success')
+			console.log(data.contacts);
+	});
+	
+	reset();
+});
+
+function reset() {
+	$('#control').html("<label id='loginStatus'>status : not logined</label>\
+			<form id='sessionLogin' action='javascript:void(0);'>\
+			<input id='sessionId' type='text' placeholder='put your session id'></input>\
+			<button type='submit'>session login</button>\
+			</form>");
+	logined = false;
+	
 	$('#sessionLogin').submit(function() {
 		if (!logined)
 			server.emit('login', {sessionId: $('#sessionId').val()});
 	});
-});
+}

@@ -1,6 +1,6 @@
 /** 
  * User login management
- * users at first must send their session id to login   
+ * users at first must send their session id to login
  */
 var dbManager = require('./dbManager');
 var async = require('async');
@@ -26,7 +26,7 @@ function init(user) {
 			},
 			function(result, callback) {
 				db = result;
-				db.getUserBySession(data.sessionId, callback);
+				db.getUserBySession({sessionId: data.sessionId}, callback);
 			}
 		],
 		function(err, result) {

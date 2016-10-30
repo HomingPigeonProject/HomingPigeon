@@ -32,7 +32,7 @@ CREATE TABLE Contacts (
 -- Group
 CREATE TABLE Groups (
     id int NOT NULL AUTO_INCREMENT,
-    name varchar(24) DEFAULT NULL,                   /* Group name */
+    name varchar(128) DEFAULT NULL,                   /* Group name */
     CONSTRAINT Groups_pk PRIMARY KEY (id)
 );
 
@@ -42,6 +42,7 @@ CREATE TABLE GroupMembers (
     accountId int NOT NULL,
     ackStart int NOT NULL,                          /* the member start read from this message id */
     ackMessageId int DEFAULT NULL,                  /* the member have read until this message id */
+    alias varchar(128) DEFAULT NULL,                /* group alias for the user */
     CONSTRAINT GroupsMembers_pk PRIMARY KEY (groupId, accountId)
 );
 
@@ -105,7 +106,7 @@ ALTER TABLE Contacts ADD CONSTRAINT Contacts_Accounts2 FOREIGN KEY (accountId2)
 ALTER TABLE Contacts ADD CONSTRAINT Contacts_Group_Id FOREIGN KEY (groupId)
     REFERENCES Groups (id) ON UPDATE CASCADE ON DELETE CASCADE;
 
--- Groups
+-- GroupMembers
 ALTER TABLE GroupMembers ADD INDEX GroupMembers_Accounts_Groups (accountId, groupId);
 
 ALTER TABLE GroupMembers ADD CONSTRAINT GroupMembers_Group_Id FOREIGN KEY (groupId)
@@ -115,7 +116,7 @@ ALTER TABLE GroupMembers ADD CONSTRAINT GroupMembers_Account_Id FOREIGN KEY (acc
     REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
 -- Messages
-ALTER TABLE Messages ADD INDEX Messages_Timestamp_Id (groupId, date, id);
+ALTER TABLE Messages ADD INDEX Messages_Timestamp_Group_Id (groupId, date, id);
 
 ALTER TABLE Messages ADD CONSTRAINT Messages_Accounts FOREIGN KEY (accountId) 
     REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
