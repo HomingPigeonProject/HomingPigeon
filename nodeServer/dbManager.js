@@ -10,7 +10,8 @@ var pool = mysql.createPool({
     password : 'HomingPigeon0!',
     database:'HomingPigeon',
     connectionLimit:64,
-    waitForConnections:true
+    waitForConnections:true,
+    acquireTimeout:60000
 });
 
 // this is called before connection is used
@@ -29,13 +30,22 @@ var queries = {
 			
 	getContactListByUser: "SELECT * " +
 			"FROM ((SELECT c.id, a.email, a.nickname, a.picture, a.login, c.groupId " +
-			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId" +
+			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId " +
 			"WHERE c.accountId2 = ?) " +
 			"UNION " +
-			"(SELECT a.email, a.nickname, a.picture, a.login, c.groupId" +
+			"(SELECT c.id, a.email, a.nickname, a.picture, a.login, c.groupId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
 			"WHERE c.accountId = ?)) result " +
 			"ORDER BY result.nickname",
+			
+	getContact: "SELECT * " +
+			"FROM ((SELECT c.id, a.email, a.nickname, a.picture, a.login, c.groupId " + 
+			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId " +
+			"WHERE c.accountId2 = ? and a.id = ?) " + 
+			"UNION " + 
+			"(SELECT c.id, a.email, a.nickname, a.picture, a.login, c.groupId " + 
+			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
+			"WHERE c.accountId = ? and a.id = ?)) result ",
 	
 	getGroupListByUser: "SELECT g.id, g.name " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
@@ -61,7 +71,7 @@ var queries = {
 	getEventParticipants: "SELECT a.id, a.email, a.nickname, a.picture, a.login " +
 			"FROM Accounts a INNER JOIN " +
 			"(SELECT ep.accountId, ep.status " +
-			"FROM Events e INNER JOIN EventParticipants ep ON e.id = ep.eventId" +
+			"FROM Events e INNER JOIN EventParticipants ep ON e.id = ep.eventId " +
 			"WHERE e.id = ?) p ON a.id = p.accountId",
 			
 	getEventParticipantNumber: "SELECT nbParticipants FROM Events WHERE id = ?",
@@ -70,17 +80,17 @@ var queries = {
 	
 	addSession: "INSERT INTO Sessions(sessionId, accountId, expire) VALUES(?)",
 	
-	addContact: "INSERT INTO Contacts(accountId, accountId2) SET ?",
+	addContact: "INSERT INTO Contacts SET ?",
 	
-	addGroup: "INSERT INTO Groups(name) SET ?",
+	addGroup: "INSERT INTO Groups SET ?",
 	
-	addGroupMember: "INSERT INTO GroupMembers(groupId, accountId, ackStart) SET ?",
+	addGroupMember: "INSERT INTO GroupMembers SET ?",
 	
-	addMessage: "INSERT INTO Messages(groupId, accountId, nbread, importance, content, location) SET ?",
+	addMessage: "INSERT INTO Messages SET ?",
 	
-	addEvent: "INSERT INTO Events(nbParticipants, nbParticipantsMax, length, date, description, groupId) SET ?",
+	addEvent: "INSERT INTO Events SET ?",
 	
-	addEventParticipant: "INSERT INTO EventParticipants(eventId, accountId, status) SET ?",
+	addEventParticipant: "INSERT INTO EventParticipants SET ?",
 	
 	deleteUser: "DELETE FROM Accounts WHERE email = ?"
 };
@@ -109,7 +119,11 @@ var dbPrototype = {
 		this.conn.query(queries.getUserBySession, [session], callback);
 	},
 	getContactListByUser: function (userId, callback) {
-		this.conn.query(queries.getContactListByUser, [userId], callback);
+		this.conn.query(queries.getContactListByUser, [userId, userId], callback);
+	},
+	// get info of userId2 contacted by userId 
+	getContact: function (userId, userId2, callback) {
+		this.conn.query(queries.getContact, [userId, userId2, userId, userId2], callback);
 	},
 	getGroupListByUser: function (userId, callback) {
 		this.conn.query(queries.getGroupListByUser, [userId], callback);
@@ -304,19 +318,20 @@ if (require.main == module) {
 			}
 		],
 		function(err, results) {
-			try {
-				if (err) {
-					if (connection) {
-						connection.rollback(function() {
-							console.log('rolled back');
-						});
-					}
-					throw err;
-				}
-			} finally {
+			if (err) {
 				if (connection) {
-					connection.release();
+					connection.rollback(function() {
+						console.log('rolled back');
+						if (connection) {
+							connection.release();
+						}
+						process.exit();
+					});
 				}
+				throw err;
+			}
+			if (connection) {
+				connection.release();
 			}
 			process.exit();
 		});
