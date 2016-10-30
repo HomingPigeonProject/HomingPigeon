@@ -55,6 +55,7 @@
           <?php } ?>
       </ul>
 
+      <a href="anotherpage.php">anotherpage</a>
 
 
 
