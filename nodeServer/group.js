@@ -140,78 +140,78 @@ function init(user) {
 			user.emit('addGroup', {status: 'success', 
 				groups: {groupId: groupId, name: data.name, members: members}});
 		});
+	});
+	
+	// invite contacts to group
+	user.on('inviteGroupMembers', function(data) {
+		if (!session.validateRequest('inviteGroupMembers', user, true, data))
+			return;
 		
-		// invite contacts to group
-		user.on('inviteGroupMembers', function(data) {
-			if (!session.validateRequest('inviteGroupMembers', user, true, data))
-				return;
-			
-			var db, groupId, members;
-			async.waterfall([
-				function(callback) {
-					dbManager.getConnection(callback);
-				},
-				function(result, callback) {
-					db = result;
-					db.beginTransaction(callback);
-				},
-				function(result, fields, callback) {
-					members = data.members;
-					groupId = data.groupId;
-					
-					// members should be array
-					if (isArray(members)) {
-						addMembers(db, groupId, user, members, callback);
-					} else {
-						callback(new Error('not array'));
-					}
-				},
-			],
-			function(err, addedMembers) {
-				if (err) {
-					if (db) {
-						db.rollback(function() {
-							db.release();
-						});
-					}
-					console.log('failed to invite users to group\r\n' + err);
-					return user.emit('inviteGroupMembers', {status: 'fail', errorMsg:'server error'});
+		var db, groupId, members;
+		async.waterfall([
+			function(callback) {
+				dbManager.getConnection(callback);
+			},
+			function(result, callback) {
+				db = result;
+				db.beginTransaction(callback);
+			},
+			function(result, fields, callback) {
+				members = data.members;
+				groupId = data.groupId;
+				
+				// members should be array
+				if (isArray(members)) {
+					addMembers(db, groupId, user, members, callback);
+				} else {
+					callback(new Error('not array'));
 				}
-				if (db)
-					db.release();
-				members = addedMembers;
-				user.emit('inviteGroupMembers', {status: 'success', groupId: groupId, members: members});
-			});
+			},
+		],
+		function(err, addedMembers) {
+			if (err) {
+				if (db) {
+					db.rollback(function() {
+						db.release();
+					});
+				}
+				console.log('failed to invite users to group\r\n' + err);
+				return user.emit('inviteGroupMembers', {status: 'fail', errorMsg:'server error'});
+			}
+			if (db)
+				db.release();
+			members = addedMembers;
+			user.emit('inviteGroupMembers', {status: 'success', groupId: groupId, members: members});
 		});
+	});
+	
+	// the user exit from group
+	user.on('exitGroup', function(data) {
+		if (!session.validateRequest('exitGroup', user, true, data))
+			return;
 		
-		// the user exit from group
-		user.on('exitGroup', function(data) {
-			if (!session.validateRequest('exitGroup', user, true, data))
-				return;
-			
-			var db;
-			async.waterfall([
-				function(callback) {
-					dbManager.getConnection(callback);
-				},
-				function(result, callback) {
-					db = result;
-					db.removeGroupMember({groupId: data.groupId, userId: user.userId}, callback);
-				},
-			],
-			function(err, result) {
-				if (db)
-					db.release();
-				if (err) {
-					console.log('failed to exit from group\r\n' + err);
-					return user.emit('exitGroup', {status: 'fail', errorMsg:'server error'});
-				}
-				if (result.affectedRows == 0) {
-					console.log('user is already not in group');
-					return user.emit('exitGroup', {status: 'fail', errorMsg:'you are not group member'});
-				}
-				user.emit('exitGroup', {status: 'success', groupId: data.groupId});
-			});
+		var db;
+		async.waterfall([
+			function(callback) {
+				dbManager.getConnection(callback);
+			},
+			function(result, callback) {
+				db = result;
+				db.removeGroupMember({groupId: data.groupId, userId: user.userId}, callback);
+			},
+		],
+		function(err, result) {
+			if (db)
+				db.release();
+			if (err) {
+				console.log('failed to exit from group\r\n' + err);
+				return user.emit('exitGroup', {status: 'fail', errorMsg:'server error'});
+			}
+			if (result.affectedRows == 0) {
+				console.log('user is already not in group');
+				return user.emit('exitGroup', {status: 'fail', errorMsg:'you are not group member'});
+			}
+			user.emit('exitGroup', {status: 'success', groupId: data.groupId});
 		});
 	});
 }
