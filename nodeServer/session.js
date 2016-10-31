@@ -66,6 +66,27 @@ function logined(user) {
 	return false;
 }
 
+function validateData(data) {
+	if (data === undefined ||
+			data === null)
+		return false;
+	return true;
+}
+
+function validateRequest(name, user, needData, data) {
+	if (!logined(user)) {
+		user.emit(name, {status: 'fail', errorMsg: 'login before request'});
+		return false;
+	}
+	if (needData && !validateData(data)) {
+		user.emit(name, {status: 'fail', errorMsg: 'no argument'});
+		return false;
+	}
+	return true;
+}
+
 module.exports = {init: init,
 		userState: userState,
-		logined: logined};
+		logined: logined,
+		validateData: validateData,
+		validateRequest: validateRequest};

@@ -42,7 +42,7 @@ CREATE TABLE GroupMembers (
     accountId int NOT NULL,
     ackStart int NOT NULL,                          /* the member start read from this message id */
     ackMessageId int DEFAULT NULL,                  /* the member have read until this message id */
-    alias varchar(128) DEFAULT NULL,                /* group alias for the user */
+    alias varchar(128) DEFAULT NULL,                /* group alias only seen by the user instead of group name */
     CONSTRAINT GroupsMembers_pk PRIMARY KEY (groupId, accountId)
 );
 
@@ -56,6 +56,7 @@ CREATE TABLE Messages (
     importance decimal(1) NOT NULL DEFAULT 0,        /* 0: Normal, 1: Important, 2: Very Important */
     content text NOT NULL,
     location varchar(25),                            /* Location sharing */
+    leftGroup bit(1) DEFAULT 0,                      /* Left group? */
     CONSTRAINT Messages_pk PRIMARY KEY (id)
 );
 

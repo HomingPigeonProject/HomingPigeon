@@ -13,7 +13,6 @@ window.addEventListener('load', function() {
 	server.on('login', function(data) {
 		console.log(data);
 		if (data.status == 'success') {
-			console.log(data['data']);
 			$('#loginStatus').text('status : logined');
 			logined = true;
 			$('#control').append("<button id='contactList' type='button'>get contact list</button>");
@@ -50,8 +49,9 @@ window.addEventListener('load', function() {
 			var memberNameInput = document.createElement('input');
 			var groupAddButton = document.createElement('button');
 			var inviteMemberButton = document.createElement('button');
+			var exitGroupButton = document.createElement('button');
 			groupNameInput.id = 'groupNameInput';
-			groupNameInput.placeholder = 'put group name';
+			groupNameInput.placeholder = 'put group name or id';
 			groupNameInput.type = 'text';
 			memberNameInput.id = 'memberNameInput';
 			memberNameInput.placeholder = 'put member name(a, b, c)';
@@ -62,11 +62,15 @@ window.addEventListener('load', function() {
 			inviteMemberButton.id = 'inviteMemberButton';
 			inviteMemberButton.type = 'button';
 			inviteMemberButton.innerHTML = 'invite contacts';
+			exitGroupButton.id = 'exitGroupButton';
+			exitGroupButton.type = 'button';
+			exitGroupButton.innerHTML = 'exit group';
 			
 			groupForm.appendChild(groupNameInput);
 			groupForm.appendChild(memberNameInput);
 			groupForm.appendChild(groupAddButton);
 			groupForm.appendChild(inviteMemberButton);
+			groupForm.appendChild(exitGroupButton);
 			
 			controlDiv.appendChild(contactForm);
 			controlDiv.appendChild(groupListButton);
@@ -89,9 +93,35 @@ window.addEventListener('load', function() {
 				server.emit('addGroup', {name: $('#groupNameInput').val(), 
 					members: members});
 			});
+			$('#inviteMemberButton').click(function() {
+				var members = $('#memberNameInput').val().split(',');
+				for (var i = 0; i < members.length; i++) 
+					members[i] = members[i].trim();
+				
+				server.emit('inviteGroupMembers', {groupId: $('#groupNameInput').val(), 
+					members: members});
+			});
+			$('#exitGroupButton').click(function() {
+				server.emit('exitGroup', {groupId: $('#groupNameInput').val()});
+			});
 		} 
 	});
-	
+	server.on('exitGroup', function(data) {
+		if (data.status == 'success') {
+			console.log('exited group!');
+			console.log(data);
+		} else {
+			console.log('failed to exit group...');
+		}
+	});
+	server.on('inviteGroupMembers', function(data) {
+		if (data.status == 'success') {
+			console.log('invited group members!');
+			console.log(data);
+		} else {
+			console.log('failed to invite group members...');
+		}
+	});
 	server.on('addGroup', function(data) {
 		if (data.status == 'success') {
 			console.log('added group!');
@@ -103,6 +133,7 @@ window.addEventListener('load', function() {
 	server.on('addContact', function(data) {
 		if (data.status == 'success') {
 			console.log('added contact!');
+			console.log(data);
 		} else {
 			console.log('failed to add contact...');
 		}
@@ -110,6 +141,7 @@ window.addEventListener('load', function() {
 	server.on('removeContact', function(data) {
 		if (data.status == 'success') {
 			console.log('removed contact!');
+			console.log(data);
 		} else {
 			console.log('failed to remove contact...');
 		}
@@ -125,7 +157,7 @@ window.addEventListener('load', function() {
 	// TODO: create contact list panel
 	server.on('getContactList', function(data) {
 		if (data.status == 'success')
-			console.log(data.contacts);
+			console.log(data);
 	});
 	
 	reset();

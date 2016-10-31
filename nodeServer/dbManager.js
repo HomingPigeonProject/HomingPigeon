@@ -22,11 +22,11 @@ pool.on('connection', function (connection) {
 
 // sql queries
 var queries = {
-	getUserByEmail: "SELECT * FROM Accounts WHERE email = ?",
+	getUserByEmail: "SELECT * FROM Accounts WHERE email = ? ",
 	
 	getUserBySession: "SELECT * " +
 			"FROM Accounts INNER JOIN Sessions ON Accounts.id = Sessions.accountId " +
-			"where sessionId = ?",
+			"where sessionId = ? ",
 			
 	getContactListByUser: "SELECT * " +
 			"FROM ((SELECT c.id, a.email, a.nickname, a.picture, a.login, c.groupId " +
@@ -36,7 +36,7 @@ var queries = {
 			"(SELECT c.id, a.email, a.nickname, a.picture, a.login, c.groupId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
 			"WHERE c.accountId = ?)) result " +
-			"ORDER BY result.nickname",
+			"ORDER BY result.nickname ",
 			
 	getContact: "SELECT * " +
 			"FROM ((SELECT c.id, a.email, a.nickname, a.picture, a.login, c.groupId " + 
@@ -46,7 +46,7 @@ var queries = {
 			"(SELECT c.id, a.email, a.nickname, a.picture, a.login, c.groupId " + 
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
 			"WHERE c.accountId = ? and a.id = ?)) result " +
-			"ORDER BY result.nickname",
+			"ORDER BY result.nickname ",
 	
 	getGroupListByUser: "SELECT g.id, g.name, g.alias, " +
 			"g.nbMembers, max(m.date) as lastMessageDate " +
@@ -60,7 +60,10 @@ var queries = {
 			"GROUP BY g.id " +
 			"LOCK IN SHARE MODE) g on g.id = m.groupId " +
 			"GROUP BY g.id " +
-			"ORDER BY lastMessageDate desc",
+			"ORDER BY lastMessageDate desc ",
+			
+	getGroupMember: "SELECT * FROM GroupMembers " +
+			"WHERE groupId = ? and accountId = ? ",
 			
 	getGroupMembers: "SELECT a.id, a.email, a.nickname, a.picture, a.login " +
 			"FROM Accounts a INNER JOIN " +
@@ -68,26 +71,26 @@ var queries = {
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
 			"WHERE g.id = ? " +
 			"LOCK IN SHARE MODE) m ON a.id = m.accountId " +
-			"LOCK IN SHARE MODE",
+			"LOCK IN SHARE MODE ",
 	
 	getGroupMemberNumber: "SELECT count(*) " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
-			"WHERE g.groupId = ?",
+			"WHERE g.groupId = ? ",
 			
-	getEventById: "SELECT * FROM Events WHERE id = ?",
+	getEventById: "SELECT * FROM Events WHERE id = ? ",
 	
 	getEventListByUser: "SELECT e.id, e.nbParticipants, e.nbParticipantsMax, " +
 			"e.date, e.length, e.description, e.groupId " +
 			"FROM Events e INNER JOIN EventParticipants ep ON e.id = ep.eventId " +
-			"WHERE ep.accountId = ?",
+			"WHERE ep.accountId = ? ",
 			
 	getEventParticipants: "SELECT a.id, a.email, a.nickname, a.picture, a.login " +
 			"FROM Accounts a INNER JOIN " +
 			"(SELECT ep.accountId, ep.status " +
 			"FROM Events e INNER JOIN EventParticipants ep ON e.id = ep.eventId " +
-			"WHERE e.id = ?) p ON a.id = p.accountId",
+			"WHERE e.id = ?) p ON a.id = p.accountId ",
 			
-	getEventParticipantNumber: "SELECT nbParticipants FROM Events WHERE id = ?",
+	getEventParticipantNumber: "SELECT nbParticipants FROM Events WHERE id = ? ",
 			
 	addUser: "INSERT INTO Accounts(email, password, login, nickname) VALUES(?)",
 	
@@ -106,20 +109,30 @@ var queries = {
 	addEventParticipant: "INSERT INTO EventParticipants SET ?",
 	
 	removeUser: "DELETE FROM Accounts WHERE email = ?",
-		
+	
 	removeContact: "DELETE FROM Contacts " +
 			"WHERE (accountId = ? and accountId2 = ?) or (accountId2 = ? and accountId = ?)",
 	
 	removeGroup: "DELETE FROM Groups WHERE id = ? ",
 	
-	removeGroupMember: "DELETE FROM GroupMembers WHERE accountId = ? ",
+	removeGroupMember: "DELETE FROM GroupMembers WHERE groupId = ? and accountId = ? ",
 		
 	removeEvent: "DELETE FROM Events WHERE id = ? ",
 	
-	removeEventParticipant: "DELETE FROM EventParticipants WHERE accountId = ? ",
+	removeEventParticipant: "DELETE FROM EventParticipants WHERE eventId = ? and accountId = ? ",
 	
 	lastInsertId: "SELECT LAST_INSERT_ID() as lastInsertId"
 };
+
+var selectLock = function(query, data) {
+	if (data.hasOwnProperty('lock') && data.lock) {
+		return query + ' LOCK IN SHARE MODE';
+	}
+	if (data.hasOwnProperty('update') && data.update) {
+		return query + ' FOR UPDATE';
+	}
+	return query;
+}
 
 // db operations
 var dbPrototype = {
@@ -139,41 +152,55 @@ var dbPrototype = {
 		this.conn.query(query, args, callback);
 	},
 	getUserByEmail: function(data, callback) {
-		this.conn.query(queries.getUserByEmail, [data.email], callback);
+		this.conn.query(selectLock(queries.getUserByEmail, data), 
+				[data.email], callback);
 	},
 	getUserBySession: function (data, callback) {
-		this.conn.query(queries.getUserBySession, [data.sessionId], callback);
+		this.conn.query(selectLock(queries.getUserBySession, data), 
+				[data.sessionId], callback);
 	},
 	getContactListByUser: function (data, callback) {
-		this.conn.query(queries.getContactListByUser, 
+		this.conn.query(selectLock(queries.getContactListByUser, data), 
 				[data.userId, data.userId], callback);
 	},
 	// get info of userId2 contacted by userId 
 	getContact: function (data, callback) {
-		this.conn.query(queries.getContact, 
+		this.conn.query(selectLock(queries.getContact, data), 
 				[data.userId, data.userId2, data.userId, data.userId2], 
 				callback);
 	},
 	getGroupListByUser: function (data, callback) {
-		this.conn.query(queries.getGroupListByUser, [data.userId], callback);
+		this.conn.query(selectLock(queries.getGroupListByUser, data), 
+				[data.userId], callback);
+	},
+	getGroupMember: function (data, callback) {
+		this.conn.query(selectLock(queries.getGroupMember, data), 
+				[data.groupId, data.userId], 
+				callback);
 	},
 	getGroupMembers: function (data, callback) {
-		this.conn.query(queries.getGroupMembers, [data.groupId], callback);
+		this.conn.query(selectLock(queries.getGroupMembers, data), 
+				[data.groupId], callback);
 	},
 	getGroupMemberNumber: function (data, callback) {
-		this.conn.query(queries.getGroupMembers, [data.groupId], callback);
+		this.conn.query(selectLock(queries.getGroupMembers, data), 
+				[data.groupId], callback);
 	},
 	getEventById: function (data, callback) {
-		this.conn.query(queries.getEventById, [data.eventId], callback);
+		this.conn.query(selectLock(queries.getEventById, data), 
+				[data.eventId], callback);
 	},
 	getEventListByUser: function (data, callback) {
-		this.conn.query(queries.getEventListByUser, [data.userId], callback);
+		this.conn.query(selectLock(queries.getEventListByUser, data), 
+				[data.userId], callback);
 	},
 	getEventParticipants: function (data, callback) {
-		this.conn.query(queries.getEventParticipants, [data.eventId], callback);
+		this.conn.query(selectLock(queries.getEventParticipants, data), 
+				[data.eventId], callback);
 	},
 	getEventParticipantNumber: function (data, callback) {
-		this.conn.query(queries.getEventParticipantNumber, [data.eventId], callback);
+		this.conn.query(selectLock(queries.getEventParticipantNumber, data), 
+				[data.eventId], callback);
 	},
 	addUser: function(data, callback)  {
 		this.conn.query(queries.addUser, 
@@ -181,11 +208,11 @@ var dbPrototype = {
 	},
 	addSession: function(data, callback)  {
 		this.conn.query(queries.addSession, 
-				[[data.sessionId, data.accountId, data.expire]], callback);
+				[[data.sessionId, data.userId, data.expire]], callback);
 	},
 	addContact: function(data, callback)  {
 		this.conn.query(queries.addContact, 
-				{accountId:data.accountId, accountId2:data.accountId2}, callback);
+				{accountId:data.userId, accountId2:data.userId2}, callback);
 	},
 	addGroup: function(data, callback)  {
 		this.conn.query(queries.addGroup, 
@@ -193,12 +220,12 @@ var dbPrototype = {
 	},
 	addGroupMember: function(data, callback)  {
 		this.conn.query(queries.addGroupMember, 
-				{groupId:data.groupId, accountId:data.accountId, 
+				{groupId:data.groupId, accountId:data.userId, 
 			ackStart:data.ackStart}, callback);
 	},
 	addMessage: function(data, callback)  {
 		this.conn.query(queries.addMessage, 
-				{groupId:data.groupId, accountId:data.accountId, nbread:1, 
+				{groupId:data.groupId, accountId:data.userId, nbread:1, 
 			importance:data.importance, content:data.content, 
 			location:data.location}, callback);
 	},
@@ -210,7 +237,7 @@ var dbPrototype = {
 	},
 	addEventParticipant: function(data, callback)  {
 		this.conn.query(queries.addEventParticipant, 
-				{eventId:data.eventId, accountId:data.accountId, 
+				{eventId:data.eventId, accountId:data.userId, 
 			status:data.status}, callback);
 	},
 	removeUser: function(data, callback)  {
@@ -218,8 +245,22 @@ var dbPrototype = {
 	},
 	removeContact: function(data, callback)  {
 		this.conn.query(queries.removeContact, 
-				[data.accountId, data.accountId2, data.accountId, data.accountId2], 
+				[data.userId, data.userId2, data.userId, data.userId2], 
 				callback);
+	},
+	removeGroup: function(data, callback)  {
+		this.conn.query(queries.removeGroup, [data.groupId], callback);
+	},
+	removeGroupMember: function(data, callback)  {
+		this.conn.query(queries.removeGroupMember, 
+				[data.groupId, data.userId], callback);
+	},
+	removeEvent: function(data, callback)  {
+		this.conn.query(queries.removeEvent, [data.eventId], callback);
+	},
+	removeEventParticipant: function(data, callback)  {
+		this.conn.query(queries.removeEventParticipant, 
+				[data.eventId, data.userId], callback);
 	},
 	lastInsertId: function(callback)  {
 		this.conn.query(queries.lastInsertId, callback);
