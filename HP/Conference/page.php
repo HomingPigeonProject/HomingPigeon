@@ -85,6 +85,16 @@
             <div id="localVolume" class="volume_bar"></div>
         </div>
 
+        <!-- buttons -->
+        <div id="VideoButtons">
+          <button type="button" id="videoPause" onclick="pauseVideo()">Pause Video</button>
+          <button type="button" id="videoResume" onclick="resumeVideo()">Resume Video</button>
+        </div>
+        <div id="AudioButtons">
+          <button type="button" id="audioMute" onclick="muteAudio()">Mute Audio</button>
+          <button type="button" id="audioUnmute" onclick="unmuteAudio()">Unmute Audio</button>
+        </div>
+
         <!-- Remote Video(s) -->
         <div id="remotes"></div>
 

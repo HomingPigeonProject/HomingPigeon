@@ -35,11 +35,17 @@ if (isset($_POST['signup'])) {
         $cpassword_error = "Password and Confirm Password doesn't match";
     }
     if (!$error) {
+        /*
         if(mysqli_query($con, "INSERT INTO users(name,email,password) VALUES('" . $name . "', '" . $email . "', '" . md5($password) . "')")) {
+            $successmsg = "Successfully Registered! <a href='login.php'>Click here to Login</a>";
+        }
+        */
+        if(mysqli_query($con, "INSERT INTO Accounts(nickname,email,password) VALUES('" . $name . "', '" . $email . "', '" . md5($password) . "')")) {
             $successmsg = "Successfully Registered! <a href='login.php'>Click here to Login</a>";
         } else {
             $errormsg = "Error in registering...Please try again later!";
         }
+
     }
 }
 ?>

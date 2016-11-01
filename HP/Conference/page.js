@@ -56,6 +56,31 @@ var divUserName = document.getElementById("username");
 var username = divUserName.textContent;
 username = username.replace(/\s/g, "");
 
+/* Buttons */
+
+document.getElementById('videoResume').style.visibility = 'hidden';
+document.getElementById('audioUnmute').style.visibility = 'hidden';
+
+function pauseVideo() {
+  webrtc.pauseVideo();
+  document.getElementById('videoResume').style.visibility = 'visible';
+  document.getElementById('videoPause').style.visibility = 'hidden';
+}
+function resumeVideo() {
+  webrtc.resumeVideo();
+  document.getElementById('videoResume').style.visibility = 'hidden';
+  document.getElementById('videoPause').style.visibility = 'visible';
+}
+function muteAudio() {
+  webrtc.mute();
+  document.getElementById('audioUnmute').style.visibility = 'visible';
+  document.getElementById('audioMute').style.visibility = 'hidden';
+}
+function unmuteAudio() {
+  webrtc.unmute();
+  document.getElementById('audioUnmute').style.visibility = 'hidden';
+  document.getElementById('audioMute').style.visibility = 'visible';
+}
 
 /* ------------------- */
 /*       Messages      */

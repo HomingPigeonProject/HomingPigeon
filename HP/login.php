@@ -13,12 +13,19 @@
       $email = mysqli_real_escape_string($con, $_POST['email']);
       $password = mysqli_real_escape_string($con, $_POST['password']);
       // TODO : change md5 hashing for something good
-      $result = mysqli_query($con, "SELECT * FROM users WHERE email = '" . $email. "' and password = '" . md5($password) . "'");
+      $result = mysqli_query($con, "SELECT * FROM Accounts WHERE email = '" . $email. "' and password = '" . md5($password) . "'");
 
       if ($row = mysqli_fetch_array($result)) {
           $_SESSION['usr_id'] = $row['id'];
-          $_SESSION['usr_name'] = $row['name'];
+          $_SESSION['usr_name'] = $row['nickname'];
+          $_SESSION['email'] = $row['email'];
           header("Location: index.php");
+
+          // storing
+          $m = new Memcached();
+          $m->addServer('localhost', 11211);
+          $m->set(session_id(), $_SESSION['email']);
+
       } else {
           $errormsg = "Incorrect Email or Password";
       }
