@@ -28,8 +28,8 @@ if (config.uid) process.setuid(config.uid);
 
 var httpUrl;
 if (config.server.secure) {
-    httpUrl = "https://143.248.177.95:" + port;
+    httpUrl = "https://vps332892.ovh.net:" + port;
 } else {
-    httpUrl = "http://143.248.177.95:" + port;
+    httpUrl = "http://vps332892.ovh.net:" + port;
 }
 console.log('Signaling Server (signal master) is running at: ' + httpUrl);

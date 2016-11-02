@@ -1,0 +1,6 @@
+[submodule "HP/test/redis-session-php"]
+	path = HP/test/redis-session-php
+	url = https://TheDeveloper@github.com/TheDeveloper/redis-session-php.git
+[submodule "HP/test/predis"]
+	path = HP/test/predis
+	url = https://github.com/nrk/predis.git
