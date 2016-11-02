@@ -252,6 +252,11 @@ document.getElementById("imp-dl-btn").addEventListener("click", function() {
 webrtc.on('readyToCall', function () {
     // you can name it anything
     if (room) webrtc.joinRoom(room);
+    setTimeout(function(){
+    // TODO : timeout ?
+    sendMessage(username + " just joined the conference");
+    }, 2000);
+
 });
 
 webrtc.on('channelMessage', function (peer, label, data) {
@@ -308,7 +313,6 @@ webrtc.on('volumeChange', function (volume, treshold) {
     //showVolume(document.getElementById('localVolume'), volume);
 });
 
-// Since we use this twice we put it here
 function setRoom(name) {
   var parent = document.getElementById("body");
 
@@ -337,7 +341,8 @@ webrtc.on('createdPeer', function (peer) {
     // TODO : show the username
     var peername = document.createElement('div');
     peername.className = 'peerName';
-    peername.appendChild(document.createTextNode('Peer: ' + peer.id));
+    peer.NAME = "Jean Jacques"
+    peername.appendChild(document.createTextNode('Peer: ' + peer.NAME));
     container.appendChild(peername);
 
     // show a list of files received / sending
