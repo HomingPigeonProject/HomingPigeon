@@ -52,12 +52,11 @@ io.on('connection', function(socket){
       connectedLobby.push({pseudo:pseudo, id:socket.id});
     });
     socket.on('message', function(message){
-      console.log("received message");
         var pseudo = connectedLobby.getPseudoById(socket.id);
-        console.log("user" + pseudo + "send this " + message);
+        console.log("user " + pseudo + " send this : " + message );
+        var data = { 'message' : message, pseudo : 'pseudo'};
+        socket.broadcast.emit('message',data);
         /*socket.get('pseudo',function(error, name){
-            var data = { 'message' : message, pseudo : name};
-            socket.broadcast.emit('message',data);
         });*/
     });
 });
