@@ -1,13 +1,17 @@
 <?php
 //session_start();
-//include_once '../dbconnect.php';
+
 
   session_start();
   if(!isset($_SESSION['usr_name'])){
      header("Location:../login.php");
   }
-?>
+  include_once '../dbconnect.php';
 
+
+
+
+?>
 
 <!DOCTYPE html>
 <html>
@@ -38,6 +42,50 @@
         <link href="../../bootstrap/metisMenu/dist/metisMenu.min.css" rel="stylesheet">
         <link href="../../bootstrap/morrisjs/morris.css" rel="stylesheet">
 
+
+
+<?php
+
+  //checking if the user has the right to access this room
+  $room = explode("?", $_SERVER['REQUEST_URI'])[1];
+
+  $roomType = substr($room, 0, 1);
+
+  $roomNb = intval(substr($room, 1));
+
+  $userId = intval($_SESSION['usr_id']);
+
+  // if roomNb starts with a g : group, by a c : contact
+  if ($roomType == "") {
+    // null
+  } else if ($roomType == "g") {
+    echo "Group room <br/>";
+    echo $roomNb;
+    echo "<br/>";
+    echo $userId;
+    $result = mysqli_query($con, "SELECT * FROM GroupMembers WHERE groupId = $roomNb and accountId = $userId");
+
+    if ($row = mysqli_fetch_array($result)) {
+      // OK
+    } else {
+      header("Location:../index.php");
+    }
+
+
+  } else if ($roomType == "c") {
+    $result = mysqli_query($con, "SELECT * FROM Contacts WHERE id = $roomNb AND (accountId = $userId OR accountId2 = $userId)");
+
+    if ($row = mysqli_fetch_array($result)) {
+      // OK
+    } else {
+      header("Location:../index.php");
+    }
+
+  } else {
+    header("Location:../index.php");
+  }
+
+?>
 
     </head>
 
@@ -161,6 +209,7 @@
         <!-- <script src="simplewebrtc.bundle.js"></script> -->
         <script src="latest-v2.js"></script>
         <script src='page.js'></script>
+
 
 
 

@@ -29,6 +29,7 @@ var webrtc = new SimpleWebRTC({
 if (room) {
     // create the room
     setRoom(room);
+    console.log("The room is : ", room)
 } else {
     var f = document.getElementById("createRoom");
     var sessionInput = document.getElementById("sessionInput");
