@@ -1,8 +1,9 @@
 <?php
   session_start();
+  $index = "Location: Home/index.php";
 
   if(isset($_SESSION['usr_id'])!="") {
-      header("Location: index.php");
+      header($index);
   }
 
   include_once 'dbconnect.php';
@@ -19,7 +20,7 @@
           $_SESSION['usr_id'] = $row['id'];
           $_SESSION['usr_name'] = $row['nickname'];
           $_SESSION['email'] = $row['email'];
-          header("Location: index.php");
+          header($index);
 
           // storing
           $m = new Memcached();

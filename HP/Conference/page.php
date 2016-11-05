@@ -24,7 +24,7 @@
   // if roomNb starts with a g : group, by a c : contact
   if ($roomType == "") {
     // null
-    
+
     header($defaultPage);
 
   } else if ($roomType == "g") {
@@ -74,6 +74,10 @@
                 width: 100%;
                 height: 100%;
             }
+
+            #split-left {}
+            #split-right {float:right;}
+
         </style>
 
         <link href="../../bootstrap/css/landing-page.css" rel="stylesheet">

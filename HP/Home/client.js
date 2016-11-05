@@ -10,6 +10,7 @@ window.addEventListener('load', function() {
 
 	server.on('connect', function() {
 		console.log('connected to server');
+		server.emit('login', {userId: userId});
 	});
 	server.on('reconnect', function() {
 		console.log('reconnected to server');
@@ -213,6 +214,4 @@ window.addEventListener('load', function() {
 function reset() {
 	$('#control').html("<label id='loginStatus'>status : not logined</label>");
 	logined = false;
-
-	server.emit('login', {userId: userId});
 }
