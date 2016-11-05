@@ -173,6 +173,6 @@ function reset() {
 
 	$('#sessionLogin').submit(function() {
 		if (!logined)
-			server.emit('login', {sessionId: $('#sessionId').val()});
+			server.emit('login', {userId: $('#sessionId').val()});
 	});
 }

@@ -26,7 +26,7 @@ function init(user) {
 			},
 			function(result, callback) {
 				db = result;
-				db.getUserBySession({sessionId: data.sessionId}, callback);
+				db.getUserById({userId: data.userId}, callback);
 			}
 		],
 		function(err, result) {
@@ -73,6 +73,7 @@ function validateData(data) {
 	return true;
 }
 
+// check if user is logined, then if user provided data if needed
 function validateRequest(name, user, needData, data) {
 	if (!logined(user)) {
 		user.emit(name, {status: 'fail', errorMsg: 'login before request'});
