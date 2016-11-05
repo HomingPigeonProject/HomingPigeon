@@ -211,15 +211,8 @@ window.addEventListener('load', function() {
 });
 
 function reset() {
-	$('#control').html("<label id='loginStatus'>status : not logined</label>\
-			<form id='sessionLogin' action='javascript:void(0);'>\
-			<input id='sessionId' type='text' placeholder='put your session id'></input>\
-			<button type='submit'>session login</button>\
-			</form>");
+	$('#control').html("<label id='loginStatus'>status : not logined</label>");
 	logined = false;
 
-	$('#sessionLogin').submit(function() {
-		if (!logined)
-			server.emit('login', {sessionId: $('#sessionId').val()});
-	});
+	server.emit('login', {userId: userId});
 }
