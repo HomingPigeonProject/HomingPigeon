@@ -1,8 +1,8 @@
 var logined = false;
-var server = io.connect('http://localhost:4000');
+var server = io.connect('http://vps332892.ovh.net:4000');
 window.addEventListener('load', function() {
 	var controlDiv = document.getElementById('control');
-	
+
 	server.on('connect', function() {
 		console.log('connected to server');
 	});
@@ -19,7 +19,7 @@ window.addEventListener('load', function() {
 			$('#contactList').click(function() {
 				server.emit('getContactList');
 			});
-			
+
 			// create contact list manage panel
 			var contactForm = document.createElement('form');
 			var contactInput = document.createElement('input');
@@ -38,12 +38,12 @@ window.addEventListener('load', function() {
 			contactForm.appendChild(contactInput);
 			contactForm.appendChild(contactAddButton);
 			contactForm.appendChild(contactRemoveButton);
-			
+
 			var groupListButton = document.createElement('button');
 			groupListButton.id = 'groupListButton';
 			groupListButton.type = 'button';
 			groupListButton.innerHTML = 'get group list';
-			
+
 			var groupForm = document.createElement('form');
 			var groupNameInput = document.createElement('input');
 			var memberNameInput = document.createElement('input');
@@ -65,17 +65,17 @@ window.addEventListener('load', function() {
 			exitGroupButton.id = 'exitGroupButton';
 			exitGroupButton.type = 'button';
 			exitGroupButton.innerHTML = 'exit group';
-			
+
 			groupForm.appendChild(groupNameInput);
 			groupForm.appendChild(memberNameInput);
 			groupForm.appendChild(groupAddButton);
 			groupForm.appendChild(inviteMemberButton);
 			groupForm.appendChild(exitGroupButton);
-			
+
 			controlDiv.appendChild(contactForm);
 			controlDiv.appendChild(groupListButton);
 			controlDiv.appendChild(groupForm);
-			
+
 			$('#contactAddButton').click(function() {
 				server.emit('addContact', { email: $('#contactInput').val() });
 			});
@@ -87,24 +87,24 @@ window.addEventListener('load', function() {
 			});
 			$('#groupAddButton').click(function() {
 				var members = $('#memberNameInput').val().split(',');
-				for (var i = 0; i < members.length; i++) 
+				for (var i = 0; i < members.length; i++)
 					members[i] = members[i].trim();
-				
-				server.emit('addGroup', {name: $('#groupNameInput').val(), 
+
+				server.emit('addGroup', {name: $('#groupNameInput').val(),
 					members: members});
 			});
 			$('#inviteMemberButton').click(function() {
 				var members = $('#memberNameInput').val().split(',');
-				for (var i = 0; i < members.length; i++) 
+				for (var i = 0; i < members.length; i++)
 					members[i] = members[i].trim();
-				
-				server.emit('inviteGroupMembers', {groupId: $('#groupNameInput').val(), 
+
+				server.emit('inviteGroupMembers', {groupId: $('#groupNameInput').val(),
 					members: members});
 			});
 			$('#exitGroupButton').click(function() {
 				server.emit('exitGroup', {groupId: $('#groupNameInput').val()});
 			});
-		} 
+		}
 	});
 	server.on('exitGroup', function(data) {
 		if (data.status == 'success') {
@@ -146,7 +146,7 @@ window.addEventListener('load', function() {
 			console.log('failed to remove contact...');
 		}
 	});
-	
+
 	server.on('getGroupList', function(data) {
 		if (data.status == 'success') {
 			console.log(data);
@@ -159,7 +159,7 @@ window.addEventListener('load', function() {
 		if (data.status == 'success')
 			console.log(data);
 	});
-	
+
 	reset();
 });
 
@@ -170,7 +170,7 @@ function reset() {
 			<button type='submit'>session login</button>\
 			</form>");
 	logined = false;
-	
+
 	$('#sessionLogin').submit(function() {
 		if (!logined)
 			server.emit('login', {sessionId: $('#sessionId').val()});
