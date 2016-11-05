@@ -9,19 +9,18 @@ var async = require('async');
 
 /* User operations
  * name               arguments
- * getGroupList       
- * addGroup           name, members(array of email)
- * inviteGroupMembers groupId, members(array of email)
- * exitGroup          groupId
+ * sendMessage        groupId, 
  */
 var init = function(user) {
-	
+	user.on('sendMessage', function(data) {
+		
+	});
 }
 
 var chatRoomProto = {
 	groupId: undefined,
 	activeMembers: [],    // active members in group
-	sendMessage: function(user, content, importance, location) {
+	sendMessage: function(user, content, importance, location, callback) {
 		var db;
 		async.waterfall([
 			function(callback) {
@@ -32,7 +31,7 @@ var chatRoomProto = {
 				db.beginTransaction(callback);
 			},
 			function(result, fields, callback) {
-				db.addMessage({groupId: this.groupId, accountId: user.userId,
+				db.addMessage({groupId: this.groupId, userId: user.userId,
 					content: content, importance: importance, location: location},
 					callback);
 			}
@@ -46,14 +45,18 @@ var chatRoomProto = {
 				}
 				
 				console.log('failed to process message list\r\n' + err);
-				return user.to(this.groupId.toString()).emit(
-						'getGroupList', {status: 'fail', errorMsg:'server error'});
+				callback(err);
 			}
 			
 			if (db)
 				db.release();
 			
-			user.emit('getGroupList', {status: 'success', groups: result});
+			// broadcast message to all other users in chat
+			user.to(this.groupId.toString()).emit('newMessage', 
+					{groupId: this.groupId, userId: user.userId,
+						content: content, importance: importance, location: location});
+			
+			callback(null);
 		});
 	}
 };

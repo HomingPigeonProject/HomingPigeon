@@ -1,5 +1,5 @@
 var logined = false;
-var server = io.connect('http://vps332892.ovh.net:4000');
+var server = io.connect('http://localhost:4000');
 window.addEventListener('load', function() {
 	var controlDiv = document.getElementById('control');
 
