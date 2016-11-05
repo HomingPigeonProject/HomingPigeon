@@ -29,6 +29,7 @@ var webrtc = new SimpleWebRTC({
 if (room) {
     // create the room
     setRoom(room);
+    console.log("The room is : ", room)
 } else {
     var f = document.getElementById("createRoom");
     var sessionInput = document.getElementById("sessionInput");
@@ -253,8 +254,8 @@ webrtc.on('readyToCall', function () {
     // you can name it anything
     if (room) webrtc.joinRoom(room);
     setTimeout(function(){
-    // TODO : timeout ?
-    sendMessage(username + " just joined the conference");
+      // TODO : timeout ?
+      sendMessage(username + " just joined the conference");
     }, 2000);
 
 });
