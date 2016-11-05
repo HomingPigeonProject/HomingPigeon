@@ -27,7 +27,7 @@ io.on('connection', function(user) {
 		if (!session.logined(user)) {
 			console.log('anonymous user ' + user.id + ' disconnected');
 		} else {
-			console.log('user ' + user.userId + ' disconnected');	
+			console.log('user ' + user.userId + ' disconnected');
 		}
 	});
 	

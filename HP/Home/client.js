@@ -4,17 +4,19 @@ console.log("The user id is : ", userId);
 console.log("The session  id is : ", sessionId);
 
 var logined = false;
-var server = io.connect('http://vps332892.ovh.net:4000');
+var server = io.connect('http://localhost:4000');
 window.addEventListener('load', function() {
 	var controlDiv = document.getElementById('control');
 
 	server.on('connect', function() {
 		console.log('connected to server');
+		reset();
 		server.emit('login', {userId: userId});
 	});
 	server.on('reconnect', function() {
 		console.log('reconnected to server');
 		reset();
+		server.emit('login', {userId: userId});
 	});
 	server.on('login', function(data) {
 		console.log(data);
@@ -207,8 +209,6 @@ window.addEventListener('load', function() {
 		}
 
 	});
-
-	reset();
 });
 
 function reset() {
