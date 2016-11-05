@@ -22,18 +22,20 @@ pool.on('connection', function (connection) {
 
 // sql queries
 var queries = {
+	getUserById: "SELECT * FROM Accounts WHERE id = ? ",
+	
 	getUserByEmail: "SELECT * FROM Accounts WHERE email = ? ",
 	
 	getUserBySession: "SELECT * " +
 			"FROM Accounts INNER JOIN Sessions ON Accounts.id = Sessions.accountId " +
-			"where sessionId = ? ",
+			"WHERE sessionId = ? ",
 			
 	getContactListByUser: "SELECT * " +
-			"FROM ((SELECT c.id, a.email, a.nickname, a.picture, a.login, c.groupId " +
+			"FROM ((SELECT a.id, a.email, a.nickname, a.picture, a.login, c.groupId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId " +
 			"WHERE c.accountId2 = ?) " +
 			"UNION " +
-			"(SELECT c.id, a.email, a.nickname, a.picture, a.login, c.groupId " +
+			"(SELECT a.id, a.email, a.nickname, a.picture, a.login, c.groupId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
 			"WHERE c.accountId = ?)) result " +
 			"ORDER BY result.nickname ",
@@ -121,6 +123,8 @@ var queries = {
 	
 	removeEventParticipant: "DELETE FROM EventParticipants WHERE eventId = ? and accountId = ? ",
 	
+	updateGroupName: "UPDATE Groups SET name = ? WHERE id = ? ",
+	
 	lastInsertId: "SELECT LAST_INSERT_ID() as lastInsertId"
 };
 
@@ -150,6 +154,10 @@ var dbPrototype = {
 	},
 	query: function(query, args, callback) {
 		this.conn.query(query, args, callback);
+	},
+	getUserById: function(data, callback) {
+		this.conn.query(selectLock(queries.getUserById, data), 
+				[data.userId], callback);
 	},
 	getUserByEmail: function(data, callback) {
 		this.conn.query(selectLock(queries.getUserByEmail, data), 
@@ -261,6 +269,10 @@ var dbPrototype = {
 	removeEventParticipant: function(data, callback)  {
 		this.conn.query(queries.removeEventParticipant, 
 				[data.eventId, data.userId], callback);
+	},
+	updateGroupName: function(data, callback) {
+		this.conn.query(queries.updateGroupName, 
+				[data.name, data.groupId], callback);
 	},
 	lastInsertId: function(callback)  {
 		this.conn.query(queries.lastInsertId, callback);
