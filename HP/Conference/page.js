@@ -254,8 +254,8 @@ webrtc.on('readyToCall', function () {
     // you can name it anything
     if (room) webrtc.joinRoom(room);
     setTimeout(function(){
-    // TODO : timeout ?
-    sendMessage(username + " just joined the conference");
+      // TODO : timeout ?
+      sendMessage(username + " just joined the conference");
     }, 2000);
 
 });
