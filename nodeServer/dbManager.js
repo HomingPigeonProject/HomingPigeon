@@ -2,6 +2,7 @@
  *  Interface for database access, data manipulation
  */
 var mysql = require('mysql');
+var async = require('async');
 
 var pool = mysql.createPool({
     host : 'localhost',
@@ -284,21 +285,205 @@ function db() {
 }
 db.prototype = dbPrototype;
 
-module.exports = {
-	getConnection: function(callback) {
-		var dbInstance = new db();
-		pool.getConnection(function(err, conn) {
-			if (err) {
-				console.log('Failed to get db connection');
-				Object.defineProperty(dbInstance, 'conn',
-						{value: null, configurable: false, writable: false, enumerable: false});
-			} else {
-				Object.defineProperty(dbInstance, 'conn',
-						{value: conn, configurable: false, writable: false, enumerable: false});
+var getConnection = function(callback) {
+	var dbInstance = new db();
+	pool.getConnection(function(err, conn) {
+		if (err) {
+			console.log('Failed to get db connection');
+			Object.defineProperty(dbInstance, 'conn',
+					{value: null, configurable: false, writable: false, enumerable: false});
+		} else {
+			Object.defineProperty(dbInstance, 'conn',
+					{value: conn, configurable: false, writable: false, enumerable: false});
+		}
+		callback(err, dbInstance);
+	});
+}
+
+// db transaction patterns
+var dbPatternProto = {
+	// generic constructor
+	init: function(userFuncs, userEndFunc) {
+		var newPattern = this;
+		
+		// exploit basic, user functions so it can access db, data.
+		this.funcSeries = [];
+		
+		if (this.basicFuncs)
+			for (var i = 0; i < this.basicFuncs.length; i++) {
+				this.funcSeries.push(this.applyFuncGen(this.basicFuncs[i], newPattern));
 			}
-			callback(err, dbInstance);
-		})
+		
+		if (userFuncs)
+			for (var i = 0; i < userFuncs.length; i++) {
+				this.funcSeries.push(this.applyFuncGen(userFuncs[i], newPattern));
+			}
+		
+		if (this.basicEndFunc)
+			this.basicEndFunc = this.applyFuncGen(this.basicEndFunc, newPattern);
+		
+		this.userEndFunc = this.applyFuncGen(userEndFunc, newPattern);
+		
+		return this;
+	},
+	applyFuncGen: function (func, pattern) {
+		return function () {func.apply(pattern, arguments);}
+	},
+	funcSeries: null,         /* Basic, user function series */
+	basicFuncs: null,
+	userFuncs: null,
+	userEndFunc: null,
+	basicEndFunc: null,       /* Function called when trx ends */
+	async: 'waterfall',
+	db: null,                 /* User function can access db by this.db */
+	data: {},                 /* Can use to share data across user series functions */
+	run: function() {
+		var asyncProcess;
+		
+		if (this.async == 'waterfall')
+			asyncProcess = async.waterfall;
+		else if (this.async == 'series')
+			asyncProcess = async.series;
+		else
+			// default is waterfall
+			asyncProcess = async.waterfall;
+		
+		//console.log(this.funcSeries);
+		//console.log(this.basicEndFunc);
+		asyncProcess(this.funcSeries, this.basicEndFunc);
+		
+		return this;
 	}
+};
+
+//pattern no transaction, each query regarded as single transaction
+var atomicPatternGen = function() {
+	
+	var constructor = function() {
+		
+		// request connection
+		var _getConnection = function(callback) {
+			getConnection(callback);
+		};
+		
+		// got connection
+		var _gotConnection = function(result, callback) {
+			this.db = result;
+			callback(null);
+		};
+		
+		this.basicFuncs = [_getConnection, _gotConnection];
+		
+		this.basicEndFunc = function(err, result, fields) {
+			var db = this.db;
+			
+			if (db)
+				db.release();
+			
+			if (err) {
+				if (this.userEndFunc)
+					return this.userEndFunc(err);
+			} else {
+				if (this.userEndFunc)
+					return this.userEndFunc(null, result, fields);
+			}
+		};
+	};
+	
+	constructor.prototype = dbPatternProto;
+	
+	return new constructor();
+};
+
+var atomicPattern = function(userFuncs, userEndFunc) {
+	var pattern = atomicPatternGen();
+	pattern.init(userFuncs, userEndFunc).run();
+}
+
+// pattern with transaction start, commit when success, rollback when err
+var trxPatternGen = function() {
+	var basicFuncs;
+	
+	var constructor = function() {
+		
+		// request connection
+		var _getConnection = function(callback) {
+			getConnection(callback);
+		};
+		
+		// got connection
+		var _gotConnection = function(result, callback) {
+			this.db = result;
+			this.db.beginTransaction(callback);
+		};
+		
+		var _startedTransaction = function(result, fields, callback) {
+			callback(null);
+		};
+		
+		this.basicFuncs = [_getConnection, _gotConnection, _startedTransaction];
+		
+		this.basicEndFunc = function(err, result, fields) {
+			var db = this.db;
+			
+			if (err) {
+				// rollback and callback with error
+				if (db)
+					db.rollback(function() {
+						db.release();
+					});
+				
+				if (this.userEndFunc)
+					return this.userEndFunc(err);
+			} else {
+				// release db and success callback
+				if (db)
+					db.release();
+				
+				if (this.userEndFunc)
+					return this.userEndFunc(null, result, fields);
+			}
+		};
+	};
+	
+	constructor.prototype = dbPatternProto;
+	
+	return new constructor();
+};
+
+var trxPattern = function(userFuncs, userEndFunc) {
+	var pattern = trxPatternGen();
+	pattern.init(userFuncs, userEndFunc).run();
+}
+
+// trxPattern2 which inherits trxPattern can be written like this
+var trxPattern2Gen = function() {
+	var trx1 = trxPatternGen();
+	
+	var constructor = function() {
+		// do something here...
+		this.basicFuncs = [/* new basic funcs */];
+		
+		this.basicEndFunc = function() {
+			// new basic end func...
+		};
+		
+	};
+	
+	constructor.prototype = trx1;
+	
+	return new constructor();
+};
+
+var trxPattern2 = function(userFuncs, userEndFunc) {
+	var pattern = trxPattern2Gen();
+	pattern.init(userFuncs, userEndFunc).run();
+}
+
+module.exports = {
+	getConnection: getConnection,
+	atomicPattern: atomicPattern,
+	trxPattern: trxPattern,
 };
 
 // test codes
@@ -312,7 +497,7 @@ if (require.main == module) {
 	function test1() {
 		var manager = require('./dbManager');
 
-		console.log('request connection');
+		//console.log('request connection');
 		manager.getConnection(function(err, conn) {
 			if (err)
 				throw err;
@@ -322,7 +507,8 @@ if (require.main == module) {
 					conn.release();
 					throw err;
 				}
-				console.log('insert an account');
+				//console.log(this);
+				//console.log('insert an account');
 				conn.addUser({email:'test@kaist.ac.kr', password:'1234567890', nickname: 'test'}, function(err, result) {
 					if(err) {
 						conn.rollback(function() {
@@ -330,7 +516,7 @@ if (require.main == module) {
 							throw err;
 						});
 					}
-					console.log('select account');
+					//console.log('select account');
 					conn.getUserByEmail({email:'test@kaist.ac.kr'}, function(err, result) {
 						if(err) {
 							conn.rollback(function() {
@@ -342,7 +528,7 @@ if (require.main == module) {
 							console.log('id: ' + result[i].email + '(' + typeof result[i].email + ')');
 							console.log('pwd: ' + result[i].password + '(' + typeof result[i].password + ')');
 						}
-						console.log('delete account');
+						//console.log('delete account');
 						conn.removeUser({email:'test@kaist.ac.kr'}, function(err, result) {
 							if(err) {
 								conn.rollback(function() {
@@ -402,9 +588,6 @@ if (require.main == module) {
 			},
 			function(result, fields, callback) {
 				connection.commit(callback);
-			},
-			function(result, fields, callback) {
-				callback(null, 'done');
 			}
 		],
 		function(err, results) {
@@ -422,6 +605,65 @@ if (require.main == module) {
 			}
 			if (connection) {
 				connection.release();
+			}
+			test3();
+		});
+	}
+	
+	// using patternized db framework
+	// much easier code, no duplicate routine codes
+	function test3() {
+		var manager = require('./dbManager');
+
+		manager.trxPattern([
+			function(callback) {
+				this.db.addUser({email:'test@kaist.ac.kr', password:'1234567890', nickname: 'test'}, callback);
+			},
+			function(result, fields, callback) {
+				this.db.getUserByEmail({email:'test@kaist.ac.kr'}, callback);
+			},
+			function(result, fields, callback) {
+				for (var i = 0; i < result.length; i++) {
+					console.log('id: ' + result[i].email + '(' + typeof result[i].email + ')');
+					console.log('pwd: ' + result[i].password + '(' + typeof result[i].password + ')');
+				}
+				callback(null);
+			},
+			function(callback) {
+				this.db.removeUser({email:'test@kaist.ac.kr'}, callback);
+				//callback(null);
+			}
+		],
+		function(err) {
+			if (err) {
+				console.log('err!');
+			} else {
+				console.log('success!');
+			}
+			test4();
+		});
+	}
+	
+	function test4() {
+		var manager = require('./dbManager');
+
+		manager.atomicPattern([
+			function(callback) {
+				this.db.getUserByEmail({email:'a030603@kaist.ac.kr'}, callback);
+			},
+			function(result, fields, callback) {
+				for (var i = 0; i < result.length; i++) {
+					console.log('id: ' + result[i].email + '(' + typeof result[i].email + ')');
+					console.log('pwd: ' + result[i].password + '(' + typeof result[i].password + ')');
+				}
+				callback(null);
+			}
+		],
+		function(err) {
+			if (err) {
+				console.log('err!');
+			} else {
+				console.log('success!');
 			}
 			process.exit();
 		});

@@ -12,6 +12,12 @@ var async = require('async');
 // set of active chats
 var allChats = rbTree.createRBTree();
 
+/* User operations
+ * name               arguments
+ * joinContactChat    userId(id of contact)
+ * joinGroupChat      groupId
+ * joinConference     ??
+ */
 var init = function(user) {
 	user.on('joinContactChat', function(data) {
 		if (!session.validateRequest('joinContactChat', user, true, data))
@@ -25,6 +31,7 @@ var init = function(user) {
 		
 	});
 	
+	// maybe we don't need this function
 	user.on('joinConference', function(data) {
 		if (!session.validateRequest('joinContactChat', user, true, data))
 			return;
