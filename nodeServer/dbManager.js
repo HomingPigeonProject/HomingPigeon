@@ -4,11 +4,11 @@
 var mysql = require('mysql');
 
 var pool = mysql.createPool({
-    host :'localhost',
+    host : 'localhost',
     port : 3306,
-    user : 'user',
-    password : 'HomingPigeon0!',
-    database:'HomingPigeon',
+    user : 'root',
+    password : 'team3',
+    database: 'HomingPigeon',
     connectionLimit:64,
     waitForConnections:true,
     acquireTimeout:60000

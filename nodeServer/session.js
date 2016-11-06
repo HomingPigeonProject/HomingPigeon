@@ -1,4 +1,4 @@
-/** 
+/**
  * User login management
  * users at first must send their session id to login
  */
@@ -18,7 +18,7 @@ function init(user) {
 			user.emit('login', {status: 'fail', errorMsg: 'already logined'});
 			return;
 		}
-		
+		console.log(data);
 		var db;
 		async.waterfall([
 			function(callback) {
@@ -49,7 +49,7 @@ function init(user) {
 				user.nickname = data.nickname;
 				user.picture = data.picture;
 				user.state = userState.LOGIN;
-				user.emit('login', {status: 'success', 
+				user.emit('login', {status: 'success',
 					data: {nickname: data.nickname,
 							email: data.email,
 							picture: data.picture}});
