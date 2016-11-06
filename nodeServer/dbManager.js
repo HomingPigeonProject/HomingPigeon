@@ -10,9 +10,9 @@ var pool = mysql.createPool({
     user : 'user',
     password : 'HomingPigeon0!',
     database:'HomingPigeon',
-    connectionLimit:64,
+    connectionLimit:10,
     waitForConnections:true,
-    acquireTimeout:60000
+    acquireTimeout:2000
 });
 
 // this is called before connection is used
@@ -361,11 +361,11 @@ var dbPatternProto = {
 				this.releaseDB = false;
 			} else
 				this.releaseDB = true;
-		}
-		
-		// default async is waterfall
-		if (!this.async)
+		} else {
+			// default settings
 			this.async = async.waterfall;
+			this.releaseDB = true;
+		}
 		
 		return this;
 	},

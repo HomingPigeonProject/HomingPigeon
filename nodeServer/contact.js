@@ -20,8 +20,6 @@ var init = function(user) {
 	 * contactAdded
 	 */
 	user.on('getContactList', function() {
-		console.log(session);
-		console.log(session.validateRequest);
 		if (!session.validateRequest('getContactList', user, false))
 			return;
 		
@@ -35,7 +33,7 @@ var init = function(user) {
 				console.log('failed to get contact list\r\n' + err);
 				user.emit('getContactList', {status: 'fail', errorMsg:'server error'});
 			} else {
-				console.log(result);
+				//console.log(result);
 				user.emit('getContactList', {status: 'success', contacts: result});
 			}
 		});
