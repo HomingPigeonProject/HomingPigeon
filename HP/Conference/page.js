@@ -296,10 +296,12 @@ webrtc.on('videoAdded', function (video, peer) {
         var vol = document.createElement('div');
         vol.id = 'volume_' + peer.id;
         vol.className = 'volume_bar';
+        /*
         video.onclick = function () {
             video.style.width = video.videoWidth + 'px';
             video.style.height = video.videoHeight + 'px';
         };
+        */
         d.appendChild(vol);
         remotes.appendChild(d);
     }
@@ -357,8 +359,8 @@ webrtc.on('createdPeer', function (peer) {
     // TODO : show the username
     var peername = document.createElement('div');
     peername.className = 'peerName';
-    peer.NAME = "Jean Jacques"
-    peername.appendChild(document.createTextNode('Peer: ' + peer.NAME));
+    //peer.NAME = "Jean Jacques"
+    //peername.appendChild(document.createTextNode('Peer: ' + peer.NAME));
     container.appendChild(peername);
 
     // show a list of files received / sending

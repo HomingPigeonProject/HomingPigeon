@@ -32,12 +32,6 @@
   </div>
 
 
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
-  <script src='../../js/socket.io.js'></script>
-  <script src='client.js'></script>
-
-
-
 
 </head>
 
@@ -78,6 +72,15 @@
     </div>
 
   </div>
+
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="../../bootstrap/js/jquery.js"></script>
+    <script src='../../js/socket.io.js'></script>
+    <script src='client.js'></script>
+
+
+
 
 </body>
 
