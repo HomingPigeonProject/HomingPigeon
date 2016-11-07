@@ -9,6 +9,7 @@ var server = require('http').createServer(app);
 var io = require('socket.io')(server);
 server.listen(app.get('port'));
 
+var connectedUsers = {};
 var connectedLobby = {
     connected : [],
     push : function (newConnected){
@@ -46,19 +47,32 @@ var connectedLobby = {
 }
 
 io.on('connection', function(socket){
-  console.log("socket.io connection.....");
+  console.log(connectedLobby.connected);
+  console.log("socket.io connection");
     socket.on('Pseudo', function (pseudo){
-      //socket.set('pseudo', data);
+      socket.set('pseudo', data);
+      console.log("ahgag");
       connectedLobby.push({pseudo:pseudo, id:socket.id});
     });
-    socket.on('message', function(message){
-        var pseudo = connectedLobby.getPseudoById(socket.id);
-        console.log("user " + pseudo + " send this : " + message );
-        var data = { 'message' : message, pseudo : 'pseudo'};
-        socket.broadcast.emit('message',data);
+    socket.on('message', function(message, id, date){
+        var pseudo = "billy";//connectedLobby.getPseudoById(socket.id);
+        console.log("user " + pseudo + " send this : " + message + " to : " + id); //message to message.text etc....
+        var data = { 'message' : message, id : 'id', date: new Date().toString()};
+        socket.broadcast.emit('messageReception',data);
+      });
+    //
+        //test
+    //
+      socket.on("message", function(message, id, date) {
+       io.emit("messageReception", message, id, date);
+      });
+      //
+          //end test
+      //
+
+
         /*socket.get('pseudo',function(error, name){
         });*/
-    });
 });
 
 console.log("listening....");
