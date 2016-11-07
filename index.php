@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <?php
   session_start();
-  $index = "Location: index.php";
+  $index = "Location: HP/Home/index.php";
 
   if(isset($_SESSION['usr_id'])!="") {
       header($index);
