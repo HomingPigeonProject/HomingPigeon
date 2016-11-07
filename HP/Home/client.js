@@ -228,6 +228,7 @@ window.addEventListener('load', function() {
 				contactConferenceLink.className = "conferenceLink";
 				contactConferenceLink.appendChild(document.createTextNode("conference"));
 				contactConferenceLink.title = "conference";
+				contactConferenceLink.target = "_blank ";
 				contactConferenceLink.href = "../Conference/page.php?" + "c" + contact["contactId"];
 
 				var contactChatLink = document.createElement('a');
@@ -236,10 +237,10 @@ window.addEventListener('load', function() {
 				contactChatLink.title = "chat";
 				contactChatLink.href = "http://www.google.com";
 
-				var c = document.createElement('div');
-				c.className = "buttonEmail";
-				c.innerHTML = contact.email;
-				div.appendChild(c);
+				//var c = document.createElement('div');
+				//c.className = "buttonEmail";
+				//c.innerHTML = contact.email;
+				//div.appendChild(c);
 
 				var removeContactButton = document.createElement("button");
 				removeContactButton.className = "removeContactButton";
@@ -301,6 +302,7 @@ window.addEventListener('load', function() {
 					groupConferenceLink.className = "conferenceLink";
 					groupConferenceLink.appendChild(document.createTextNode("conference"));
 					groupConferenceLink.title = "conference";
+					groupConferenceLink.target = "_blank ";
 					groupConferenceLink.href = "../Conference/page.php?" + "g" + group["id"];
 
 
@@ -320,9 +322,9 @@ window.addEventListener('load', function() {
 					addContactToGroupEmail.type = 'test';
 					addContactToGroupEmail.placeholder = 'contact email';
 					addContactToGroupEmail.className = "addContactToGroupEmail";
-					var addContactToGroupButton = document.createElement('input');
-					addContactToGroupButton.type = 'button';
-					addContactToGroupButton.innerHTML = 'add';
+					var addContactToGroupButton = document.createElement('button');
+					//addContactToGroupButton.type = 'button';
+					addContactToGroupButton.innerHTML = "add";
 					addContactToGroupButton.className = "addContactToGroupButton";
 					addContactToGroupButton.id = group["id"];
 
