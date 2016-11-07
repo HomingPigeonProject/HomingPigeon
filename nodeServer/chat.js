@@ -63,7 +63,7 @@ var chatRoomProto = {
 				content: content, importance: importance, location: location};
 		
 		// broadcast message to all other users in chat
-		user.to(this.getRoomName()).emit('newMessage', message);
+		this.broadcast(user, 'newMessage', message);
 		
 		dbManager.atomicPattern([
 			function(callback) {
@@ -79,6 +79,12 @@ var chatRoomProto = {
 				callback(null);
 			}
 		});
+	},
+	
+	// user broadcasts message to other users
+	// assumed the user is member of this group
+	broadcast: function(user, name, message) {
+		user.to(this.getRoomName()).emit(name, message);
 	},
 	
 	join: function(data, callback) {

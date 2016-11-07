@@ -50,7 +50,7 @@ CREATE TABLE GroupMembers (
 CREATE TABLE Messages (
     id bigint unsigned NOT NULL AUTO_INCREMENT,
     groupId int NOT NULL,
-    messageId int unsigned NOT NULL,                 /* Message id in this group */
+    messageId int unsigned,                          /* Message id in this group */
     accountId int NOT NULL,
     date timestamp NOT NULL,
     nbread int NOT NULL DEFAULT 1,                   /* Number of read */
