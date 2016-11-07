@@ -26,7 +26,7 @@ function init(user) {
 		dbManager.trxPattern([
 			function(callback) {
 				// get group list of the user
-				this.db.getGroupListByUser({userId: user.userId}, callback);
+				this.db.getGroupListByUser({userId: user.userId, lock: true}, callback);
 			},
 			function(result, fields, callback) {
 				var groups = result;
@@ -163,7 +163,7 @@ var addGroup = function(data, callback) {
 				// add calling user as a member
 				if (!contains.call(members, user.email))
 					members.unshift(user.email);
-				console.log('hihi');
+				//console.log('hihi');
 				addMembers({db: this.db, groupId: groupId, user: user, 
 					members: members, trx: false}, callback);
 			} else {
@@ -227,7 +227,7 @@ var addMembers = function(data, userCallback) {
 				// don't have to check contact when adding self
 				if (user.userId == peer.id)
 					return callback(null, true, null, null);
-				console.log('user2');
+				
 				// user can invite only contacts
 				this.db.getContact({userId: user.userId, userId2: peer.id, lock: true}, 
 				function(err, result, fields) {
@@ -237,7 +237,7 @@ var addMembers = function(data, userCallback) {
 			function(self, result, fields, callback) {
 				if (!self && result.length == 0)
 					return addMembersIter(i + 1, bigCallback);
-				console.log('user3');
+				
 				// check if the member added already
 				this.db.getGroupMember({groupId: groupId, userId: peer.id, lock: true},
 						callback);
@@ -286,7 +286,6 @@ var addMembers = function(data, userCallback) {
 		if (err) {
 			userCallback(err);
 		} else {
-			console.log('hihi');
 			userCallback(null, addedMembers);
 		}
 	},

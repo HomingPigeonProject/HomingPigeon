@@ -7,6 +7,7 @@ var session = require('./session');
 var dbManager = require('./dbManager');
 var rbTree = require('./RBTree');
 var group = require('./group');
+var chat = require('./chat');
 var async = require('async');
 
 // set of active chats
@@ -26,7 +27,7 @@ var init = function(user) {
 	});
 	
 	user.on('joinGroupChat', function(data) {
-		if (!session.validateRequest('joinContactChat', user, true, data))
+		if (!session.validateRequest('joinGroupChat', user, true, data))
 			return;
 		
 	});
@@ -37,6 +38,18 @@ var init = function(user) {
 			return;
 		
 	});
+	
+	user.on('readMessage', function(data) {
+		
+	});
+	
+	user.on('sendMessage', function(data) {
+		
+	});
+	
+	user.on('ackMessage', function(data) {
+		
+	});
 }
 
 var joinGroupChat = function(data) {
@@ -44,17 +57,10 @@ var joinGroupChat = function(data) {
 	var user = data.user;
 	var groupId = data.groupId;
 	
-	async.waterfall([
-		function(callback) {
-			dbManager.getConnection(callback);
-		},
-		function(result, callback) {
-			db = result;
-			db.beginTransaction(callback);
-		},
+	dbManager.trxPattern([
 		// check if the user is group member
 		function(result, fields, callback) {
-			db.getGroupMember({groupId: groupId, userId: user.userId},
+			this.db.getGroupMember({groupId: groupId, userId: user.userId},
 					callback);
 		},
 		function(result, fields, callback) {
@@ -63,12 +69,30 @@ var joinGroupChat = function(data) {
 											' no such group'));
 			
 			// get active chat
-			var chat = allChats.get(groupId); 
+			var chatRoom = allChats.get(groupId); 
 			
-			if (!chat) {
-				if (!allChats.add())
-					callback(new Error('Failed to open chat'));
+			if (!chatRoom) {
+				chatRoom = chat.createChatRoom({groupId: groupId});
+				
+				if (!allChats.add(groupId, chatRoom))
+					return callback(new Error('Failed to open chat'));
 			}
+			
+			var members = chatRoom.getMembers;
+			
+			if (members.indexOf(user) >= 0)
+				return callback(new Error('Already joined'));
+			
+			this.data.chatRoom = chatRoom;
+			
+			chatRoom.join({user: user}, callback);
+		},
+		function(callback) {
+			// read at most 100 messages
+			this.data.chatRoom.getRecentMessages({nbMessage: 100}, callback);
+		},
+		function(result, callback) {
+			
 		}
 	],
 	function(err, result) {

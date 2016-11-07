@@ -54,7 +54,7 @@ window.addEventListener('load', function() {
 			groupNameInput.placeholder = 'put group name or id';
 			groupNameInput.type = 'text';
 			memberNameInput.id = 'memberNameInput';
-			memberNameInput.placeholder = 'put member name(a, b, c)';
+			memberNameInput.placeholder = 'put member email(a, b, c)';
 			memberNameInput.type = 'text';
 			groupAddButton.id = 'groupAddButton';
 			groupAddButton.type = 'button';

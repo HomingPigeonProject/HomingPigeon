@@ -4,15 +4,16 @@
 var mysql = require('mysql');
 var async = require('async');
 
+// db connection configuration
 var pool = mysql.createPool({
     host :'localhost',
     port : 3306,
     user : 'user',
     password : 'HomingPigeon0!',
     database:'HomingPigeon',
-    connectionLimit:10,
+    connectionLimit:64,
     waitForConnections:true,
-    acquireTimeout:2000
+    acquireTimeout:60000
 });
 
 // this is called before connection is used
@@ -29,14 +30,16 @@ var queries = {
 
 	getUserBySession: "SELECT * " +
 			"FROM Accounts INNER JOIN Sessions ON Accounts.id = Sessions.accountId " +
-      "WHERE sessionId = ? ",
+			"WHERE sessionId = ? ",
 
 	getContactListByUser: "SELECT * " +
-			"FROM ((SELECT a.id as userId, a.email, a.nickname, a.picture, a.login, c.groupId, c.id as contactId " +
+			"FROM ((SELECT a.id as userId, a.email, a.nickname, a.picture, " +
+			"a.login, c.groupId, c.id as contactId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId " +
 			"WHERE c.accountId2 = ?) " +
 			"UNION " +
-			"(SELECT a.id as userId, a.email, a.nickname, a.picture, a.login, c.groupId, c.id as contactId " +
+			"(SELECT a.id as userId, a.email, a.nickname, a.picture, " +
+			"a.login, c.groupId, c.id as contactId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
 			"WHERE c.accountId = ?)) result " +
 			"ORDER BY result.nickname ",
@@ -52,7 +55,8 @@ var queries = {
 			"ORDER BY result.nickname ",
 
 	getGroupListByUser: "SELECT g.id, g.name, g.alias, " +
-			"g.nbMembers, max(m.date) as lastMessageDate " +
+			"g.nbMembers, max(m.date) as lastMessageDate, " +
+			"max(m.messageId) as lastMessageId " +
 			"FROM Messages m RIGHT JOIN " +
 			"(SELECT g.id, g.name, g.alias, count(*) as nbMembers " +
 			"FROM GroupMembers gm INNER JOIN " +
@@ -89,8 +93,8 @@ var queries = {
 			
 	getMessagesFromId: "SELECT * " +
 			"FROM Messages " +
-			"WHERE groupId = ? and id >= ? " +
-			"ORDER BY id desc " +
+			"WHERE groupId = ? and messageId >= ? " +
+			"ORDER BY messageId desc " +
 			"LIMIT ? ",
 
 	getEventById: "SELECT * FROM Events WHERE id = ? ",
@@ -137,9 +141,9 @@ var queries = {
 
 	removeEventParticipant: "DELETE FROM EventParticipants WHERE eventId = ? and accountId = ? ",
 
-  updateGroupName: "UPDATE Groups SET name = ? WHERE id = ? ",
+	updateGroupName: "UPDATE Groups SET name = ? WHERE id = ? ",
 
-  lastInsertId: "SELECT LAST_INSERT_ID() as lastInsertId"
+	lastInsertId: "SELECT LAST_INSERT_ID() as lastInsertId"
 };
 
 var selectLock = function(query, data) {
@@ -214,7 +218,7 @@ var dbPrototype = {
 	},
 	getMessagesFromId: function (data, callback) {
 		this.conn.query(selectLock(queries.getMessagesFromId, data),
-				[data.groupId, data.messageId, data.nbMessages], callback);
+				[data.groupId, data.startFrom, data.nbMessages], callback);
 	},
 	getEventById: function (data, callback) {
 		this.conn.query(selectLock(queries.getEventById, data),
@@ -382,8 +386,8 @@ var dbPatternProto = {
 	releaseDB: false,         /* Release db at the end or not */
 	data: {},                 /* Can use to share data across user series functions */
 	run: function() {
-		
-		this.async(this.funcSeries, this.basicEndFunc);
+		if (this.async)
+			this.async(this.funcSeries, this.basicEndFunc);
 		
 		return this;
 	},

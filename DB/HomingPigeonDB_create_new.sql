@@ -50,6 +50,7 @@ CREATE TABLE GroupMembers (
 CREATE TABLE Messages (
     id bigint unsigned NOT NULL AUTO_INCREMENT,
     groupId int NOT NULL,
+    messageId int unsigned NOT NULL,                 /* Message id in this group */
     accountId int NOT NULL,
     date timestamp NOT NULL,
     nbread int NOT NULL DEFAULT 1,                   /* Number of read */
@@ -120,6 +121,7 @@ ALTER TABLE GroupMembers ADD CONSTRAINT GroupMembers_AccountId FOREIGN KEY (acco
 -- order of id must be same as order of date 
 ALTER TABLE Messages ADD INDEX Messages_GroupId_Id (groupId, id);
 ALTER TABLE Messages ADD INDEX Messages_GroupId_Timestamp (groupId, date);
+ALTER TABLE Messages ADD INDEX Messages_GroupId_MessageId (groupId, messageId);
 
 ALTER TABLE Messages ADD CONSTRAINT Messages_Accounts FOREIGN KEY (accountId) 
     REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
@@ -140,4 +142,18 @@ ALTER TABLE EventParticipants ADD CONSTRAINT EventParticipants_EventId FOREIGN K
 ALTER TABLE EventParticipants ADD CONSTRAINT EventParticipants_AccountId FOREIGN KEY (accountId)
     REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
 
-    
+-- Message trigger
+delimiter #
+
+create trigger Group_Message_Id before insert on Messages
+for each row
+begin
+declare mId int unsigned default 0;
+select if(max(messageId), max(messageId) + 1, 0) into mId from Messages where groupId = new.groupId;
+  if not (mId > 0) then
+    set mId = 1;
+  end if;
+  set new.messageId = mid;
+end#
+
+delimiter ;
