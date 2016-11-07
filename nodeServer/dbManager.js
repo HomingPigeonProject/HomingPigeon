@@ -387,15 +387,9 @@ var dbPatternProto = {
 	releaseDB: false,         /* Release db at the end or not */
 	data: {},                 /* Can use to share data across user series functions */
 	run: function() {
-<<<<<<< HEAD
 		if (this.async)
 			this.async(this.funcSeries, this.basicEndFunc);
-		
-=======
 
-		this.async(this.funcSeries, this.basicEndFunc);
-
->>>>>>> f108f644481193db4caf048f95bbaaa9e292c8f7
 		return this;
 	},
 	callUserEndFunc: function() {
