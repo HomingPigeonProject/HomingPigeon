@@ -324,13 +324,8 @@ var getConnection = function(callback) {
 // db transaction patterns
 var dbPatternProto = {
 	// generic constructor
-<<<<<<< HEAD
-	init: function(userFuncs, userEndFunc) {
-		var newPattern = this;
 
-=======
 	init: function(userFuncs, userEndFunc, config) {
->>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 		// exploit basic, user functions so it can access db, data.
 		this.funcSeries = [];
 
@@ -345,12 +340,6 @@ var dbPatternProto = {
 			}
 
 		if (this.basicEndFunc)
-<<<<<<< HEAD
-			this.basicEndFunc = this.applyFuncGen(this.basicEndFunc, newPattern);
-
-		this.userEndFunc = this.applyFuncGen(userEndFunc, newPattern);
-
-=======
 			this.basicEndFunc = this.applyFuncGen(this.basicEndFunc, this);
 
 		if (userEndFunc)
@@ -379,7 +368,6 @@ var dbPatternProto = {
 			this.releaseDB = true;
 		}
 
->>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 		return this;
 	},
 	applyFuncGen: function(func, pattern) {
@@ -395,26 +383,9 @@ var dbPatternProto = {
 	releaseDB: false,         /* Release db at the end or not */
 	data: {},                 /* Can use to share data across user series functions */
 	run: function() {
-<<<<<<< HEAD
-		var asyncProcess;
-
-		if (this.async == 'waterfall')
-			asyncProcess = async.waterfall;
-		else if (this.async == 'series')
-			asyncProcess = async.series;
-		else
-			// default is waterfall
-			asyncProcess = async.waterfall;
-
-		//console.log(this.funcSeries);
-		//console.log(this.basicEndFunc);
-		asyncProcess(this.funcSeries, this.basicEndFunc);
-
-=======
 
 		this.async(this.funcSeries, this.basicEndFunc);
 
->>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 		return this;
 	},
 	callUserEndFunc: function() {
@@ -452,16 +423,9 @@ var atomicPatternGen = function() {
 
 		this.basicEndFunc = function(err, result, fields) {
 			var db = this.db;
-<<<<<<< HEAD
-
-			if (db)
-				db.release();
-
-=======
 
 			this.releaseDBFunc();
 
->>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 			if (err) {
 				this.callUserEndFunc(err);
 			} else {
@@ -485,16 +449,6 @@ var trxPatternGen = function() {
 	var basicFuncs;
 
 	var constructor = function() {
-<<<<<<< HEAD
-
-		// request connection
-		var _getConnection = function(callback) {
-			getConnection(callback);
-		};
-
-=======
-
->>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 		// got connection
 		var _gotConnection = function(result, callback) {
 			if (result)
@@ -506,14 +460,6 @@ var trxPatternGen = function() {
 		var _startedTransaction = function(result, fields, callback) {
 			callback(null);
 		};
-<<<<<<< HEAD
-
-		this.basicFuncs = [_getConnection, _gotConnection, _startedTransaction];
-
-		this.basicEndFunc = function(err, result, fields) {
-			var db = this.db;
-
-=======
 
 		this.basicFuncs = [this.basicFuncs[0],
 			_gotConnection, _startedTransaction];
@@ -523,7 +469,6 @@ var trxPatternGen = function() {
 			var releaseDB = this.releaseDB;
 			var pattern = this;
 
->>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 			if (err) {
 				// rollback and callback with error
 				if (db)
@@ -531,24 +476,6 @@ var trxPatternGen = function() {
 						pattern.releaseDBFunc();
 						pattern.callUserEndFunc(err);
 					});
-<<<<<<< HEAD
-
-				if (this.userEndFunc)
-					return this.userEndFunc(err);
-			} else {
-				// release db and success callback
-				if (db)
-					db.release();
-
-				if (this.userEndFunc)
-					return this.userEndFunc(null, result, fields);
-			}
-		};
-	};
-
-	constructor.prototype = dbPatternProto;
-
-=======
 			} else {
 				// release db and success callback
 				if (db) {
@@ -570,7 +497,6 @@ var trxPatternGen = function() {
 	};
 
 	constructor.prototype = atomicPatternGen();
->>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 	return new constructor();
 };
 
@@ -590,10 +516,6 @@ var trxPattern2Gen = function() {
 		this.basicEndFunc = function() {
 			// new basic end func...
 		};
-<<<<<<< HEAD
-
-=======
->>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 	};
 
 	constructor.prototype = trx1;
