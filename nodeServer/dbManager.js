@@ -305,25 +305,25 @@ var dbPatternProto = {
 	// generic constructor
 	init: function(userFuncs, userEndFunc) {
 		var newPattern = this;
-		
+
 		// exploit basic, user functions so it can access db, data.
 		this.funcSeries = [];
-		
+
 		if (this.basicFuncs)
 			for (var i = 0; i < this.basicFuncs.length; i++) {
 				this.funcSeries.push(this.applyFuncGen(this.basicFuncs[i], newPattern));
 			}
-		
+
 		if (userFuncs)
 			for (var i = 0; i < userFuncs.length; i++) {
 				this.funcSeries.push(this.applyFuncGen(userFuncs[i], newPattern));
 			}
-		
+
 		if (this.basicEndFunc)
 			this.basicEndFunc = this.applyFuncGen(this.basicEndFunc, newPattern);
-		
+
 		this.userEndFunc = this.applyFuncGen(userEndFunc, newPattern);
-		
+
 		return this;
 	},
 	applyFuncGen: function (func, pattern) {
@@ -339,7 +339,7 @@ var dbPatternProto = {
 	data: {},                 /* Can use to share data across user series functions */
 	run: function() {
 		var asyncProcess;
-		
+
 		if (this.async == 'waterfall')
 			asyncProcess = async.waterfall;
 		else if (this.async == 'series')
@@ -347,39 +347,39 @@ var dbPatternProto = {
 		else
 			// default is waterfall
 			asyncProcess = async.waterfall;
-		
+
 		//console.log(this.funcSeries);
 		//console.log(this.basicEndFunc);
 		asyncProcess(this.funcSeries, this.basicEndFunc);
-		
+
 		return this;
 	}
 };
 
 //pattern no transaction, each query regarded as single transaction
 var atomicPatternGen = function() {
-	
+
 	var constructor = function() {
-		
+
 		// request connection
 		var _getConnection = function(callback) {
 			getConnection(callback);
 		};
-		
+
 		// got connection
 		var _gotConnection = function(result, callback) {
 			this.db = result;
 			callback(null);
 		};
-		
+
 		this.basicFuncs = [_getConnection, _gotConnection];
-		
+
 		this.basicEndFunc = function(err, result, fields) {
 			var db = this.db;
-			
+
 			if (db)
 				db.release();
-			
+
 			if (err) {
 				if (this.userEndFunc)
 					return this.userEndFunc(err);
@@ -389,9 +389,9 @@ var atomicPatternGen = function() {
 			}
 		};
 	};
-	
+
 	constructor.prototype = dbPatternProto;
-	
+
 	return new constructor();
 };
 
@@ -403,51 +403,51 @@ var atomicPattern = function(userFuncs, userEndFunc) {
 // pattern with transaction start, commit when success, rollback when err
 var trxPatternGen = function() {
 	var basicFuncs;
-	
+
 	var constructor = function() {
-		
+
 		// request connection
 		var _getConnection = function(callback) {
 			getConnection(callback);
 		};
-		
+
 		// got connection
 		var _gotConnection = function(result, callback) {
 			this.db = result;
 			this.db.beginTransaction(callback);
 		};
-		
+
 		var _startedTransaction = function(result, fields, callback) {
 			callback(null);
 		};
-		
+
 		this.basicFuncs = [_getConnection, _gotConnection, _startedTransaction];
-		
+
 		this.basicEndFunc = function(err, result, fields) {
 			var db = this.db;
-			
+
 			if (err) {
 				// rollback and callback with error
 				if (db)
 					db.rollback(function() {
 						db.release();
 					});
-				
+
 				if (this.userEndFunc)
 					return this.userEndFunc(err);
 			} else {
 				// release db and success callback
 				if (db)
 					db.release();
-				
+
 				if (this.userEndFunc)
 					return this.userEndFunc(null, result, fields);
 			}
 		};
 	};
-	
+
 	constructor.prototype = dbPatternProto;
-	
+
 	return new constructor();
 };
 
@@ -459,19 +459,19 @@ var trxPattern = function(userFuncs, userEndFunc) {
 // trxPattern2 which inherits trxPattern can be written like this
 var trxPattern2Gen = function() {
 	var trx1 = trxPatternGen();
-	
+
 	var constructor = function() {
 		// do something here...
 		this.basicFuncs = [/* new basic funcs */];
-		
+
 		this.basicEndFunc = function() {
 			// new basic end func...
 		};
-		
+
 	};
-	
+
 	constructor.prototype = trx1;
-	
+
 	return new constructor();
 };
 
@@ -609,7 +609,7 @@ if (require.main == module) {
 			test3();
 		});
 	}
-	
+
 	// using patternized db framework
 	// much easier code, no duplicate routine codes
 	function test3() {
@@ -643,7 +643,7 @@ if (require.main == module) {
 			test4();
 		});
 	}
-	
+
 	function test4() {
 		var manager = require('./dbManager');
 
