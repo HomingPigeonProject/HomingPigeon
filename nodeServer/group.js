@@ -2,11 +2,6 @@
  * Group management
  * user can create group chat for 2 or more users
  */
-var session = require('./session');
-var dbManager = require('./dbManager');
-var chatManager = require('./chatManager');
-var lib = require('./lib');
-var async = require('async');
 
 function init(user) {
 	/* User operations
@@ -143,6 +138,9 @@ var getGroup = function(data, callback) {
 					
 					groups[i].members = [];
 					
+					// TODO: id should be changed to groupId eventually
+					groups[i].groupId = groups[i].id;
+					
 					for (var j = 0; j < data.length; j++)
 						groups[i].members.push(lib.filterUserData(data[j]));
 					
@@ -198,7 +196,7 @@ var addGroup = function(data, callback) {
 				// add calling user as a member
 				if (!contains.call(members, user.email))
 					members.unshift(user.email);
-				console.log('hihi');
+				
 				addMembers({db: this.db, groupId: groupId, user: user, 
 					members: members, trx: false}, callback);
 			} else {
@@ -254,7 +252,6 @@ var addMembers = function(data, userCallback) {
 		dbManager.atomicPattern([
 			// get user info
 			function(callback) {
-				console.log('user');
 				this.db.getUserByEmail({email: members[i].trim(), lock: true}, callback);
 			},
 			function(result, fields, callback) {
@@ -389,3 +386,9 @@ module.exports = {init: init,
 		getGroup: getGroup,
 		addGroup: addGroup,
 		addMembers: addMembers,};
+
+var session = require('./session');
+var dbManager = require('./dbManager');
+var chatManager = require('./chatManager');
+var lib = require('./lib');
+var async = require('async');

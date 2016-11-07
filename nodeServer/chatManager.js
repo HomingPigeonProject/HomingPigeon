@@ -3,12 +3,7 @@
  * user can join or exit contact chat, group chat, conference
  */
 
-var session = require('./session');
-var dbManager = require('./dbManager');
 var rbTree = require('./RBTree');
-var group = require('./group');
-var chat = require('./chat');
-var async = require('async');
 
 // set of active chats
 var allChatRoom = rbTree.createRBTree();
@@ -53,35 +48,56 @@ var init = function(user) {
 };
 
 // init user when logined
-var initUser = function(user) {
+var initUser = function(user, callback) {
 	user.chatRooms = [];
 	
 	// when logined, user will get group list and
 	// automatically join all chatRooms
 	dbManager.trxPattern([
 		function(callback) {
-			group.getGroup({user: user, trx: false}, callback);
+			group.getGroup({user: user, db: this.db}, callback);
 		},
 		function(groups, callback) {
+			var db = this.db;
 			this.data.groups = groups;
 			
 			var joinGroupIter = function(i) {
+				var group = groups[i];
+				
 				if (i == groups.length)
 					return callback(null);
 				
-				joinGroupChat({user: user, groupId: groups[i].groupId,
-					db: this.db, trx: false}, callback);
-			}
+				async.waterfall([
+					function(callback) {
+						joinGroupChat({user: user, groupId: group.groupId, 
+							db: db, trx: false}, callback);
+					}
+				],
+				function(err) {
+					if (err) {
+						console.log('failed to join chat' + err);	
+					}
+						
+					// ignore fail, but this may cause problem
+					joinGroupIter(i + 1);
+				});
+			};
+			
+			joinGroupIter(0);
 		},
 		function(callback) {
-			
+			user.emit('getGroupList', {status: 'success', groups: this.data.groups});
+			callback(null);
 		}
 	],
 	function(err) {
 		if (err) {
+			// can't fail currently
+			console.log('failed to join chat'+ err);
 			
+			callback(err);
 		} else {
-			
+			callback(null);
 		}
 	});
 };
@@ -97,9 +113,9 @@ var joinGroupChat = function(data, callback) {
 	else
 		pattern = dbManager.atomicPattern;
 	
-	dbManager.trxPattern([
+	pattern([
 		// check if the user is group member
-		function(result, fields, callback) {
+		function(callback) {
 			this.db.getGroupMember({groupId: groupId, userId: user.userId},
 					callback);
 		},
@@ -109,7 +125,7 @@ var joinGroupChat = function(data, callback) {
 											' no such group'));
 			
 			// get active chat
-			var chatRoom = allChatRoom.get(groupId); 
+			var chatRoom = allChatRoom.get(groupId);
 			
 			if (!chatRoom) {
 				chatRoom = chat.createChatRoom({groupId: groupId});
@@ -118,7 +134,7 @@ var joinGroupChat = function(data, callback) {
 					return callback(new Error('Failed to open chat'));
 			}
 			
-			var members = chatRoom.getMembers;
+			var members = chatRoom.onlineMembers;
 			
 			if (members.indexOf(user) >= 0)
 				return callback(new Error('Already joined'));
@@ -127,30 +143,62 @@ var joinGroupChat = function(data, callback) {
 			
 			chatRoom.join({user: user}, callback);
 		},
-		function(callback) {
 			// read at most 100 messages
 			//this.data.chatRoom.getRecentMessages({nbMessage: 100}, callback);
+		function(callback) {
+			// notify members
 			
-		},
-		function(result, callback) {
-			
+			callback(null);
 		}
 	],
 	function(err, result) {
-		
+		if (err) {
+			callback(err);
+		} else {
+			callback(null);
+		}
 	});
 };
 
+// when user exits group
 var exitGroupChat = function(data) {
 	
 };
 
+// when user disconnects, exit from every chats
 var exitAllGroupChat = function(data) {
+	var user = data.user;
+	var chatRooms = user.chatRooms;
 	
+	if (!user || !chatRooms)
+		return;
+	
+	for (var i in chatRooms) {
+		var chatRoom = chatRooms[i];
+		
+		chatRoom.leave({user: data.user}, function(err) {
+			if (err)
+				console.log('chat leave failed! memory leak');
+		});
+	}
+	
+	console.log('exit every group');
 };
 
+// when number of online member in group is 0,
+// remove group chat
 var removeGroupChat = function(data) {
-	
 };
 
-module.exports = {init: init};
+module.exports = {init: init,
+		initUser: initUser,
+		joinGroupChat: joinGroupChat,
+		exitGroupChat: exitGroupChat,
+		exitAllGroupChat: exitAllGroupChat,
+		removeGroupChat: removeGroupChat};
+
+var session = require('./session');
+var dbManager = require('./dbManager');
+var group = require('./group');
+var chat = require('./chat');
+var async = require('async');

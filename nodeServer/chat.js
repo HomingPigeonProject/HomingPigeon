@@ -2,11 +2,6 @@
  * Server based chat
  */
 
-var session = require('./session');
-var dbManager = require('./dbManager');
-var group = require('./group');
-var server = require('./appServer');
-
 /* User operations
  * name               arguments
  * sendMessage        groupId, 
@@ -15,6 +10,10 @@ var server = require('./appServer');
 /* User events 
  * name
  * newMessage
+ * memberJoin
+ * memberLeave
+ * memberInvited
+ * memberExit
  */
 
 var init = function(user) {
@@ -23,14 +22,15 @@ var init = function(user) {
 var chatRoomProto = {
 	groupId: undefined,
 	
+	onlineMembers: null, // list of online users
+	
 	getRoomName: function() {
 		return this.groupId.toString();
 	},
 	
 	// returns list of user connections
-	getMembers: function() {
-		return server.io.sockets.clients(this.getRoomName());
-	},
+	//console.log(server.io.sockets.adapter.rooms);
+	//var room = server.io.sockets.adapter.rooms[this.getRoomName()];
 	
 	// get recent message 
 	// data.nbMessage : number of messages to retrieve 
@@ -84,16 +84,36 @@ var chatRoomProto = {
 	// user broadcasts message to other users
 	// assumed the user is member of this group
 	broadcast: function(user, name, message) {
-		user.to(this.getRoomName()).emit(name, message);
+		user.broadcast.to(this.getRoomName()).emit(name, message);
+	},
+	
+	printMembers: function() {
+		var members = this.onlineMembers;
+		
+		for (var i = 0; i < members.length; i++) {
+			console.log('group' + this.groupId + ': (' + 
+					members[i].userId + ') ' + members[i].email);
+		}
 	},
 	
 	join: function(data, callback) {
 		var user = data.user;
+		var chatRoom = this;
+		var onlineMembers = this.onlineMembers;
 		
 		user.join(this.getRoomName(), function(err) {
 			if (err)
 				callback(err);
 			else {
+				onlineMembers.push(user);
+				user.chatRooms.push(chatRoom);
+				
+				// notify users
+				chatRoom.broadcast(user, 'memberJoin',
+						{groupId: chatRoom.groupId, member: lib.filterUserData(user)});
+				
+				chatRoom.printMembers();
+				
 				callback(null);
 			}
 		});
@@ -101,11 +121,22 @@ var chatRoomProto = {
 	
 	leave: function(data, callback) {
 		var user = data.user;
+		var chatRoom = this;
+		var onlineMembers = this.onlineMembers;
 		
 		user.leave(this.getRoomName(), function(err) {
 			if (err)
 				callback(err);
 			else {
+				var memberIndex = onlineMembers.indexOf(user);
+				var chatRoomIndex = user.chatRooms.indexOf(chatRoom);
+				onlineMembers.splice(memberIndex, 1);
+				user.chatRooms.splice(chatRoomIndex, 1)
+				
+				// notify users
+				chatRoom.broadcast(user, 'memberLeave',
+						{groupId: chatRoom.groupId, member: lib.filterUserData(user)});
+				
 				callback(null);
 			}
 		});
@@ -119,6 +150,7 @@ var chatRoom = function() {
 	// constructor
 	this.init = function(data) {
 		this.groupId = data.groupId;
+		this.onlineMembers = [];
 		
 		return this;
 	}
@@ -132,3 +164,9 @@ var createChatRoom = function (data) {
 
 module.exports = {init: init,
 		createChatRoom: createChatRoom};
+
+var session = require('./session');
+var dbManager = require('./dbManager');
+var group = require('./group');
+var server = require('./appServer');
+var lib = require('./lib');
