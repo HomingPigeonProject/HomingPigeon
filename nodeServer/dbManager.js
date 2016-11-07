@@ -5,12 +5,12 @@ var mysql = require('mysql');
 var async = require('async');
 
 var pool = mysql.createPool({
-    host :'localhost',
+    host : 'localhost',
     port : 3306,
-    user : 'user',
-    password : 'HomingPigeon0!',
-    database:'HomingPigeon',
-    connectionLimit:10,
+    user : 'root',
+    password : 'team3',
+    database: 'HomingPigeon',
+    connectionLimit:64,
     waitForConnections:true,
     acquireTimeout:2000
 });
@@ -80,13 +80,13 @@ var queries = {
 	getGroupMemberNumber: "SELECT count(*) " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
 			"WHERE g.groupId = ? ",
-			
+
 	getRecentMessages: "SELECT * " +
 			"FROM Messages " +
 			"WHERE groupId = ? " +
 			"ORDER BY id desc " +
 			"LIMIT ? ",
-			
+
 	getMessagesFromId: "SELECT * " +
 			"FROM Messages " +
 			"WHERE groupId = ? and id >= ? " +
@@ -324,35 +324,36 @@ var getConnection = function(callback) {
 // db transaction patterns
 var dbPatternProto = {
 	// generic constructor
+
 	init: function(userFuncs, userEndFunc, config) {
 		// exploit basic, user functions so it can access db, data.
 		this.funcSeries = [];
-		
+
 		if (this.basicFuncs)
 			for (var i = 0; i < this.basicFuncs.length; i++) {
 				this.funcSeries.push(this.applyFuncGen(this.basicFuncs[i], this));
 			}
-		
+
 		if (userFuncs)
 			for (var i = 0; i < userFuncs.length; i++) {
 				this.funcSeries.push(this.applyFuncGen(userFuncs[i], this));
 			}
-		
+
 		if (this.basicEndFunc)
 			this.basicEndFunc = this.applyFuncGen(this.basicEndFunc, this);
-		
+
 		if (userEndFunc)
 			this.userEndFunc = this.applyFuncGen(userEndFunc, this);
-		
+
 		// configure
 		if (config) {
-			
+
 			// config async
 			if (config.async == 'waterfall')
 				this.async = async.waterfall;
 			else if (config.async == 'series')
 				this.async = async.series;
-			
+
 			// user can pass mysql db object to use
 			// this case, pattern never releases db
 			// otherwise, releases db
@@ -366,7 +367,7 @@ var dbPatternProto = {
 			this.async = async.waterfall;
 			this.releaseDB = true;
 		}
-		
+
 		return this;
 	},
 	applyFuncGen: function(func, pattern) {
@@ -382,9 +383,9 @@ var dbPatternProto = {
 	releaseDB: false,         /* Release db at the end or not */
 	data: {},                 /* Can use to share data across user series functions */
 	run: function() {
-		
+
 		this.async(this.funcSeries, this.basicEndFunc);
-		
+
 		return this;
 	},
 	callUserEndFunc: function() {
@@ -399,9 +400,9 @@ var dbPatternProto = {
 
 //pattern no transaction, each query regarded as single transaction
 var atomicPatternGen = function() {
-	
+
 	var constructor = function() {
-		
+
 		// request connection
 		var _getConnection = function(callback) {
 			if (!this.db)
@@ -409,22 +410,22 @@ var atomicPatternGen = function() {
 			else
 				callback(null, null);
 		};
-		
+
 		// got connection
 		var _gotConnection = function(result, callback) {
 			if (result)
 				this.db = result;
-			
+
 			callback(null);
 		};
-		
+
 		this.basicFuncs = [_getConnection, _gotConnection];
-		
+
 		this.basicEndFunc = function(err, result, fields) {
 			var db = this.db;
-			
+
 			this.releaseDBFunc();
-			
+
 			if (err) {
 				this.callUserEndFunc(err);
 			} else {
@@ -432,9 +433,9 @@ var atomicPatternGen = function() {
 			}
 		};
 	};
-	
+
 	constructor.prototype = dbPatternProto;
-	
+
 	return new constructor();
 };
 
@@ -446,29 +447,28 @@ var atomicPattern = function(userFuncs, userEndFunc, config) {
 // pattern with transaction start, commit when success, rollback when err
 var trxPatternGen = function() {
 	var basicFuncs;
-	
+
 	var constructor = function() {
-		
 		// got connection
 		var _gotConnection = function(result, callback) {
 			if (result)
 				this.db = result;
-			
+
 			this.db.beginTransaction(callback);
 		};
-		
+
 		var _startedTransaction = function(result, fields, callback) {
 			callback(null);
 		};
-		
+
 		this.basicFuncs = [this.basicFuncs[0],
 			_gotConnection, _startedTransaction];
-		
+
 		this.basicEndFunc = function(err, result, fields) {
 			var db = this.db;
 			var releaseDB = this.releaseDB;
 			var pattern = this;
-			
+
 			if (err) {
 				// rollback and callback with error
 				if (db)
@@ -490,12 +490,12 @@ var trxPatternGen = function() {
 							pattern.callUserEndFunc(null, result, fields);
 						}
 					});
-				} else 
+				} else
 					pattern.callUserEndFunc(null, result, fields);
 			}
 		};
 	};
-	
+
 	constructor.prototype = atomicPatternGen();
 	return new constructor();
 };
@@ -508,18 +508,18 @@ var trxPattern = function(userFuncs, userEndFunc, config) {
 // trxPattern2 which inherits trxPattern can be written like this
 var trxPattern2Gen = function() {
 	var trx1 = trxPatternGen();
-	
+
 	var constructor = function() {
 		// do something here...
 		this.basicFuncs = [/* new basic funcs */];
-		
+
 		this.basicEndFunc = function() {
 			// new basic end func...
 		};
 	};
-	
+
 	constructor.prototype = trx1;
-	
+
 	return new constructor();
 };
 
@@ -657,7 +657,7 @@ if (require.main == module) {
 			test3();
 		});
 	}
-	
+
 	// using patternized db framework
 	// much easier code, no duplicate routine codes
 	function test3() {
@@ -691,7 +691,7 @@ if (require.main == module) {
 			test4();
 		});
 	}
-	
+
 	function test4() {
 		var manager = require('./dbManager');
 

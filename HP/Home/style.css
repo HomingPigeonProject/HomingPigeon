@@ -1,0 +1,43 @@
+
+#list-group {
+  font-family: Georgia;
+}
+
+.group-contactName {
+  margin-left: 3px;
+}
+
+.contact {
+  width: 252px;
+  padding: 2px;
+  border: 1px solid gray;
+  margin: 0;
+  color: navy;
+  font-size: 16px;
+}
+
+.group {
+  width: 252px;
+  padding: 2px;
+  border: 1px solid gray;
+  margin: 0;
+  color: navy;
+  font-size: 16px;
+}
+
+.listTitle {
+  width: 252px;
+
+  border: 1px solid navy;
+  text-align: center;
+  color: navy;
+  font-size: 16px;
+}
+
+.conferenceLink {
+  
+}
+
+.listTitle {
+
+}
