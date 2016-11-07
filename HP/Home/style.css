@@ -7,13 +7,14 @@
   margin-left: 3px;
 }
 
+
 .contact {
   width: 252px;
   padding: 2px;
   border: 1px solid gray;
   margin: 0;
   color: navy;
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .group {
@@ -22,7 +23,26 @@
   border: 1px solid gray;
   margin: 0;
   color: navy;
-  font-size: 16px;
+  font-size: 15px;
+}
+
+.removeContactButton {
+  width: 20px;
+  height: 20px;
+  padding: 0px;
+  box-sizing: border-box;
+  border: 0;
+  text-align: center;
+  float: right;
+}
+.exitGroupButton {
+  width: 20px;
+  height: 20px;
+  padding: 0px;
+  box-sizing: border-box;
+  border: 0;
+  text-align: center;
+  float: right;
 }
 
 .listTitle {
@@ -35,9 +55,24 @@
 }
 
 .conferenceLink {
-  
+
 }
 
 .listTitle {
 
+}
+
+
+.addContactToGroupButton {
+  font-size: 10pt;
+  text-align: center;
+  float: right;
+  height: 30px;
+  width: 50px;
+}
+
+.addContactToGroupEmail {
+  font-size: 10pt;
+  height: 30px;
+  width: 160px;
 }

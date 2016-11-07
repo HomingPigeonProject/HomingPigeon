@@ -26,6 +26,7 @@ CREATE TABLE Contacts (
     accountId int NOT NULL,
     accountId2 int NOT NULL,
     groupId int,                                     /* Group id for two users' chat */
+    accepted bit(1) NOT NULL DEFAULT 0,
     CONSTRAINT Contacts_pk PRIMARY KEY (id)
 );
 
@@ -141,6 +142,9 @@ ALTER TABLE EventParticipants ADD CONSTRAINT EventParticipants_EventId FOREIGN K
     
 ALTER TABLE EventParticipants ADD CONSTRAINT EventParticipants_AccountId FOREIGN KEY (accountId)
     REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
+    
+ALTER TABLE Contacts ADD status TINYINT DEFAULT 0;
+ALTER TABLE GroupMembers ADD status TINYINT DEFAULT 0;
 
 -- Message trigger
 delimiter #

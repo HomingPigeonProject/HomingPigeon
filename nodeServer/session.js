@@ -2,12 +2,7 @@
  * User login management
  * users at first must send their session id to login
  */
-
-var dbManager = require('./dbManager');
-var contact = require('./contact');
 var rbTree = require('./RBTree');
-var lib = require('./lib');
-var async = require('async');
 
 var users;
 
@@ -57,13 +52,45 @@ function init(user) {
 				// add to user session pool
 				if (!addUserSession(user)) {
 					console.log('??');
-					user.disconnect(false);
+					return user.disconnect(false);
 				}
-
+				
 				user.emit('login', {status: 'success', data: user.getUserInfo()});
+				
 				console.log('user ' + user.email + ' logined');
+				
+				async.waterfall([
+					function(callback) {
+						contact.initUser(user, callback)
+					},
+					function(callback) {
+						// join every active group the user belongs to
+						chatManager.initUser(user, callback);
+					}
+				], 
+				function(err) {
+					if (err) {
+						console.log(user.email + ' joining group failed');
+						
+						// fail init, close connection;
+						user.disconnect(false);
+					} else {
+						console.log(user.email + ' is joined to groups');
+					}
+				});
 			}
 		});
+	});
+	
+	user.on('disconnect', function() {
+		if (!logined(user)) {
+			console.log('anonymous user ' + user.id + ' disconnected');
+		} else {
+			// leave every online chat
+			chatManager.leaveAllGroupChat({user: user});
+			
+			console.log('user ' + user.email + ' disconnected');
+		}
 	});
 }
 
@@ -96,7 +123,7 @@ function validateRequest(name, user, needData, data) {
 
 // User session pool management
 // store list of user sessions with user id as a key
-// it's list because a user can access with multiple devices at the same time
+// it's because a user can access with multiple devices at the same time
 function addUserSession(user) {
 	var userSessions = users.get(user.userId);
 
@@ -152,3 +179,9 @@ module.exports = {init: init,
 		getUserSessions: getUserSessions,
 		removeUserSession: removeUserSession,
 		removeAllUserSession: removeAllUserSession};
+
+var dbManager = require('./dbManager');
+var contact = require('./contact');
+var chatManager = require('./chatManager');
+var lib = require('./lib');
+var async = require('async');

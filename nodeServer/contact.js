@@ -2,10 +2,6 @@
  * Contact list management
  * a user can add, remove contacts and get contact list
  */
-var session = require('./session');
-var lib = require('./lib');
-var dbManager = require('./dbManager');
-var async = require('async');
 
 var init = function(user) {
 	/* User operations
@@ -23,19 +19,15 @@ var init = function(user) {
 		if (!session.validateRequest('getContactList', user, false))
 			return;
 		
-		dbManager.atomicPattern([
-			function(callback) {
-				this.db.getContactListByUser({userId: user.userId}, callback);
-			}
-		], 
-		function(err, result) {
-			if (err) {
-				console.log('failed to get contact list\r\n' + err);
-				user.emit('getContactList', {status: 'fail', errorMsg:'server error'});
-			} else {
-				//console.log(result);
-				user.emit('getContactList', {status: 'success', contacts: result});
-			}
+		getContactList({user: user, trx: true},
+			function(err, result) {
+				if (err) {
+					console.log('failed to get contact list\r\n' + err);
+					user.emit('getContactList', {status: 'fail', errorMsg:'server error'});
+				} else {
+					//console.log(result);
+					user.emit('getContactList', {status: 'success', contacts: result});
+				}
 		});
 	});
 	
@@ -91,10 +83,11 @@ var init = function(user) {
 				
 				return user.emit('addContact', {status: 'fail', errorMsg: 'server error'});
 			} else {
-				console.log(result);
+				//console.log(result);
 				
 				var result = lib.filterUserData(peerData);
-				result.status = 'success'
+				
+				result.status = 'success';
 				user.emit('addContact', result);
 			}
 		});
@@ -135,5 +128,62 @@ var init = function(user) {
 	});
 }
 
-module.exports = {init: init};
+//init user when logined
+var initUser = function(user, callback) {
+	// when logined, user will get contact list
+	// automatically
+	dbManager.trxPattern([
+		function(callback) {
+			getContactList({user: user, db: this.db}, 
+					callback);
+		},
+		function(contacts, callback) {
+			this.data.contacts = contacts;
+			
+			user.emit('getContactList', {status: 'success', contacts: contacts});
+			
+			callback(null);
+		}
+	],
+	function(err) {
+		if (err) {
+			console.log('failed to get contact list');
+			
+			callback(err);
+		} else {
+			callback(null);
+		}
+	});
+};
 
+var getContactList = function(data, callback) {
+	var user = data.user
+	
+	if (data.trx)
+		pattern = dbManager.trxPattern;
+	else
+		pattern = dbManager.atomicPattern;
+	
+	pattern([
+		function(callback) {
+			this.db.getContactListByUser({userId: user.userId}, callback);
+		}
+	], 
+	function(err, result) {
+		if (err) {
+			callback(err);
+		} else {
+			callback(null, result)
+		}
+	},
+	{db: data.db});
+};
+
+module.exports = {init: init,
+		initUser: initUser,
+		getContactList: getContactList};
+
+var session = require('./session');
+var lib = require('./lib');
+var dbManager = require('./dbManager');
+var async = require('async');
