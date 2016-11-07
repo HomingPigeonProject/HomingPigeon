@@ -1,14 +1,6 @@
 <?php
   session_start();
   include_once 'dbconnect.php';
-
-  /*
-  $m = new Memcached();
-  $m->addServer('localhost', 11211);
-  $m->set(session_id(), 'Hello!');
-  //var_dump($m->get('HALTQUIVOILA'));
-  */
-
 ?>
 
 <!DOCTYPE html>
@@ -19,8 +11,7 @@
 </head>
 <body>
 
-  <a href="Conference/anotherpage.php">another page</a>
-  <a href="Conference/page.php">Conference</a>
+  <a href="Conference/page.php?c1">Conference c1</a>
 
   <!-- Session info and logout option -->
   <ul>

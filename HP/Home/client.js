@@ -1,3 +1,8 @@
+var userId = document.getElementById("phpUserId").textContent;
+var sessionId = document.getElementById("phpSessionId").textContent;
+console.log("The user id is : ", userId);
+console.log("The session  id is : ", sessionId);
+
 var logined = false;
 var server = io.connect('http://localhost:4000');
 window.addEventListener('load', function() {
@@ -5,10 +10,13 @@ window.addEventListener('load', function() {
 
 	server.on('connect', function() {
 		console.log('connected to server');
+		reset();
+		server.emit('login', {userId: userId});
 	});
 	server.on('reconnect', function() {
 		console.log('reconnected to server');
 		reset();
+		server.emit('login', {userId: userId});
 	});
 	server.on('login', function(data) {
 		console.log(data);
@@ -149,6 +157,10 @@ window.addEventListener('load', function() {
 
 	server.on('getGroupList', function(data) {
 		if (data.status == 'success') {
+
+			// print the groupList
+
+
 			console.log(data);
 		} else {
 			console.log('failed to get group list...');
@@ -156,23 +168,50 @@ window.addEventListener('load', function() {
 	});
 	// TODO: create contact list panel
 	server.on('getContactList', function(data) {
-		if (data.status == 'success')
+		if (data.status == 'success') {
 			console.log(data);
-	});
 
-	reset();
+			// print the contact list
+			var contactListDiv = document.getElementById("contact-list");
+			var title = document.createElement('p');
+			title.textContent = "Contact List ";
+			contactListDiv.appendChild(title);
+
+			var arrayLength = data.contacts.length;
+			for (var i = 0; i < arrayLength; i++) {
+				var contact = data.contacts[i];
+				console.log("Contact : ");
+				console.log(contact);
+
+				var div = document.createElement("div");
+				div.id ="contact";
+
+				var contactName = document.createElement("p");
+				contactName.textContent = contact["email"];
+
+
+				// also add the links to the chats
+				var url = document.getElementById("phpURL").textContent;
+
+				var contactConferenceLink = document.createElement('a');
+				contactConferenceLink.id = "contactConferenceLink";
+				contactConferenceLink.appendChild(document.createTextNode("conference"));
+				contactConferenceLink.title = "conference";
+				contactConferenceLink.href = "../Conference/page.php?" + "c" + contact["id"];
+
+				div.appendChild(contactName);
+				div.appendChild(contactConferenceLink);
+
+				contactListDiv.appendChild(div);
+
+
+			}
+		}
+
+	});
 });
 
 function reset() {
-	$('#control').html("<label id='loginStatus'>status : not logined</label>\
-			<form id='sessionLogin' action='javascript:void(0);'>\
-			<input id='sessionId' type='text' placeholder='put your session id'></input>\
-			<button type='submit'>session login</button>\
-			</form>");
+	$('#control').html("<label id='loginStatus'>status : not logined</label>");
 	logined = false;
-
-	$('#sessionLogin').submit(function() {
-		if (!logined)
-			server.emit('login', {userId: $('#sessionId').val()});
-	});
 }

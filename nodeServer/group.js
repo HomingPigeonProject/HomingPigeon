@@ -4,6 +4,7 @@
  */
 var session = require('./session');
 var dbManager = require('./dbManager');
+var lib = require('./lib');
 var async = require('async');
 
 function init(user) {
@@ -22,54 +23,42 @@ function init(user) {
 		if (!session.validateRequest('getGroupList', user, false))
 			return;
 		
-		var db;
-		async.waterfall([
+		dbManager.trxPattern([
 			function(callback) {
-				dbManager.getConnection(callback);
-			},
-			function(result, callback) {
-				db = result;
-				db.beginTransaction(callback);
-			},
-			function(result, fields, callback) {
 				// get group list of the user
-				db.getGroupListByUser({userId: user.userId}, callback);
+				this.db.getGroupListByUser({userId: user.userId}, callback);
 			},
 			function(result, fields, callback) {
 				var groups = result;
+				var db = this.db;
+				
 				// get all group member information of all group
 				var getMembers = function (i, groups) {
 					if (i >= groups.length)
 						return callback(null, groups);
+					
 					db.getGroupMembers({groupId: groups[i].id}, function(err, data) {
 						if (err)
 							return callback(err);
 						
-						groups[i].members = data;
+						groups[i].members = [];
+						
+						for (var j = 0; j < data.length; j++)
+							groups[i].members.push(lib.filterUserData(data[j]));
+						
 						getMembers(i + 1, groups);
 					});
 				}
 				getMembers(0, groups);
-			},
-			function(result, callback) {
-				db.commit(function(err) {
-					callback(err, result);
-				});
 			}
 		],
 		function(err, result) {
-			if (err) {
-				if (db) {
-					db.rollback(function() {
-						db.release();
-					});
-				}
+			if (err) {	
 				console.log('failed to get group list\r\n' + err);
 				return user.emit('getGroupList', {status: 'fail', errorMsg:'server error'});
+			} else {
+				user.emit('getGroupList', {status: 'success', groups: result});
 			}
-			if (db)
-				db.release();
-			user.emit('getGroupList', {status: 'success', groups: result});
 		});
 	});
 	
@@ -80,65 +69,12 @@ function init(user) {
 		if (!session.validateRequest('addGroup', user, true, data))
 			return;
 		
-		var db, groupId, members;
-		async.waterfall([
-			function(callback) {
-				dbManager.getConnection(callback);
-			},
-			function(result, callback) {
-				db = result;
-				db.beginTransaction(callback);
-			},
-			// create group
-			function(result, fields, callback) {
-				db.addGroup({name: data.name}, callback);
-			},
-			// get group id
-			function(result, fields, callback) {
-				if (result.affectedRows == 0)
-					callback(new Error('failed to add group'));
-				
-				db.lastInsertId(callback);
-			},
-			// add members to group
-			function(result, fields, callback) {
-				members = data.members;
-				groupId = result[0].lastInsertId;
-				
-				// members should be array
-				if (isArray(members)) {
-					// add the user as a member
-					if (!contains.call(members, user.email))
-						members.unshift(user.email);
-					addMembers(db, groupId, user, members, callback);
-				} else {
-					callback(new Error('not array'));
-				}
-			},
-			// get group member information
-			function(result, callback) {
-				db.getGroupMembers({groupId: groupId}, callback);
-			},
-			function(result, fields, callback) {
-				members = result;
-				db.commit(callback);
-			}
-		],
-		function(err, result) {
-			if (err) {
-				if (db) {
-					db.rollback(function() {
-						db.release();
-					});
-				}
-				console.log('failed to add group list\r\n' + err);
+		data.user = user;
+		addGroup(data, function(err, data) {
+			if (err)
 				return user.emit('addGroup', {status: 'fail', errorMsg:'server error'});
-			}
-			if (db)
-				db.release();
 			
-			user.emit('addGroup', {status: 'success', 
-				groups: {groupId: groupId, name: data.name, members: members}});
+			user.emit('addGroup', {status: 'success', group: data});
 		});
 	});
 	
@@ -147,22 +83,16 @@ function init(user) {
 		if (!session.validateRequest('inviteGroupMembers', user, true, data))
 			return;
 		
-		var db, groupId, members;
-		async.waterfall([
+		var groupId, members;
+		dbManager.trxPattern([
 			function(callback) {
-				dbManager.getConnection(callback);
-			},
-			function(result, callback) {
-				db = result;
-				db.beginTransaction(callback);
-			},
-			function(result, fields, callback) {
 				members = data.members;
 				groupId = data.groupId;
 				
 				// members should be array
 				if (isArray(members)) {
-					addMembers(db, groupId, user, members, callback);
+					addMembers({db: this.db, groupId: groupId, user: user, 
+						members: members, trx: false}, callback);
 				} else {
 					callback(new Error('not array'));
 				}
@@ -170,18 +100,12 @@ function init(user) {
 		],
 		function(err, addedMembers) {
 			if (err) {
-				if (db) {
-					db.rollback(function() {
-						db.release();
-					});
-				}
 				console.log('failed to invite users to group\r\n' + err);
 				return user.emit('inviteGroupMembers', {status: 'fail', errorMsg:'server error'});
+			} else {
+				members = addedMembers;
+				user.emit('inviteGroupMembers', {status: 'success', groupId: groupId, members: members});
 			}
-			if (db)
-				db.release();
-			members = addedMembers;
-			user.emit('inviteGroupMembers', {status: 'success', groupId: groupId, members: members});
 		});
 	});
 	
@@ -190,76 +114,140 @@ function init(user) {
 		if (!session.validateRequest('exitGroup', user, true, data))
 			return;
 		
-		var db;
-		async.waterfall([
+		dbManager.atomicPattern([
 			function(callback) {
-				dbManager.getConnection(callback);
-			},
-			function(result, callback) {
-				db = result;
-				db.removeGroupMember({groupId: data.groupId, userId: user.userId}, callback);
+				this.db.removeGroupMember({groupId: data.groupId, userId: user.userId}, callback);
 			},
 		],
 		function(err, result) {
-			if (db)
-				db.release();
 			if (err) {
 				console.log('failed to exit from group\r\n' + err);
 				return user.emit('exitGroup', {status: 'fail', errorMsg:'server error'});
-			}
+			} 
+			
 			if (result.affectedRows == 0) {
 				console.log('user is already not in group');
 				return user.emit('exitGroup', {status: 'fail', errorMsg:'you are not group member'});
 			}
+			
 			user.emit('exitGroup', {status: 'success', groupId: data.groupId});
 		});
 	});
 }
 
+var addGroup = function(data, callback) {
+	var groupId;
+	var user = data.user
+	var name = data.name;
+	var members = data.members;
+	
+	dbManager.trxPattern([
+		// create group
+		function(callback) {
+			this.db.addGroup({name: name}, callback);
+		},
+		// get group id
+		function(result, fields, callback) {
+			if (result.affectedRows == 0)
+				callback(new Error('failed to add group'));
+			
+			this.db.lastInsertId(callback);
+		},
+		// add members to group
+		function(result, fields, callback) {
+			members = data.members;
+			groupId = result[0].lastInsertId;
+			
+			// members should be array
+			if (isArray(members)) {
+				// add calling user as a member
+				if (!contains.call(members, user.email))
+					members.unshift(user.email);
+				console.log('hihi');
+				addMembers({db: this.db, groupId: groupId, user: user, 
+					members: members, trx: false}, callback);
+			} else {
+				callback(new Error('not array'));
+			}
+		},
+		// if no group name, add default name
+		function(result, callback) {
+			// get group member information
+			members = result;
+			
+			if (name) 
+				return callback(null);
+			
+			name = getDefaultGroupName(members);
+			db.updateGroupName({groupId: groupId, name: name}, callback);
+		},
+	],
+	function(err) {
+		if (err) {
+			console.log('failed to add group list\r\n' + err);
+			
+			callback(err);
+		} else {
+			callback(null, {groupId: groupId, name: name, members: members});
+		}
+	});
+}
+
 // 'user' adds users in 'members' to group 'groupId', calling 'callback' at the end
-var addMembers = function(db, groupId, user, members, callback) {
+var addMembers = function(data, userCallback) {
+	var pattern;
+	
 	var addedMembers = [];
 	
+	var db = data.db;
+	var groupId = data.groupId;
+	var user = data.user;
+	var members = data.members;
+	var trx = data.trx;
+	
 	// recursive function adding mutiple users to group
-	var addMembersIter = function(i) {
-		if (i >= members.length)
-			return callback(null, addedMembers);
-		
+	var addMembersIter = function(i, bigCallback) {
 		var peer;
-		async.waterfall([
+		
+		if (i >= members.length)
+			return bigCallback(null);
+		
+		dbManager.atomicPattern([
+			// get user info
 			function(callback) {
-				db.getUserByEmail({email: members[i], lock: true}, callback);
+				console.log('user');
+				this.db.getUserByEmail({email: members[i].trim(), lock: true}, callback);
 			},
 			function(result, fields, callback) {
 				if (result.length == 0)
-					return addMembersIter(i + 1);
+					return addMembersIter(i + 1, bigCallback);
 				
 				peer = result[0];
 				
 				// don't have to check contact when adding self
 				if (user.userId == peer.id)
 					return callback(null, true, null, null);
-				
+				console.log('user2');
 				// user can invite only contacts
-				db.getContact({userId: user.userId, userId2: peer.id, lock: true}, 
+				this.db.getContact({userId: user.userId, userId2: peer.id, lock: true}, 
 				function(err, result, fields) {
 					callback(err, false, result, fields);
 				});
 			},
 			function(self, result, fields, callback) {
 				if (!self && result.length == 0)
-					return addMembersIter(i + 1);
-				
+					return addMembersIter(i + 1, bigCallback);
+				console.log('user3');
 				// check if the member added already
-				db.getGroupMember({groupId: groupId, userId: peer.id, lock: true},
+				this.db.getGroupMember({groupId: groupId, userId: peer.id, lock: true},
 						callback);
 			},
 			function(result, fields, callback) {
 				if (result.length > 0)
-					return addMembersIter(i + 1);
+					return addMembersIter(i + 1, bigCallback);
 				
 				// TODO : ackStart should be coordinated
-				db.addGroupMember({groupId: groupId, userId: peer.id,
+				this.db.addGroupMember({groupId: groupId, userId: peer.id,
 					ackStart: 0}, callback);
 			},
 			function(result, fields, callback) {
@@ -267,29 +255,76 @@ var addMembers = function(db, groupId, user, members, callback) {
 					return callback(new Error('failed to insert member'));
 				
 				// push added user
-				addedMembers.push(peer);
+				addedMembers.push(lib.filterUserData(peer));
+				
 				callback(null);
 			}
 		],
 		function(err) {
 			if (err)
-				return callback(err);
+				return bigCallback(err);
 			
-			addMembersIter(i + 1);
-		});
+			addMembersIter(i + 1, bigCallback);
+		},
+		{db: db});
 	}
 	
-	// start from 0th user
-	addMembersIter(0);
+	if (trx)
+		pattern = dbManager.trxPattern;
+	else
+		pattern = dbManager.atomicPattern;
+	
+	pattern([
+		function(callback) {
+			db = this.db;
+			
+			// start from 0th user
+			addMembersIter(0, callback);
+		}
+	],
+	function(err) {
+		if (err) {
+			userCallback(err);
+		} else {
+			console.log('hihi');
+			userCallback(null, addedMembers);
+		}
+	},
+	{db: db});
 }
 
+// create default group name
+var getDefaultGroupName = function(members) {
+	// create string of names 'a, b, c...'
+	// at most 5 names are listed
+	if (members.length == 0)
+		return '';
+	
+	var name = members[0].nickname;
+	
+	for (var i = 1; i < members.length && i < 5; i++) {
+		var member = members[i];
+		
+		if (name.length + member.nickname.length + 2 > 125)
+			break;
+		
+		name += ', ' + member.nickname;
+	}
+	// if members are more than 1, '...' is appended
+	if (i > 1)
+		name += '...';
+	
+	return name;
+}
 
 var isArray = function(array) {
 	if (typeof array == 'object' && array.hasOwnProperty('length'))
 		return true;
+	
 	return false;
 }
 
+// refer to http://stackoverflow.com/questions/1181575/determine-whether-an-array-contains-a-value
 var contains = function(needle) {
     // Per spec, the way to identify NaN is that it is not equal to itself
     var findNaN = needle !== needle;

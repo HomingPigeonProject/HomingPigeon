@@ -2,7 +2,7 @@ var Memcached = require('memcached');
 var PHPUnserialize = require('php-unserialize');
 
 var mem = new Memcached('127.0.0.1:11211'); // connect to local memcached
-var key = process.argv[2]; // get from CLI arg
+var key = process.argv[2]; // get from CLI arg // will be sessionId
 
 console.log('fetching data with key:',key);
 mem.get(key,function(err,data) { // fetch by key

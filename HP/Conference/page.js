@@ -15,7 +15,7 @@ var webrtc = new SimpleWebRTC({
     enableDataChannels: true,
 
 
-    url: "http://vps332892.ovh.net:8888/"
+    url: "https://vps332892.ovh.net:8888/"
 
     /* TODO
     url: ,
@@ -29,6 +29,7 @@ var webrtc = new SimpleWebRTC({
 if (room) {
     // create the room
     setRoom(room);
+    console.log("The room is : ", room)
 } else {
     var f = document.getElementById("createRoom");
     var sessionInput = document.getElementById("sessionInput");
@@ -106,15 +107,18 @@ SimpleWebRTC.prototype.sendMessage= function(msg, event , peer, opts){
 
 function sendMessage(msg) {
   var date =  new Date();
+
+  //var dateString = date.getFullYear() + "/" + date.getMonth() + "/" + date.getDay() + " " + date.getHours() + ":" +date.getMinutes() + ":" + date.getSeconds() + " " +date.getTimezoneOffset();
+  var dateString = date.toLocaleString();
   var author = username;
   var importance = document.getElementById("importance-list").selectedIndex;
 
 
   // MESSAGE PROTOCOL
-  var toSend = date + "-" + author + "-" + importance + "-" + msg;
+  var toSend = dateString + "-" + author + "-" + importance + "-" + msg;
 
   webrtc.sendMessage(toSend);
-  displayMessage(msg, date, author, importance, 1);
+  displayMessage(msg, dateString, author, importance, 1);
 }
 
 function receiveMessage(data) {
@@ -161,16 +165,26 @@ function displayMessage(msg, date, author, importance, sender) {
           var small = document.createElement("small");
           small.className = " text-muted"
 
+          if (sender == 0) {
+            small.id = "split-right";
+          } else {
+            small.id = "split-left";
+          }
+
           var i = document.createElement("i");
           i.className = "fa fa-clock-o fa-fw";
 
-          var string = importance + " " + date.toString();
+          var string = date.toString() + " " + importance;
           var dateP = document.createTextNode(string);
           dateP.id="importance&date"
           small.appendChild(dateP);
 
           var strong = document.createElement("strong");
-          strong.className = "pull-right primary-font";
+          if (sender == 0) {
+            strong.className = "pull-left primary-font";
+          } else {
+            strong.className = "pull-right primary-font";
+          }
           var authorP = document.createTextNode(author);
           strong.appendChild(authorP);
 
@@ -179,6 +193,8 @@ function displayMessage(msg, date, author, importance, sender) {
 
         var p = document.createElement("p");
         var text = document.createTextNode(msg);
+        var newline = document.createElement("br");
+        p.appendChild(newline);
         p.appendChild(text);
 
         div1.appendChild(div2);
@@ -252,6 +268,11 @@ document.getElementById("imp-dl-btn").addEventListener("click", function() {
 webrtc.on('readyToCall', function () {
     // you can name it anything
     if (room) webrtc.joinRoom(room);
+    setTimeout(function(){
+      // TODO : timeout ?
+      sendMessage(username + " just joined the conference");
+    }, 2000);
+
 });
 
 webrtc.on('channelMessage', function (peer, label, data) {
@@ -308,7 +329,6 @@ webrtc.on('volumeChange', function (volume, treshold) {
     //showVolume(document.getElementById('localVolume'), volume);
 });
 
-// Since we use this twice we put it here
 function setRoom(name) {
   var parent = document.getElementById("body");
 
@@ -337,7 +357,8 @@ webrtc.on('createdPeer', function (peer) {
     // TODO : show the username
     var peername = document.createElement('div');
     peername.className = 'peerName';
-    peername.appendChild(document.createTextNode('Peer: ' + peer.id));
+    peer.NAME = "Jean Jacques"
+    peername.appendChild(document.createTextNode('Peer: ' + peer.NAME));
     container.appendChild(peername);
 
     // show a list of files received / sending
