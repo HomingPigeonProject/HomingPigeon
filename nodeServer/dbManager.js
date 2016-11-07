@@ -363,14 +363,17 @@ var dbPatternProto = {
 			// otherwise, releases db
 			if (config.db) {
 				this.db = config.db;
-				this.releaseDB = false;
+				this.createDB = false;
 			} else
-				this.releaseDB = true;
+				this.createDB = true;
 		} else {
 			// default settings
-			this.async = async.waterfall;
-			this.releaseDB = true;
+			this.createDB = true;
 		}
+		
+		// default async is waterfall
+		if (!this.async)
+			this.async = async.waterfall;
 
 		return this;
 	},
@@ -384,11 +387,10 @@ var dbPatternProto = {
 	basicEndFunc: null,       /* Function called when trx ends */
 	async: undefined,
 	db: null,                 /* User function can access db by this.db */
-	releaseDB: false,         /* Release db at the end or not */
+	createDB: false,         /* Release db at the end or not */
 	data: {},                 /* Can use to share data across user series functions */
 	run: function() {
-		if (this.async)
-			this.async(this.funcSeries, this.basicEndFunc);
+		this.async(this.funcSeries, this.basicEndFunc);
 
 		return this;
 	},
@@ -397,7 +399,7 @@ var dbPatternProto = {
 			this.userEndFunc.apply(this, arguments);
 	},
 	releaseDBFunc: function() {
-		if (this.releaseDB && this.db)
+		if (this.createDB && this.db)
 			this.db.release();
 	}
 };
@@ -409,7 +411,7 @@ var atomicPatternGen = function() {
 
 		// request connection
 		var _getConnection = function(callback) {
-			if (!this.db)
+			if (this.createDB)
 				getConnection(callback);
 			else
 				callback(null, null);
@@ -470,7 +472,7 @@ var trxPatternGen = function() {
 
 		this.basicEndFunc = function(err, result, fields) {
 			var db = this.db;
-			var releaseDB = this.releaseDB;
+			var createDB = this.createDB;
 			var pattern = this;
 
 			if (err) {
@@ -530,6 +532,13 @@ var trxPattern2Gen = function() {
 var trxPattern2 = function(userFuncs, userEndFunc, config) {
 	var pattern = trxPattern2Gen();
 	pattern.init.apply(pattern, arguments).run();
+}
+
+var pattern = function(data) {
+	if (trx)
+		pattern = dbManager.trxPattern;
+	else
+		pattern = dbManager.atomicPattern;
 }
 
 module.exports = {
