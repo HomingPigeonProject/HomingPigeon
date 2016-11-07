@@ -663,6 +663,7 @@ friend("Park","","Kaist");
                     <!-- Modal content-->
                     <div class="modal-content">
                       <div class="modal-header">
+                          <button type="button" class="close" data-dismiss="modal">&times;</button>
                           <legend>Login</legend>
                       </div>
                       <div class="modal-body">
@@ -703,14 +704,12 @@ friend("Park","","Kaist");
                     <div class="modal-content">
                       <div class="modal-header">
                         <button type="button" class="close" data-dismiss="modal">&times;</button>
-                        <h4 class="modal-title">Login</h4>
+                            <legend>Sign Up</legend>
                       </div>
                       <div class="modal-body">
                         <div>
                           <form role="form" action="<?php echo $_SERVER['PHP_SELF']; ?>" method="post" name="signupform">
                               <fieldset>
-                                  <legend>Sign Up</legend>
-
                                   <div class="form-group">
                                       <label for="name">Name</label>
                                       <input type="text" name="name" placeholder="Enter Full Name" required value="<?php if($error) echo $name; ?>" class="form-control" />
