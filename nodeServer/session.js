@@ -86,7 +86,8 @@ function init(user) {
 		if (!logined(user)) {
 			console.log('anonymous user ' + user.id + ' disconnected');
 		} else {
-			chatManager.exitAllGroupChat({user: user});
+			// leave every online chat
+			chatManager.leaveAllGroupChat({user: user});
 			
 			console.log('user ' + user.email + ' disconnected');
 		}
@@ -122,7 +123,7 @@ function validateRequest(name, user, needData, data) {
 
 // User session pool management
 // store list of user sessions with user id as a key
-// it's list because a user can access with multiple devices at the same time
+// it's because a user can access with multiple devices at the same time
 function addUserSession(user) {
 	var userSessions = users.get(user.userId);
 

@@ -28,6 +28,10 @@ var chatRoomProto = {
 		return this.groupId.toString();
 	},
 	
+	getMemberNum: function() {
+		return this.onlineMembers.length; 
+	},
+	
 	// returns list of user connections
 	//console.log(server.io.sockets.adapter.rooms);
 	//var room = server.io.sockets.adapter.rooms[this.getRoomName()];
@@ -89,7 +93,7 @@ var chatRoomProto = {
 	
 	printMembers: function() {
 		var members = this.onlineMembers;
-		
+		console.log('print group members');
 		for (var i = 0; i < members.length; i++) {
 			console.log('group' + this.groupId + ': (' + 
 					members[i].userId + ') ' + members[i].email);
@@ -110,7 +114,8 @@ var chatRoomProto = {
 				
 				// notify users
 				chatRoom.broadcast(user, 'memberJoin',
-						{groupId: chatRoom.groupId, member: lib.filterUserData(user)});
+						{groupId: chatRoom.groupId, session: user.id, 
+					member: lib.filterUserData(user)});
 				
 				chatRoom.printMembers();
 				
@@ -135,14 +140,82 @@ var chatRoomProto = {
 				
 				// notify users
 				chatRoom.broadcast(user, 'memberLeave',
-						{groupId: chatRoom.groupId, member: lib.filterUserData(user)});
+						{groupId: chatRoom.groupId, session: user.id, 
+					member: lib.filterUserData(user)});
 				
 				callback(null);
 			}
 		});
 	},
 	
+	// join chat and notify other members
+	invited: function(data, callback) {
+		var user = data.user;
+		var chatRoom = this;
+		var members = this.onlineMembers;
+		var sessions;
+		
+		if (!(sessions = session.getUserSessions(user.userId)) ||
+				!sessions.length)
+			throw Error('user session get failed, but user is alive');
+		
+		// TODO: include ack start
+		var sendMsg = {groupId: chatRoom.groupId, member: lib.filterUserData(user)}
+		
+		this.join({user: user}, function(err) {
+			if (err)
+				callback(err);
+			else {
+				// notify new member
+				for (var i = 0; i < members.length; i++) {
+					var member = members[i];
+					
+					// don't nofity invited user
+					if (sessions.indexOf(member) >= 0)
+						continue;
+					
+					member.emit('memberInvited', sendMsg);
+				}
+				
+				callback(null);
+			}
+		});
+	},
 	
+	// user exits for every session and notify other members
+	exit: function(data, callback) {
+		var user = data.user;
+		var ackStart = data.ackStart;
+		var ackEnd = data.ackEnd;
+		var chatRoom = this;
+		var sessions;
+		
+		if (!(sessions = session.getUserSessions(user.userId)) ||
+				!sessions.length)
+			throw Error('user session get failed, but user is alive');
+		
+		// leave group and notify users
+		var exitIter = function(i) {
+			if (i == sessions.length) {
+				// notify users
+				// TODO: include user ack information(start, end)
+				chatRoom.broadcast(user, 'memberExit',
+						{groupId: chatRoom.groupId, member: lib.filterUserData(user)});
+				
+				return callback(null);
+			}
+			
+			chatRoom.leave(data, function(err) {
+				if (err)
+					callback(err);
+				else {
+					exitIter(i + 1);
+				}
+			});
+		};
+		
+		exitIter(0);
+	},
 };
 
 // chat room constructor
@@ -170,3 +243,4 @@ var dbManager = require('./dbManager');
 var group = require('./group');
 var server = require('./appServer');
 var lib = require('./lib');
+var async = require('async');
