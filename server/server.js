@@ -46,7 +46,7 @@ var connectedLobby = {
     }
 }
 
-io.on('connection', function(socket){
+io.sockets.on('connection', function(socket){
   console.log(connectedLobby.connected);
   console.log("socket.io connection");
     socket.on('Pseudo', function (pseudo){
