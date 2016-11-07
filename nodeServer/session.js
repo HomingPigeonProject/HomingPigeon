@@ -2,8 +2,14 @@
  * User login management
  * users at first must send their session id to login
  */
+
 var dbManager = require('./dbManager');
+var contact = require('./contact');
+var rbTree = require('./RBTree');
+var lib = require('./lib');
 var async = require('async');
+
+var users;
 
 var userState = {
 	LOGOUT: 0,
@@ -18,20 +24,13 @@ function init(user) {
 			user.emit('login', {status: 'fail', errorMsg: 'already logined'});
 			return;
 		}
-		console.log(data);
-		var db;
-		async.waterfall([
+
+		dbManager.trxPattern([
 			function(callback) {
-				dbManager.getConnection(callback);
-			},
-			function(result, callback) {
-				db = result;
-				db.getUserById({userId: data.userId}, callback);
+				this.db.getUserById({userId: data.userId}, callback);
 			}
 		],
 		function(err, result) {
-			if (db)
-				db.release();
 			// err.code, err.errno
 			if (err) {
 				user.emit('login', {status: 'fail', errorMsg: 'failed to loign'});
@@ -48,11 +47,20 @@ function init(user) {
 				user.email = data.email;
 				user.nickname = data.nickname;
 				user.picture = data.picture;
+				user.lastSeen = data.lastSeen;
+				user.login = data.login;
 				user.state = userState.LOGIN;
-				user.emit('login', {status: 'success',
-					data: {nickname: data.nickname,
-							email: data.email,
-							picture: data.picture}});
+
+				// returns object of data only available to other contacts
+				user.getUserInfo = function() {return lib.filterUserData(this);};
+
+				// add to user session pool
+				if (!addUserSession(user)) {
+					console.log('??');
+					user.disconnect(false);
+				}
+
+				user.emit('login', {status: 'success', data: user.getUserInfo()});
 				console.log('user ' + user.email + ' logined');
 			}
 		});
@@ -86,8 +94,61 @@ function validateRequest(name, user, needData, data) {
 	return true;
 }
 
+// User session pool management
+// store list of user sessions with user id as a key
+// it's list because a user can access with multiple devices at the same time
+function addUserSession(user) {
+	var userSessions = users.get(user.userId);
+
+	if (!userSessions &&
+			!users.add(user.userId, (userSessions = []))) {
+		return false;
+	}
+
+	userSessions.push(user);
+
+	return true;
+}
+
+function getUserSessions(userId) {
+	return users.get(userId);
+}
+
+function removeUserSession(user) {
+	var userSessions = users.get(user.userId);
+
+	if (!userSessions)
+		return false;
+
+	// remove user session from list
+	userSessions.splice(userSessions.indexOf(user), 1);
+
+	// if no sessions, remove from tree
+	if (userSessions.length == 0)
+		users.remove(user.userId);
+
+	return true;
+}
+
+function removeAllUserSession(userId) {
+	if (users.remove(userId))
+		return true;
+
+	return false;
+}
+
+function initSession() {
+	users = rbTree.createRBTree();
+}
+
+initSession();
+
 module.exports = {init: init,
 		userState: userState,
 		logined: logined,
 		validateData: validateData,
-		validateRequest: validateRequest};
+		validateRequest: validateRequest,
+		addUserSession: addUserSession,
+		getUserSessions: getUserSessions,
+		removeUserSession: removeUserSession,
+		removeAllUserSession: removeAllUserSession};

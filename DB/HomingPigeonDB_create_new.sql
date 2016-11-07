@@ -104,38 +104,40 @@ ALTER TABLE Contacts ADD CONSTRAINT Contacts_Accounts FOREIGN KEY (accountId)
 ALTER TABLE Contacts ADD CONSTRAINT Contacts_Accounts2 FOREIGN KEY (accountId2)
     REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
-ALTER TABLE Contacts ADD CONSTRAINT Contacts_Group_Id FOREIGN KEY (groupId)
+ALTER TABLE Contacts ADD CONSTRAINT Contacts_GroupId FOREIGN KEY (groupId)
     REFERENCES Groups (id) ON UPDATE CASCADE ON DELETE CASCADE;
 
 -- GroupMembers
 ALTER TABLE GroupMembers ADD INDEX GroupMembers_Accounts_Groups (accountId, groupId);
 
-ALTER TABLE GroupMembers ADD CONSTRAINT GroupMembers_Group_Id FOREIGN KEY (groupId)
+ALTER TABLE GroupMembers ADD CONSTRAINT GroupMembers_GroupId FOREIGN KEY (groupId)
     REFERENCES Groups (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
-ALTER TABLE GroupMembers ADD CONSTRAINT GroupMembers_Account_Id FOREIGN KEY (accountId)
+ALTER TABLE GroupMembers ADD CONSTRAINT GroupMembers_AccountId FOREIGN KEY (accountId)
     REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
 -- Messages
-ALTER TABLE Messages ADD INDEX Messages_Timestamp_Group_Id (groupId, date, id);
+-- order of id must be same as order of date 
+ALTER TABLE Messages ADD INDEX Messages_GroupId_Id (groupId, id);
+ALTER TABLE Messages ADD INDEX Messages_GroupId_Timestamp (groupId, date);
 
 ALTER TABLE Messages ADD CONSTRAINT Messages_Accounts FOREIGN KEY (accountId) 
     REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
 
-ALTER TABLE Messages ADD CONSTRAINT Messages_Group_Id FOREIGN KEY (groupId)
+ALTER TABLE Messages ADD CONSTRAINT Messages_GroupId FOREIGN KEY (groupId)
     REFERENCES Groups (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
 -- Localisations
-ALTER TABLE Localisations ADD CONSTRAINT Localisations_Event_Id FOREIGN KEY (eventId)
+ALTER TABLE Localisations ADD CONSTRAINT Localisations_EventId FOREIGN KEY (eventId)
     REFERENCES Events (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
 -- Events
 ALTER TABLE EventParticipants ADD INDEX EventParticipants_Accounts_Events (accountId, eventId);
 
-ALTER TABLE EventParticipants ADD CONSTRAINT EventParticipants_Event_Id FOREIGN KEY (eventId)
+ALTER TABLE EventParticipants ADD CONSTRAINT EventParticipants_EventId FOREIGN KEY (eventId)
     REFERENCES Events (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
-ALTER TABLE EventParticipants ADD CONSTRAINT EventParticipants_Account_Id FOREIGN KEY (accountId)
+ALTER TABLE EventParticipants ADD CONSTRAINT EventParticipants_AccountId FOREIGN KEY (accountId)
     REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
 
     

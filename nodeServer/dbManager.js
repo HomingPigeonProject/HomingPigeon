@@ -12,7 +12,7 @@ var pool = mysql.createPool({
     database: 'HomingPigeon',
     connectionLimit:64,
     waitForConnections:true,
-    acquireTimeout:60000
+    acquireTimeout:2000
 });
 
 // this is called before connection is used
@@ -32,11 +32,11 @@ var queries = {
       "WHERE sessionId = ? ",
 
 	getContactListByUser: "SELECT * " +
-			"FROM ((SELECT a.id, a.email, a.nickname, a.picture, a.login, c.groupId " +
+			"FROM ((SELECT a.id as userId, a.email, a.nickname, a.picture, a.login, c.groupId, c.id as contactId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId " +
 			"WHERE c.accountId2 = ?) " +
 			"UNION " +
-			"(SELECT a.id, a.email, a.nickname, a.picture, a.login, c.groupId " +
+			"(SELECT a.id as userId, a.email, a.nickname, a.picture, a.login, c.groupId, c.id as contactId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
 			"WHERE c.accountId = ?)) result " +
 			"ORDER BY result.nickname ",
@@ -68,7 +68,8 @@ var queries = {
 	getGroupMember: "SELECT * FROM GroupMembers " +
 			"WHERE groupId = ? and accountId = ? ",
 
-	getGroupMembers: "SELECT a.id, a.email, a.nickname, a.picture, a.login " +
+	getGroupMembers: "SELECT a.id as userId, a.email, a.nickname, " +
+			"a.picture, a.lastSeen, a.login " +
 			"FROM Accounts a INNER JOIN " +
 			"(SELECT gm.accountId, gm.ackStart, gm.ackMessageId " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
@@ -79,6 +80,18 @@ var queries = {
 	getGroupMemberNumber: "SELECT count(*) " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
 			"WHERE g.groupId = ? ",
+
+	getRecentMessages: "SELECT * " +
+			"FROM Messages " +
+			"WHERE groupId = ? " +
+			"ORDER BY id desc " +
+			"LIMIT ? ",
+
+	getMessagesFromId: "SELECT * " +
+			"FROM Messages " +
+			"WHERE groupId = ? and id >= ? " +
+			"ORDER BY id desc " +
+			"LIMIT ? ",
 
 	getEventById: "SELECT * FROM Events WHERE id = ? ",
 
@@ -195,6 +208,14 @@ var dbPrototype = {
 		this.conn.query(selectLock(queries.getGroupMembers, data),
 				[data.groupId], callback);
 	},
+	getRecentMessages: function (data, callback) {
+		this.conn.query(selectLock(queries.getRecentMessages, data),
+				[data.groupId, data.nbMessages], callback);
+	},
+	getMessagesFromId: function (data, callback) {
+		this.conn.query(selectLock(queries.getMessagesFromId, data),
+				[data.groupId, data.messageId, data.nbMessages], callback);
+	},
 	getEventById: function (data, callback) {
 		this.conn.query(selectLock(queries.getEventById, data),
 				[data.eventId], callback);
@@ -303,41 +324,78 @@ var getConnection = function(callback) {
 // db transaction patterns
 var dbPatternProto = {
 	// generic constructor
+<<<<<<< HEAD
 	init: function(userFuncs, userEndFunc) {
 		var newPattern = this;
 
+=======
+	init: function(userFuncs, userEndFunc, config) {
+>>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 		// exploit basic, user functions so it can access db, data.
 		this.funcSeries = [];
 
 		if (this.basicFuncs)
 			for (var i = 0; i < this.basicFuncs.length; i++) {
-				this.funcSeries.push(this.applyFuncGen(this.basicFuncs[i], newPattern));
+				this.funcSeries.push(this.applyFuncGen(this.basicFuncs[i], this));
 			}
 
 		if (userFuncs)
 			for (var i = 0; i < userFuncs.length; i++) {
-				this.funcSeries.push(this.applyFuncGen(userFuncs[i], newPattern));
+				this.funcSeries.push(this.applyFuncGen(userFuncs[i], this));
 			}
 
 		if (this.basicEndFunc)
+<<<<<<< HEAD
 			this.basicEndFunc = this.applyFuncGen(this.basicEndFunc, newPattern);
 
 		this.userEndFunc = this.applyFuncGen(userEndFunc, newPattern);
 
+=======
+			this.basicEndFunc = this.applyFuncGen(this.basicEndFunc, this);
+
+		if (userEndFunc)
+			this.userEndFunc = this.applyFuncGen(userEndFunc, this);
+
+		// configure
+		if (config) {
+
+			// config async
+			if (config.async == 'waterfall')
+				this.async = async.waterfall;
+			else if (config.async == 'series')
+				this.async = async.series;
+
+			// user can pass mysql db object to use
+			// this case, pattern never releases db
+			// otherwise, releases db
+			if (config.db) {
+				this.db = config.db;
+				this.releaseDB = false;
+			} else
+				this.releaseDB = true;
+		} else {
+			// default settings
+			this.async = async.waterfall;
+			this.releaseDB = true;
+		}
+
+>>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 		return this;
 	},
-	applyFuncGen: function (func, pattern) {
-		return function () {func.apply(pattern, arguments);}
+	applyFuncGen: function(func, pattern) {
+		return function() {func.apply(pattern, arguments);}
 	},
 	funcSeries: null,         /* Basic, user function series */
 	basicFuncs: null,
 	userFuncs: null,
 	userEndFunc: null,
 	basicEndFunc: null,       /* Function called when trx ends */
-	async: 'waterfall',
+	async: undefined,
 	db: null,                 /* User function can access db by this.db */
+	releaseDB: false,         /* Release db at the end or not */
 	data: {},                 /* Can use to share data across user series functions */
 	run: function() {
+<<<<<<< HEAD
 		var asyncProcess;
 
 		if (this.async == 'waterfall')
@@ -352,7 +410,20 @@ var dbPatternProto = {
 		//console.log(this.basicEndFunc);
 		asyncProcess(this.funcSeries, this.basicEndFunc);
 
+=======
+
+		this.async(this.funcSeries, this.basicEndFunc);
+
+>>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 		return this;
+	},
+	callUserEndFunc: function() {
+		if (this.userEndFunc)
+			this.userEndFunc.apply(this, arguments);
+	},
+	releaseDBFunc: function() {
+		if (this.releaseDB && this.db)
+			this.db.release();
 	}
 };
 
@@ -363,12 +434,17 @@ var atomicPatternGen = function() {
 
 		// request connection
 		var _getConnection = function(callback) {
-			getConnection(callback);
+			if (!this.db)
+				getConnection(callback);
+			else
+				callback(null, null);
 		};
 
 		// got connection
 		var _gotConnection = function(result, callback) {
-			this.db = result;
+			if (result)
+				this.db = result;
+
 			callback(null);
 		};
 
@@ -376,16 +452,20 @@ var atomicPatternGen = function() {
 
 		this.basicEndFunc = function(err, result, fields) {
 			var db = this.db;
+<<<<<<< HEAD
 
 			if (db)
 				db.release();
 
+=======
+
+			this.releaseDBFunc();
+
+>>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 			if (err) {
-				if (this.userEndFunc)
-					return this.userEndFunc(err);
+				this.callUserEndFunc(err);
 			} else {
-				if (this.userEndFunc)
-					return this.userEndFunc(null, result, fields);
+				this.callUserEndFunc(null, result, fields);
 			}
 		};
 	};
@@ -395,9 +475,9 @@ var atomicPatternGen = function() {
 	return new constructor();
 };
 
-var atomicPattern = function(userFuncs, userEndFunc) {
+var atomicPattern = function(userFuncs, userEndFunc, config) {
 	var pattern = atomicPatternGen();
-	pattern.init(userFuncs, userEndFunc).run();
+	pattern.init.apply(pattern, arguments).run();
 }
 
 // pattern with transaction start, commit when success, rollback when err
@@ -405,33 +485,53 @@ var trxPatternGen = function() {
 	var basicFuncs;
 
 	var constructor = function() {
+<<<<<<< HEAD
 
 		// request connection
 		var _getConnection = function(callback) {
 			getConnection(callback);
 		};
 
+=======
+
+>>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 		// got connection
 		var _gotConnection = function(result, callback) {
-			this.db = result;
+			if (result)
+				this.db = result;
+
 			this.db.beginTransaction(callback);
 		};
 
 		var _startedTransaction = function(result, fields, callback) {
 			callback(null);
 		};
+<<<<<<< HEAD
 
 		this.basicFuncs = [_getConnection, _gotConnection, _startedTransaction];
 
 		this.basicEndFunc = function(err, result, fields) {
 			var db = this.db;
 
+=======
+
+		this.basicFuncs = [this.basicFuncs[0],
+			_gotConnection, _startedTransaction];
+
+		this.basicEndFunc = function(err, result, fields) {
+			var db = this.db;
+			var releaseDB = this.releaseDB;
+			var pattern = this;
+
+>>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 			if (err) {
 				// rollback and callback with error
 				if (db)
 					db.rollback(function() {
-						db.release();
+						pattern.releaseDBFunc();
+						pattern.callUserEndFunc(err);
 					});
+<<<<<<< HEAD
 
 				if (this.userEndFunc)
 					return this.userEndFunc(err);
@@ -448,12 +548,35 @@ var trxPatternGen = function() {
 
 	constructor.prototype = dbPatternProto;
 
+=======
+			} else {
+				// release db and success callback
+				if (db) {
+					db.commit(function(err) {
+						if (err)
+							db.rollback(function() {
+								pattern.releaseDBFunc();
+								pattern.callUserEndFunc(err);
+							});
+						else {
+							pattern.releaseDBFunc();
+							pattern.callUserEndFunc(null, result, fields);
+						}
+					});
+				} else
+					pattern.callUserEndFunc(null, result, fields);
+			}
+		};
+	};
+
+	constructor.prototype = atomicPatternGen();
+>>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 	return new constructor();
 };
 
-var trxPattern = function(userFuncs, userEndFunc) {
+var trxPattern = function(userFuncs, userEndFunc, config) {
 	var pattern = trxPatternGen();
-	pattern.init(userFuncs, userEndFunc).run();
+	pattern.init.apply(pattern, arguments).run();
 }
 
 // trxPattern2 which inherits trxPattern can be written like this
@@ -467,7 +590,10 @@ var trxPattern2Gen = function() {
 		this.basicEndFunc = function() {
 			// new basic end func...
 		};
+<<<<<<< HEAD
 
+=======
+>>>>>>> ab800af02aea63fe14a66913090a4f3ecade9d11
 	};
 
 	constructor.prototype = trx1;
@@ -475,9 +601,9 @@ var trxPattern2Gen = function() {
 	return new constructor();
 };
 
-var trxPattern2 = function(userFuncs, userEndFunc) {
+var trxPattern2 = function(userFuncs, userEndFunc, config) {
 	var pattern = trxPattern2Gen();
-	pattern.init(userFuncs, userEndFunc).run();
+	pattern.init.apply(pattern, arguments).run();
 }
 
 module.exports = {
