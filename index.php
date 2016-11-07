@@ -1,14 +1,88 @@
 <!DOCTYPE html>
+<?php
+  session_start();
+  $index = "Location: HP/Home/index.php";
+
+  if(isset($_SESSION['usr_id'])!="") {
+      header($index);
+  }
+
+  include_once 'HP/dbconnect.php';
+
+  //check if form is submitted
+  if (isset($_POST['login'])) {
+
+      $email = mysqli_real_escape_string($con, $_POST['email']);
+      $password = mysqli_real_escape_string($con, $_POST['password']);
+      // TODO : change md5 hashing for something good
+      $result = mysqli_query($con, "SELECT * FROM Accounts WHERE email = '" . $email. "' and password = '" . md5($password) . "'");
+
+      if ($row = mysqli_fetch_array($result)) {
+          $_SESSION['usr_id'] = $row['id'];
+          $_SESSION['usr_name'] = $row['nickname'];
+          $_SESSION['email'] = $row['email'];
+          header($index);
+
+          // storing
+          $m = new Memcached();
+          $m->addServer('localhost', 11211);
+          $m->set(session_id(), $_SESSION['email']);
+
+      } else {
+          $errormsg = "Incorrect Email or Password";
+      }
+  }
+  $error = false;
+
+  //check if form is submitted
+  if (isset($_POST['signup'])) {
+      $name = mysqli_real_escape_string($con, $_POST['name']);
+      $email = mysqli_real_escape_string($con, $_POST['email']);
+      $password = mysqli_real_escape_string($con, $_POST['password']);
+      $cpassword = mysqli_real_escape_string($con, $_POST['cpassword']);
+
+      //name can contain only alpha characters and space
+      if (!preg_match("/^[a-zA-Z ]+$/",$name)) {
+          $error = true;
+          $name_error = "Name must contain only alphabets and space";
+      }
+      if(!filter_var($email,FILTER_VALIDATE_EMAIL)) {
+          $error = true;
+          $email_error = "Please Enter Valid Email ID";
+      }
+      if(strlen($password) < 6) {
+          $error = true;
+          $password_error = "Password must be minimum of 6 characters";
+      }
+      if($password != $cpassword) {
+          $error = true;
+          $cpassword_error = "Password and Confirm Password doesn't match";
+      }
+      if (!$error) {
+          /*
+          if(mysqli_query($con, "INSERT INTO users(name,email,password) VALUES('" . $name . "', '" . $email . "', '" . md5($password) . "')")) {
+              $successmsg = "Successfully Registered! <a href='login.php'>Click here to Login</a>";
+          }
+          */
+          if(mysqli_query($con, "INSERT INTO Accounts(nickname,email,password) VALUES('" . $name . "', '" . $email . "', '" . md5($password) . "')")) {
+              $successmsg = "Successfully Registered! <a href='login.php'>Click here to Login</a>";
+          } else {
+              $errormsg = "Error in registering...Please try again later!";
+          }
+
+      }
+  }
+?>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="je test le framework">
+    <meta name="description" content="">
     <meta name="author" content="laio">
 
     <title>Léo Schneider</title>
-    
+
     <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <link href="bootstrap/css/landing-page.css" rel="stylesheet">
     <link href="bootstrap/font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
@@ -243,14 +317,14 @@
                     <button class="btn btn-default" data-toggle="modal" data-target="#myModal">log in</button>
                 </li>
                 <li>
-                    <button class="btn btn-primary">register</button>
+                    <button class="btn btn-primary" data-toggle="modal" data-target="#myModalRegister">register</button>
                 </li>
                 <!-- /.dropdown -->
             </ul>
             <!-- /.navbar-top-links -->
     </nav>
         <div id="wrapper">
-        
+
     <div class="intro-header intro">
         <div class="container">
 
@@ -267,16 +341,16 @@
             </div>
         </div>
     </div>
-    
-<div class="container"> 
-<div class="row">    
+
+<div class="container">
+<div class="row">
     <div class = "col-lg-4">
-        
-        
-        
+
+
+
         <br/><br/><br/><br/>
         <div id="contenu">
-            
+
             <div class="col-lg-12">
             <!-- /.panel -->
                 <div class="panel panel-default">
@@ -316,22 +390,22 @@
                                     </li>
                                     <hr>
                                 ');
-                
+
             }
-friend("billy","","Kaist");            
-friend("Patrick","","Kaist");            
-friend("Martin","","Kaist");            
-friend("Kim","","Kaist");            
-friend("Hun","","Kaist");            
-friend("Lee","","Kaist");            
-friend("Sang","","Kaist");            
-friend("Park","","Kaist");            
-friend("Lee","","Kaist");            
-friend("Sang","","Kaist");            
+friend("billy","","Kaist");
+friend("Patrick","","Kaist");
+friend("Martin","","Kaist");
+friend("Kim","","Kaist");
+friend("Hun","","Kaist");
+friend("Lee","","Kaist");
+friend("Sang","","Kaist");
 friend("Park","","Kaist");
-friend("Park","","Kaist");            
-friend("Lee","","Kaist");            
-friend("Sang","","Kaist");            
+friend("Lee","","Kaist");
+friend("Sang","","Kaist");
+friend("Park","","Kaist");
+friend("Park","","Kaist");
+friend("Lee","","Kaist");
+friend("Sang","","Kaist");
 friend("Park","","Kaist");
 ?>
                                     </ul>
@@ -341,10 +415,10 @@ friend("Park","","Kaist");
             </div>
             </div>
       </div>
-        
-        
-        
-        
+
+
+
+
     </div>
                 <div class="col-lg-8">
                     <br/><br/><br/><br/>
@@ -453,14 +527,14 @@ friend("Park","","Kaist");
                 </div>
                 <!-- /.col-lg-8 -->
                 </div>
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
+
     <?php /*
     <div class="col-lg-4">
                     <br/><br/><br/><br/>
@@ -554,14 +628,14 @@ friend("Park","","Kaist");
                 </div>
                 <!-- /.col-lg-8 -->
                 </div>
-    
- 
-    
-    
-    
-    
-    
-<div class="row">    
+
+
+
+
+
+
+
+<div class="row">
 <div class="col-lg-7">
     <br/><br/>
     <div class="chat-panel panel panel-default">
@@ -572,7 +646,7 @@ friend("Park","","Kaist");
                     <i class="fa fa-chevron-down mapChevron"></i>
                 </button>
             </div>
-        </div>    
+        </div>
 <iframe
   class="map"
   width="600"
@@ -582,8 +656,45 @@ friend("Park","","Kaist");
 </iframe>
     </div>
 </div>
-<!-- Modal -->
+<!-- Modal -->*/ ?>
                 <div id="myModal" class="modal fade" role="dialog">
+                  <div class="modal-dialog">
+
+                    <!-- Modal content-->
+                    <div class="modal-content">
+                      <div>
+                        <form role="form" action="<?php echo $_SERVER['PHP_SELF']; ?>" method="post" name="loginform">
+                            <fieldset>
+                                <legend>Login</legend>
+
+                                <div class="form-group">
+                                    <label for="name">Email</label>
+                                    <input type="text" name="email" placeholder="Your Email" required class="form-control" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="name">Password</label>
+                                    <input type="password" name="password" placeholder="Your Password" required class="form-control" />
+                                </div>
+
+                                <div class="form-group">
+                                    <input type="submit" name="login" value="Login" class="btn btn-primary" />
+                                </div>
+                            </fieldset>
+                        </form>
+                        <span class="text-danger"><?php if (isset($errormsg)) { echo $errormsg; } ?></span>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" data-dismiss="modal">Connect</button>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+
+                <div id="myModalRegister" class="modal fade" role="dialog">
                   <div class="modal-dialog">
 
                     <!-- Modal content-->
@@ -593,9 +704,43 @@ friend("Park","","Kaist");
                         <h4 class="modal-title">Login</h4>
                       </div>
                       <div class="modal-body">
-                        <p>Please enter your login and your password</p>
-                        <input class="text" placeholder="login"/><br/><br/>
-                        <input class="text" placeholder="password"/><br/><br/>
+                        <div>
+                          <form role="form" action="<?php echo $_SERVER['PHP_SELF']; ?>" method="post" name="signupform">
+                              <fieldset>
+                                  <legend>Sign Up</legend>
+
+                                  <div class="form-group">
+                                      <label for="name">Name</label>
+                                      <input type="text" name="name" placeholder="Enter Full Name" required value="<?php if($error) echo $name; ?>" class="form-control" />
+                                      <span class="text-danger"><?php if (isset($name_error)) echo $name_error; ?></span>
+                                  </div>
+
+                                  <div class="form-group">
+                                      <label for="name">Email</label>
+                                      <input type="text" name="email" placeholder="Email" required value="<?php if($error) echo $email; ?>" class="form-control" />
+                                      <span class="text-danger"><?php if (isset($email_error)) echo $email_error; ?></span>
+                                  </div>
+
+                                  <div class="form-group">
+                                      <label for="name">Password</label>
+                                      <input type="password" name="password" placeholder="Password" required class="form-control" />
+                                      <span class="text-danger"><?php if (isset($password_error)) echo $password_error; ?></span>
+                                  </div>
+
+                                  <div class="form-group">
+                                      <label for="name">Confirm Password</label>
+                                      <input type="password" name="cpassword" placeholder="Confirm Password" required class="form-control" />
+                                      <span class="text-danger"><?php if (isset($cpassword_error)) echo $cpassword_error; ?></span>
+                                  </div>
+
+                                  <div class="form-group">
+                                      <input type="submit" name="signup" value="Sign Up" class="btn btn-primary" />
+                                  </div>
+                              </fieldset>
+                          </form>
+                          <span class="text-success"><?php if (isset($successmsg)) { echo $successmsg; } ?></span>
+                          <span class="text-danger"><?php if (isset($errormsg)) { echo $errormsg; } ?></span>
+                        </div>
                       </div>
                       <div class="modal-footer">
                         <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
@@ -604,12 +749,12 @@ friend("Park","","Kaist");
                     </div>
 
                   </div>
-                </div>    
-    
+                </div>
 
 
 
 
+<?PHP/*
 
 <div class="col-lg-7">
     <br/><br/>
@@ -621,7 +766,7 @@ friend("Park","","Kaist");
                     <i class="fa fa-chevron-down calendarChevron"></i>
                 </button>
             </div>
-        </div>    
+        </div>
 <iframe
   class="calendar"
   width="600"
@@ -643,7 +788,7 @@ friend("Park","","Kaist");
                     <i class="fa fa-chevron-down questionChevron"></i>
                 </button>
             </div>
-        </div>    
+        </div>
 <iframe
   class="question"
   width="600"
@@ -657,10 +802,10 @@ friend("Park","","Kaist");
 
 
 */ ?>
-    
+
 
 </div>
-    
+
 <?php /*
     <div class="content-section-a">
         <div class="container">
@@ -676,7 +821,7 @@ friend("Park","","Kaist");
                 </div>
             </div>
         </div>
-    </div> 
+    </div>
 	<a  name="contact"></a>
     <div class="banner">
         <div class="container">
@@ -713,7 +858,7 @@ friend("Park","","Kaist");
     <script src="mainJQuery.js"></script>
     <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
     <script src="server/script.js"></script> <!-- our script for the server--!>
-    
+
 
 </body>
 </html>
