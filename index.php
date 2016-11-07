@@ -662,10 +662,12 @@ friend("Park","","Kaist");
 
                     <!-- Modal content-->
                     <div class="modal-content">
-                      <div>
+                      <div class="modal-header">
+                          <legend>Login</legend>
+                      </div>
+                      <div class="modal-body">
                         <form role="form" action="<?php echo $_SERVER['PHP_SELF']; ?>" method="post" name="loginform">
                             <fieldset>
-                                <legend>Login</legend>
 
                                 <div class="form-group">
                                     <label for="name">Email</label>
@@ -682,8 +684,8 @@ friend("Park","","Kaist");
                                 </div>
                             </fieldset>
                         </form>
+                        </div>
                         <span class="text-danger"><?php if (isset($errormsg)) { echo $errormsg; } ?></span>
-                      </div>
                       <div class="modal-footer">
                         <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
                         <button type="button" class="btn btn-primary" data-dismiss="modal">Connect</button>
@@ -744,7 +746,6 @@ friend("Park","","Kaist");
                       </div>
                       <div class="modal-footer">
                         <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-primary" data-dismiss="modal">Connect</button>
                       </div>
                     </div>
 
