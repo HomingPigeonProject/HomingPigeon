@@ -159,6 +159,14 @@ window.addEventListener('load', function() {
 		if (data.status == 'success')
 			console.log(data);
 	});
+	
+	server.on('memberJoin', function(data) {
+		console.log(data)
+	});
+	
+	server.on('memberLeave', function(data) {
+		console.log(data);
+	});
 
 	reset();
 });

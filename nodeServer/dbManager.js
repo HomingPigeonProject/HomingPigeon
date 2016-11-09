@@ -363,6 +363,7 @@ var dbPatternProto = {
 			// otherwise, releases db
 			if (config.db) {
 				this.db = config.db;
+				this.db.a = 111;
 				this.createDB = false;
 			} else
 				this.createDB = true;
@@ -411,7 +412,7 @@ var atomicPatternGen = function() {
 
 		// request connection
 		var _getConnection = function(callback) {
-			if (this.createDB)
+			if (this.createDB) 
 				getConnection(callback);
 			else
 				callback(null, null);

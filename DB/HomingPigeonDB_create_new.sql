@@ -26,6 +26,7 @@ CREATE TABLE Contacts (
     accountId int NOT NULL,
     accountId2 int NOT NULL,
     groupId int,                                     /* Group id for two users' chat */
+    accepted bit(1) NOT NULL DEFAULT 0,
     CONSTRAINT Contacts_pk PRIMARY KEY (id)
 );
 
