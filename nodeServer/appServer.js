@@ -42,4 +42,5 @@ io.on('connection', function(user) {
 	session.init(user);
 	contact.init(user);
 	group.init(user);
+	chatManager.init(user);
 });
