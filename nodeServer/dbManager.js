@@ -97,7 +97,8 @@ var queries = {
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
 			"WHERE g.groupId = ? ",
 
-	getRecentMessages: "SELECT * " +
+	getRecentMessages: "SELECT messageId, accountId as userId, groupId, " +
+			"content, date, importance, location, nbread, leftGroup " +
 			"FROM Messages " +
 			"WHERE groupId = ? " +
 			"ORDER BY id desc " +

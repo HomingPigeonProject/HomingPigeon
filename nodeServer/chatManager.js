@@ -90,7 +90,7 @@ var init = function(user) {
 					return callback(new Error('You are not member of the group'));
 				
 				// get at most 100 messages
-				this.db.getRecentMessages({groupId: groupId, nbMessages: nbMessagesMax,
+				this.db.getRecentMessages({groupId: groupId, nbMessages: nbMessageMax,
 					lock: true}, callback);
 			}
 		],
@@ -108,6 +108,7 @@ var init = function(user) {
 		if (!session.validateRequest('sendMessage', user, true, data))
 			return;
 		
+		var groupId = parseInt(data.groupId);
 		var content = data.content || '';
 		var importance = data.importance || 0;
 		var location = data.location;
@@ -134,7 +135,7 @@ var init = function(user) {
 			},
 			function(callback)
 			{
-				var message = {groupId: this.groupId, userId: user.userId,
+				var message = {groupId: groupId, userId: user.userId,
 						content: content, importance: importance, location: location};
 				
 				// save message in database

@@ -8,4 +8,4 @@ function init(user) {
 	
 }
 
-module.exports = {};
+module.exports = {init: init};
