@@ -61,9 +61,11 @@ var chatRoomProto = {
 		});
 	},
 	
-	putMessage: function(data, callback) {
+	// broadcast message to all other members
+	// input: data.user, data.content, data.importance, data.location
+	sendMessage: function(data, callback) {
 		var user = data.user;
-		var content = data.content;
+		var content = data.content || '';
 		var importance = data.importance || 0;
 		var location = data.location;
 		
@@ -73,20 +75,7 @@ var chatRoomProto = {
 		// broadcast message to all other users in chat
 		this.broadcast(user, 'newMessage', message);
 		
-		dbManager.atomicPattern([
-			function(callback) {
-				this.db.addMessage(message, callback);
-			}
-		],
-		function(err, result) {
-			if (err) {
-				console.log('failed to save message\r\n' + err);
-				
-				callback(err);
-			} else {
-				callback(null);
-			}
-		});
+		callback(null);
 	},
 	
 	// user broadcasts message to other users

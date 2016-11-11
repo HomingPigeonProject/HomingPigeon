@@ -31,6 +31,7 @@ var init = function(user) {
 		});
 	});
 	
+	// TODO: contact notification
 	user.on('addContact', function(data) {
 		if (!session.validateRequest('addContact', user, true, data))
 			return;
@@ -93,6 +94,7 @@ var init = function(user) {
 		});
 	});
 	
+	// TODO: notification
 	user.on('removeContact', function(data) {
 		if (!session.validateRequest('removeContact', user, true, data))
 			return;

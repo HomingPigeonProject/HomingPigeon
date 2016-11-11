@@ -1,5 +1,6 @@
 var logined = false;
 var server = io.connect('http://localhost:4000');
+
 window.addEventListener('load', function() {
 	var controlDiv = document.getElementById('control');
 
@@ -176,6 +177,19 @@ window.addEventListener('load', function() {
 			console.log(data);
 	});
 	reset();
+	
+	
+	//click on the send button
+	$("#btn-chat").on('click', function(){
+	  sentMessage();
+	});
+
+	//check the pressed key and if it is enter then send message
+	$(document).keypress(function(e){
+	  if (e.which == 13){
+	    sentMessage();
+	  }
+	});
 });
 
 function reset() {
@@ -190,4 +204,24 @@ function reset() {
 		if (!logined)
 			server.emit('login', {userId: $('#sessionId').val()});
 	});
+}
+
+function addMyMessage(msg, pseudo, date){
+	$('.chat').append('<li class="right clearfix"><span class="chat-img pull-right"><img src="http://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" /></span><div class="chat-body clearfix"><div class="header"><strong class="pull-right primary-font">'+pseudo+'</strong><small class="text-muted"><i class="fa fa-clock-o fa-fw"></i> '+date+'</small></div><p>'+msg+'</p></div></li>');/*'<div class="message"></p>' + pseudo + ' : ' + msg +   '</p></div>');*/
+	$('.chatTog').animate({ scrollTop: 50000 }, 1);
+}
+
+function addMessage(msg, pseudo, date){
+	$('.chat').append('<li class="left clearfix"><span class="chat-img pull-left"><img src="http://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" /></span><div class="chat-body clearfix"><div class="header"><strong class="primary-font">'+pseudo+'</strong><small class="pull-right text-muted"><i class="fa fa-clock-o fa-fw"></i>'+date+'</small></div><p>'+msg+'</p></div></li>');/*'<div class="message"></p>' + pseudo + ' : ' + msg +   '</p></div>');*/
+	$('.chatTog').animate({ scrollTop: 50000 }, 1);
+}
+
+//verification if text is not null then send to server and write it locally
+function sentMessage(){
+    if ($('.messageInput').val() != ""){
+      socket.emit('message', $('.messageInput').val() , "user name", new Date().toString() );
+      //socket.emit('message', $('.messageInput').val());    //the original one but without the id sent with it
+      addMyMessage($('.messageInput').val(), "Me" , new Date().toString(), true);
+      $('.messageInput').val(''); //reset the messageInput
+    }
 }

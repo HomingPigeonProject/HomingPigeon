@@ -38,48 +38,15 @@ function init(user) {
 		if (!session.validateRequest('addGroup', user, true, data))
 			return;
 		
+		// add user itself to group
 		data.user = user;
-		data.trx = false;
+		data.trx = true;
 		
-		dbManager.trxPattern([
-			function(callback) {
-				data.db = this.db;
-				
-				// add group and members in database
-				addGroup(data, callback);
-			},
-			function(group, callback) {
-				var members = group.members;
-				// get every session of every member
-				var sessions = session.getUsersSessions(members);
-				
-				this.data.group = group;
-				this.data.sessions = sessions;
-				
-				// create chatRoom and join every online members
-				chatManager.joinGroupChat({groupId: group.groupId, 
-					users: sessions, db: this.db}, callback);
-			},
-			function(callback) {
-				var sessions = this.data.sessions;
-				var group = this.data.group;
-				
-				// notify every online member
-				// this must be sent before commit
-				for (var i = 0; i < sessions.length; i++)
-					sessions[i].emit('addGroup', {status: 'success', group: group});
-				
-				callback(null);
-			}
-		],
-		function(err) {
-			if (err) {
-				user.emit('addGroup', {status: 'fail', errorMsg:'server error'});
-			}
-		});
+		startNewGroup(data, function(err) {});
 	});
 	
 	// invite contacts to group
+	// TODO: when users are invited to contact group, detach from contact.
 	user.on('inviteGroupMembers', function(data) {
 		if (!session.validateRequest('inviteGroupMembers', user, true, data))
 			return;
@@ -188,6 +155,63 @@ function init(user) {
 	});
 }
 
+// create new group and chat room and notify members
+// input: data.user, data.members(array of email)
+var startNewGroup = function(data, callback) {
+	var pattern;
+	
+	var user = data.user;
+	
+	if (data.trx)
+		pattern = dbManager.trxPattern;
+	else
+		pattern = dbManager.atomicPattern;
+	
+	pattern([
+		function(callback) {
+			data.db = this.db;
+			data.trx = false;
+			
+			// add group and members in database
+			addGroup(data, callback);
+		},
+		function(group, callback) {
+			var members = group.members;
+			// get every session of every member
+			var sessions = session.getUsersSessions(members);
+			
+			this.data.group = group;
+			this.data.sessions = sessions;
+			
+			// create chatRoom and join every online members
+			chatManager.joinGroupChat({groupId: group.groupId, 
+				users: sessions, db: this.db}, callback);
+		},
+		function(callback) {
+			var sessions = this.data.sessions;
+			var group = this.data.group;
+			
+			// notify every online member
+			// this must be sent before commit
+			for (var i = 0; i < sessions.length; i++)
+				sessions[i].emit('addGroup', {status: 'success', group: group});
+			
+			callback(null);
+		}
+	],
+	function(err) {
+		if (err) {
+			user.emit('addGroup', {status: 'fail', errorMsg:'server error'});
+			callback(err);
+		} else {
+			callback(err, this.data.group);
+		}
+	},
+	{db: data.db});
+};
+
+// get group list of user
+// input: data.user
 var getGroupList = function(data, callback) {
 	var pattern;
 	
@@ -242,6 +266,8 @@ var getGroupList = function(data, callback) {
 	
 };
 
+// create group and members in database
+// input: data.user, data.name, data.members
 var addGroup = function(data, callback) {
 	var groupId;
 	var user = data.user
@@ -323,6 +349,9 @@ var addMembers = function(data, userCallback) {
 		pattern = dbManager.trxPattern;
 	else
 		pattern = dbManager.atomicPattern;
+	
+	if (!members)
+		return userCallback(null, addedMembers);
 	
 	pattern([
 		function(callback) {
@@ -467,6 +496,7 @@ var contains = function(needle) {
 };
 
 module.exports = {init: init,
+		startNewGroup: startNewGroup,
 		getGroupList: getGroupList,
 		addGroup: addGroup,
 		addMembers: addMembers,};

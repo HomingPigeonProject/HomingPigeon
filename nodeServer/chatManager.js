@@ -18,24 +18,158 @@ var init = function(user) {
 		if (!session.validateRequest('joinContactChat', user, true, data))
 			return;
 		
-	});
-	
-	user.on('joinGroupChat', function(data) {
-		if (!session.validateRequest('joinGroupChat', user, true, data))
-			return;
+		var contactId = data.contactId;
 		
+		dbManager.trxPattern([
+			function(callback) {
+				this.db.getContact({userId: user.userId, 
+					userId2: contactId}, callback);
+			},
+			function(result, fields, callback) {
+				if (result.length == 0)
+					return callback(new Error('No such contact found'));
+				
+				var contact = result[0];
+				
+				// groupId cannot be 0
+				if (contact.groupId)
+					return callback(null);
+				
+				var db = this.db;
+				
+				// create new group for contact
+				async.waterfall([
+					function(callback) {
+						data.user = user;
+						data.trx = false;
+						data.db = db;
+						data.members = [contact.email];
+						
+						group.startNewGroup(data, callback);
+					},
+					function(group, callback) {
+						var sessions = session.getUsersSessions(group.members);
+						
+						// let user know the new group for contact
+						for (var i = 0; i < sessions.length; i++) {
+							var session = sessions[i];
+							
+							session.emit('joinContactChat', {status: 'success', group: group});
+						}
+						
+						callback(null);
+					}
+				],
+				function(err) {
+					callback(err);
+				});
+			}
+		],
+		function(err) {
+			if (err) {
+				user.emit('joinContactChat', {status: 'fail', errorMsg: 'server error'});
+			}
+		});
 	});
 	
 	user.on('readMessage', function(data) {
+		if (!session.validateRequest('readMessage', user, true, data))
+			return;
 		
+		var groupId = data.groupId;
+		var nbMessageMax = 100;
+		
+		dbManager.trxPattern([
+			function(callback) {
+				// check if the user is member of the group
+				this.db.getGroupMemberByUser({groupId: groupId, userId: user.userId,
+					lock: true}, callback);
+			},
+			function(result, fields, callback) {
+				if (result.length == 0)
+					return callback(new Error('You are not member of the group'));
+				
+				// get at most 100 messages
+				this.db.getRecentMessages({groupId: groupId, nbMessages: nbMessagesMax,
+					lock: true}, callback);
+			}
+		],
+		function(err, result) {
+			if (err) {
+				user.emit('readMessage', {status: 'fail', errorMsg: 'server error'});
+			} else {
+				user.emit('readMessage', {status: 'success', messages: result});
+			}
+		});
 	});
 	
+	// store message in database and broadcast to all other users
 	user.on('sendMessage', function(data) {
+		if (!session.validateRequest('sendMessage', user, true, data))
+			return;
 		
+		var content = data.content || '';
+		var importance = data.importance || 0;
+		var location = data.location;
+		
+		dbManager.trxPattern([
+			function(callback) {
+				// check if the user is member of the group
+				this.db.getGroupMemberByUser({groupId: groupId, userId: user.userId,
+					lock: true}, callback);
+			},
+			function(result, fields, callback) {
+				if (result.length == 0)
+					return callback(new Error('You are not member of the group'));
+				
+				// get active chat
+				var chatRoom = allChatRoom.get(groupId);
+				
+				if (!chatRoom)
+					return callback(null);
+				
+				// broadcast message
+				chatRoom.sendMessage({user: user, content: content,
+					importance: importance, location: location}, callback);
+			},
+			function(callback)
+			{
+				var message = {groupId: this.groupId, userId: user.userId,
+						content: content, importance: importance, location: location};
+				
+				// save message in database
+				this.db.addMessage(message, callback);
+			},
+			function(result, fields, callback) {
+				if (result.affectedRows == 0)
+					return callback(new Error('Failed to save in database'));
+				
+				callback(null);
+			}
+		],
+		function(err) {
+			if (err) {
+				console.log('failed to save message\r\n' + err);
+				
+				user.emit('sendMessage', {status: 'fail', errorMsg: 'failed to send message'});
+			} else {
+				user.emit('sendMessage', {status: 'success'});
+			}
+		});
 	});
 	
 	user.on('ackMessage', function(data) {
+		if (!session.validateRequest('ackMessage', user, true, data))
+			return;
 		
+		dbManager.trxPattern([
+			function(callback) {
+				
+			}
+		],
+		function(err) {
+			
+		});
 	});
 };
 
