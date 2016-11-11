@@ -1,5 +1,5 @@
 #Internal package file, do not edit.
-#Fri Nov 11 10:04:46 KST 2016
+#Fri Nov 11 10:26:30 KST 2016
 210.set=ANDROID_RESOURCE
 14.set=ANDROID_RESOURCE
 180.file=/home/pthevenet/Documents/workspace/HomingPigeon/Android/app/build/intermediates/res/resources-debug.ap_/res/drawable-v21/abc_ratingbar_small_material.xml

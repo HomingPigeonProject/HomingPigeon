@@ -1,4 +1,4 @@
-#Fri Nov 11 10:05:00 KST 2016
+#Fri Nov 11 10:24:31 KST 2016
 base.0=/home/pthevenet/Documents/workspace/HomingPigeon/Android/app/build/intermediates/transforms/dex/debug/folders/1000/10/instant-run-bootstrap_1dabae3c81ea61ac5503a873e7adb95643bee8a9
 renamed.1=classes2.dex
 renamed.0=classes.dex
