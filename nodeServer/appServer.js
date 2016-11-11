@@ -1,11 +1,23 @@
-/** 
- * HomingPigeon application server entry point 
+/**
+ * HomingPigeon application server entry point
  **/
 
 // initialize server
+
+var fs = require('fs');
+
+var options = {
+  key: fs.readFileSync('ssl/file.pem'),
+  cert: fs.readFileSync('ssl/file.crt'),
+  requestCert: false,
+  rejectUnauthorized: false
+};
+
+
 var app = require('express')();
 app.set('port', process.env.PORT || 4000);
-var server = require('http').createServer(app);
+
+var server = require('https').createServer(options, app);
 var io = require('socket.io')(server);
 
 module.exports = {io: io, server: server, app: app};
@@ -26,10 +38,8 @@ app.get('/', function(req, res){
 //initialize user connection
 io.on('connection', function(user) {
 	console.log('user connected');
-	
+
 	session.init(user);
 	contact.init(user);
 	group.init(user);
-	chatManager.init(user);
-	event.init(user);
 });
