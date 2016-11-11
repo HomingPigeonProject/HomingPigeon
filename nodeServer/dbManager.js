@@ -54,7 +54,16 @@ var queries = {
 			"WHERE c.accountId = ? and a.id = ?)) result " +
 			"ORDER BY result.nickname ",
 
-	getGroupListByUser: "SELECT g.id, g.name, g.alias, " +
+	getGroupById: "SELECT g.id as groupId, g.name, g.nbMembers, " +
+			"max(m.date) as lastMessageDate, max(m.messageId) as lastMessageId " +
+			"FROM Messages m RIGHT JOIN " +
+			"(SELECT g.id, g.name, count(*) as nbMembers " +
+			"FROM GroupMembers gm INNER JOIN " +
+			"Groups g ON gm.groupId = g.id " +
+			"WHERE g.id = ? " +
+			"LOCK IN SHARE MODE) g ON g.id = m.groupId ",
+	
+	getGroupListByUser: "SELECT g.id as groupId, g.name, g.alias, " +
 			"g.nbMembers, max(m.date) as lastMessageDate, " +
 			"max(m.messageId) as lastMessageId " +
 			"FROM Messages m RIGHT JOIN " +
@@ -69,8 +78,11 @@ var queries = {
 			"GROUP BY g.id " +
 			"ORDER BY lastMessageDate desc ",
 
-	getGroupMember: "SELECT * FROM GroupMembers " +
+	getGroupMemberByUser: "SELECT * FROM GroupMembers " +
 			"WHERE groupId = ? and accountId = ? ",
+			
+	getGroupMembersByUser: "SELECT * FROM GroupMembers " +
+		"WHERE groupId = ? and accountId in (?) ",
 
 	getGroupMembers: "SELECT a.id as userId, a.email, a.nickname, " +
 			"a.picture, a.lastSeen, a.login " +
@@ -195,13 +207,22 @@ var dbPrototype = {
 				[data.userId, data.userId2, data.userId, data.userId2],
 				callback);
 	},
+	getGroupById: function (data, callback) {
+		this.conn.query(selectLock(queries.getGroupById, data),
+				[data.groupId], callback);
+	},
 	getGroupListByUser: function (data, callback) {
 		this.conn.query(selectLock(queries.getGroupListByUser, data),
 				[data.userId], callback);
 	},
-	getGroupMember: function (data, callback) {
-		this.conn.query(selectLock(queries.getGroupMember, data),
+	getGroupMemberByUser: function (data, callback) {
+		this.conn.query(selectLock(queries.getGroupMemberByUser, data),
 				[data.groupId, data.userId],
+				callback);
+	},
+	getGroupMembersByUser: function (data, callback) {
+		this.conn.query(selectLock(queries.getGroupMembersByUser, data),
+				[data.groupId, data.userIds],
 				callback);
 	},
 	getGroupMembers: function (data, callback) {
@@ -209,7 +230,7 @@ var dbPrototype = {
 				[data.groupId], callback);
 	},
 	getGroupMemberNumber: function (data, callback) {
-		this.conn.query(selectLock(queries.getGroupMembers, data),
+		this.conn.query(selectLock(queries.getGroupMemberNumber, data),
 				[data.groupId], callback);
 	},
 	getRecentMessages: function (data, callback) {
@@ -375,6 +396,8 @@ var dbPatternProto = {
 		// default async is waterfall
 		if (!this.async)
 			this.async = async.waterfall;
+		
+		this.data = {};
 
 		return this;
 	},
@@ -389,7 +412,7 @@ var dbPatternProto = {
 	async: undefined,
 	db: null,                 /* User function can access db by this.db */
 	createDB: false,         /* Release db at the end or not */
-	data: {},                 /* Can use to share data across user series functions */
+	data: null,              /* Can use to share data across user series functions */
 	run: function() {
 		this.async(this.funcSeries, this.basicEndFunc);
 

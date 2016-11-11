@@ -19,7 +19,7 @@ function init(user) {
 		if (!session.validateRequest('getGroupList', user, false))
 			return;
 		
-		getGroup({user: user, trx: true},
+		getGroupList({user: user, trx: true},
 			function(err, result) {
 				if (err) {	
 					console.log('failed to get group list\r\n' + err);
@@ -38,7 +38,6 @@ function init(user) {
 		if (!session.validateRequest('addGroup', user, true, data))
 			return;
 		
-		console.log(data);
 		data.user = user;
 		data.trx = false;
 		
@@ -50,39 +49,25 @@ function init(user) {
 				addGroup(data, callback);
 			},
 			function(group, callback) {
-				var users = [];
+				var members = group.members;
+				// get every session of every member
+				var sessions = session.getUsersSessions(members);
 				
 				this.data.group = group;
-				
-				members = group.members;
-				
-				// get every session of every member
-				for (var i = 0; i < members.length; i++) {
-					var member = members[i];
-					var sessions = session.getUserSessions(member.userId);
-					
-					if (!sessions)
-						continue;
-					
-					for (var j = 0; j < sessions.length; j++) {
-						users.push(sessions[j]);
-					}
-				}
-				
-				this.data.users = users;
+				this.data.sessions = sessions;
 				
 				// create chatRoom and join every online members
 				chatManager.joinGroupChat({groupId: group.groupId, 
-					users: users, db: this.db}, callback);
+					users: sessions, db: this.db}, callback);
 			},
 			function(callback) {
-				var users = this.data.users;
+				var sessions = this.data.sessions;
 				var group = this.data.group;
 				
 				// notify every online member
 				// this must be sent before commit
-				for (var i = 0; i < users.length; i++)
-					users[i].emit('addGroup', {status: 'success', group: group});
+				for (var i = 0; i < sessions.length; i++)
+					sessions[i].emit('addGroup', {status: 'success', group: group});
 				
 				callback(null);
 			}
@@ -99,11 +84,16 @@ function init(user) {
 		if (!session.validateRequest('inviteGroupMembers', user, true, data))
 			return;
 		
-		var groupId, members;
+		var members = data.members;
+		var groupId = parseInt(data.groupId);
+		// ignore invalid group id
+		if (groupId !== groupId)
+			return;
+		
 		dbManager.trxPattern([
 			function(callback) {
-				members = data.members;
-				groupId = data.groupId;
+				if (!groupId)
+					return callback(new Error('no group id'));
 				
 				// members should be array
 				if (isArray(members)) {
@@ -113,14 +103,52 @@ function init(user) {
 					callback(new Error('not array'));
 				}
 			},
+			function(members, callback) {
+				// get every session of every member
+				var sessions = session.getUsersSessions(members);
+				
+				this.data.sessions = sessions;
+				this.data.members = members;
+				
+				chatManager.joinInvitedGroupChat({groupId: groupId, 
+					users: sessions, db: this.db}, callback);
+			},
+			function(callback) {
+				// get group info
+				this.db.getGroupById({groupId: groupId}, callback);
+			},
+			function(result, fields, callback) {
+				this.data.group = result[0];
+				
+				// get group member info
+				this.db.getGroupMembers({groupId: groupId}, callback);
+			},
+			function(result, fields, callback) {
+				var sessions = this.data.sessions;
+				var group = this.data.group;
+				var members = lib.filterUsersData(result);
+				
+				group.members = members;
+				
+				// membersInvited event will replace this
+				user.emit('inviteGroupMembers', {status: 'success', groupId: groupId, members: members});
+			
+				// notify every online member
+				// this must be sent before commit
+				for (var i = 0; i < sessions.length; i++) {
+					var invitedUser = sessions[i];
+					
+					invitedUser.emit('addGroup', {status: 'success', group: group});
+				}
+				
+				callback(null);
+			}
 		],
-		function(err, addedMembers) {
+		function(err) {
 			if (err) {
 				console.log('failed to invite users to group\r\n' + err);
+				
 				return user.emit('inviteGroupMembers', {status: 'fail', errorMsg:'server error'});
-			} else {
-				members = addedMembers;
-				user.emit('inviteGroupMembers', {status: 'success', groupId: groupId, members: members});
 			}
 		});
 	});
@@ -130,28 +158,37 @@ function init(user) {
 		if (!session.validateRequest('exitGroup', user, true, data))
 			return;
 		
-		dbManager.atomicPattern([
+		var groupId = parseInt(data.groupId);
+		// ignore invalid group id
+		if (groupId !== groupId)
+			return;
+		
+		dbManager.trxPattern([
 			function(callback) {
-				this.db.removeGroupMember({groupId: data.groupId, userId: user.userId}, callback);
+				this.db.removeGroupMember({groupId: groupId, userId: user.userId}, callback);
 			},
+			function(result, fields, callback) {
+				if (result.affectedRows === 0) {
+					return callback(new Error('user is already not in group'));
+				}
+				
+				// exit group chat
+				chatManager.exitGroupChat({groupId: groupId, user: user,
+					db: this.db}, callback);
+			}
 		],
-		function(err, result) {
+		function(err) {
 			if (err) {
 				console.log('failed to exit from group\r\n' + err);
 				return user.emit('exitGroup', {status: 'fail', errorMsg:'server error'});
-			} 
-			
-			if (result.affectedRows == 0) {
-				console.log('user is already not in group');
-				return user.emit('exitGroup', {status: 'fail', errorMsg:'you are not group member'});
 			}
 			
-			user.emit('exitGroup', {status: 'success', groupId: data.groupId});
+			user.emit('exitGroup', {status: 'success', groupId: groupId});
 		});
 	});
 }
 
-var getGroup = function(data, callback) {
+var getGroupList = function(data, callback) {
 	var pattern;
 	
 	var user = data.user;
@@ -175,17 +212,16 @@ var getGroup = function(data, callback) {
 				if (i >= groups.length)
 					return callback(null, groups);
 				
-				db.getGroupMembers({groupId: groups[i].id}, function(err, data) {
+				db.getGroupMembers({groupId: groups[i].groupId}, function(err, members) {
 					if (err)
 						return callback(err);
 					
 					groups[i].members = [];
+					// for compartibility
+					groups[i].id = groups[i].groupId;
 					
-					// TODO: id should be changed to groupId eventually
-					groups[i].groupId = groups[i].id;
-					
-					for (var j = 0; j < data.length; j++)
-						groups[i].members.push(lib.filterUserData(data[j]));
+					for (var j = 0; j < members.length; j++)
+						groups[i].members.push(lib.filterUserData(members[j]));
 					
 					getMembers(i + 1);
 				});
@@ -292,7 +328,7 @@ var addMembers = function(data, userCallback) {
 		function(callback) {
 			var db = this.db;
 			
-			// recursive function adding mutiple users to group
+			// recursive function adding multiple users to group
 			var addMembersIter = function(i, bigCallback) {
 				var peer;
 				
@@ -323,13 +359,14 @@ var addMembers = function(data, userCallback) {
 					},
 					function(self, result, fields, callback) {
 						if (!self && result.length == 0)
-							return addMembersIter(i + 1, bigCallback);
+							return callback(new Error('You can add only your contacts'));
 						
 						// check if the member added already
-						this.db.getGroupMember({groupId: groupId, userId: peer.id, lock: true},
+						this.db.getGroupMemberByUser({groupId: groupId, userId: peer.id, lock: true},
 								callback);
 					},
 					function(result, fields, callback) {
+						// ignore already added member
 						if (result.length > 0)
 							return addMembersIter(i + 1, bigCallback);
 						
@@ -430,7 +467,7 @@ var contains = function(needle) {
 };
 
 module.exports = {init: init,
-		getGroup: getGroup,
+		getGroupList: getGroupList,
 		addGroup: addGroup,
 		addMembers: addMembers,};
 

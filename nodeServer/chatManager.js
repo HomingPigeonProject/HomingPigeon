@@ -1,6 +1,6 @@
 /**
  * Chat manager
- * user can join or exit contact chat, group chat, conference
+ * user can join or exit contact chat, group chat
  */
 
 var rbTree = require('./RBTree');
@@ -47,11 +47,12 @@ var initUser = function(user, callback) {
 	// automatically join all chatRooms
 	dbManager.trxPattern([
 		function(callback) {
-			group.getGroup({user: user, db: this.db}, callback);
+			group.getGroupList({user: user, db: this.db}, callback);
 		},
 		function(groups, callback) {
 			var db = this.db;
-			this.data.groups = groups;
+			
+			this.data.groupList = groups;
 			
 			var joinGroupIter = function(i) {
 				var group = groups[i];
@@ -78,7 +79,7 @@ var initUser = function(user, callback) {
 			joinGroupIter(0);
 		},
 		function(callback) {
-			user.emit('getGroupList', {status: 'success', groups: this.data.groups});
+			user.emit('getGroupList', {status: 'success', groups: this.data.groupList});
 			
 			callback(null);
 		}
@@ -95,20 +96,41 @@ var initUser = function(user, callback) {
 	});
 };
 
+// user enter group chat invited
+var joinInvitedGroupChat = function(data, callback) {
+	data.invitation = true;
+	
+	enterGroupChat(data, callback);
+};
+
+// user enter group chat invited before
 var joinGroupChat = function(data, callback) {
+	data.invitation = false;
+	
+	enterGroupChat(data, callback);
+};
+
+// users enter group
+// input : data.groupId, data.users
+var enterGroupChat = function(data, callback) {
 	var pattern;
 	
 	var users = data.users;
 	var groupId = data.groupId;
+	var invitation = data.invitation || false;
 	
 	if (data.trx)
 		pattern = dbManager.trxPattern;
 	else
 		pattern = dbManager.atomicPattern;
 	
+	// no member to join
+	if (users.length == 0)
+		return callback(null);
+	
 	pattern([
+		// get chat room. create if does not exist
 		function(callback) {
-			// get active chat
 			var chatRoom = allChatRoom.get(groupId);
 			
 			if (!chatRoom) {
@@ -129,43 +151,54 @@ var joinGroupChat = function(data, callback) {
 			var members = this.data.members;
 			var chatRoom = this.data.chatRoom;
 			
-			var joinIter = function(i) {
-				if (i == users.length)
-					return callback(null);
-				
-				var user = users[i];
-				
-				async.waterfall([
-					function(callback) {
-						db.getGroupMember({groupId: groupId, userId: user.userId},
-								callback);
-					},
-					function(result, fields, callback) {
-						if (result.length == 0)
-							return callback(new Error('You are not member of group or' +
-														' no such group'));
-						
-						if (members.indexOf(user) >= 0)
-							return callback(new Error('Already joined'));
-						
-						// join room and notify members
-						chatRoom.invited({user: user}, callback);
-					},
-					function(callback) {
-						// read at most 100 messages
-						//this.data.chatRoom.getRecentMessages({nbMessage: 100}, callback);
-						callback(null);
-					}
-				],
-				function(err) {
-					if (err)
-						callback(err);
-					else
-						joinIter(i + 1);
-				});
-			}
+			var userIds = [];
 			
-			joinIter(0);
+			// make array of user ids
+			for (var i = 0; i < users.length; i++)
+				userIds.push(users[i].userId);
+			
+			async.waterfall([
+				function(callback) {
+					db.getGroupMembersByUser({groupId: groupId, userIds: userIds},
+							callback);
+				},
+				function(result, fields, callback) {
+					// check if every user are member of this group
+					for (var i = 0; i < userIds.length; i++) {
+						var found = false;
+						
+						for (var j = 0; j < result.length; j++) {
+							var memberId = result[j].accountId;
+							
+							if (memberId == userIds[i]) {
+								found = true;
+								break;
+							}
+						}
+						
+						if (!found)
+							return callback(new Error('Some users are not member of group or' +
+							' no such group'));
+					}
+					
+					// join room and notify members
+					if (invitation)
+						chatRoom.joinInvited({users: users}, callback);
+					else
+						chatRoom.join({users: users}, callback);
+				},
+				function(callback) {
+					// read at most 100 messages
+					//this.data.chatRoom.getRecentMessages({nbMessage: 100}, callback);
+					callback(null);
+				}
+			],
+			function(err) {
+				if (err)
+					callback(err);
+				else
+					callback(null);
+			});
 		},
 	],
 	function(err) {
@@ -179,6 +212,7 @@ var joinGroupChat = function(data, callback) {
 };
 
 // when user leaves group
+// input : data.groupId, data.user
 var leaveGroupChat = function(data, callback) {
 	var pattern;
 	
@@ -193,7 +227,7 @@ var leaveGroupChat = function(data, callback) {
 	pattern([
 		// check if the user is group member
 		function(callback) {
-			this.db.getGroupMember({groupId: groupId, userId: user.userId},
+			this.db.getGroupMemberByUser({groupId: groupId, userId: user.userId},
 					callback);
 		},
 		function(result, fields, callback) {
@@ -203,7 +237,6 @@ var leaveGroupChat = function(data, callback) {
 			
 			// get active chat
 			var chatRoom = allChatRoom.get(groupId);
-			
 			var members = chatRoom.onlineMembers;
 			
 			// no active chatRoom or user did not join
@@ -213,11 +246,11 @@ var leaveGroupChat = function(data, callback) {
 			
 			this.data.chatRoom = chatRoom;
 			
-			chatRoom.leave({user: user}, callback);
+			chatRoom.leave({users: [user]}, callback);
 		},
-			// read at most 100 messages
-			//this.data.chatRoom.getRecentMessages({nbMessage: 100}, callback);
 		function(callback) {
+			removeGroupChatIfEmpty(this.data.chatRoom);
+			
 			callback(null);
 		}
 	],
@@ -231,7 +264,53 @@ var leaveGroupChat = function(data, callback) {
 	{db: data.db});
 };
 
-// when user disconnects, exit from every chats
+// input : data.groupId, data.user
+var exitGroupChat = function(data, callback) {
+	var pattern;
+	
+	var user = data.user;
+	var groupId = data.groupId;
+	
+	if (data.trx)
+		pattern = dbManager.trxPattern;
+	else
+		pattern = dbManager.atomicPattern;
+	
+	pattern([
+		// assumed the user was group member
+		function(callback) {
+			
+			// get active chat
+			var chatRoom = allChatRoom.get(groupId);
+			var members = chatRoom.onlineMembers;
+			
+			// no active chatRoom or user did not join
+			if (!chatRoom || members.indexOf(user) < 0) {
+				return callback(null);
+			}
+			
+			this.data.chatRoom = chatRoom;
+			
+			chatRoom.exit({users: [user]}, callback);
+		},
+		function(callback) {
+			removeGroupChatIfEmpty(this.data.chatRoom);
+			
+			callback(null);
+		}
+	],
+	function(err) {
+		if (err) {
+			callback(err);
+		} else {
+			callback(null);
+		}
+	},
+	{db: data.db});
+};
+
+//when user disconnects, exit from every chats
+//input : data.user
 var leaveAllGroupChat = function(data) {
 	var user = data.user;
 	var chatRooms = user.chatRooms;
@@ -242,24 +321,28 @@ var leaveAllGroupChat = function(data) {
 	for (var i in chatRooms) {
 		var chatRoom = chatRooms[i];
 		
-		chatRoom.leave({user: data.user}, function(err) {
+		chatRoom.leave({users: [user]}, function(err) {
 			if (err)
 				throw Error('chat room leave failed!');
 			
-			// if no online members, remove chat
-			if (chatRoom.getMemberNum() == 0 &&
-					!removeGroupChat(chatRoom))
-				throw Error('chat room remove failed!');
-				
+			removeGroupChatIfEmpty(chatRoom);
 		});
 	}
 	
 	console.log('exited every group');
 };
 
+//if no online members, remove chat
+var removeGroupChatIfEmpty = function(chatRoom) {
+	if (chatRoom.getMemberNum() == 0 &&
+			!removeGroupChat(chatRoom))
+		throw Error('chat room remove failed!');
+};
+
 // when number of online member in group is 0,
 // remove group chat
 var removeGroupChat = function(chatRoom) {
+	console.log('remove group chat ' + chatRoom.groupId);
 	if (!allChatRoom.remove(chatRoom.groupId))
 		return false;
 	
@@ -269,7 +352,9 @@ var removeGroupChat = function(chatRoom) {
 module.exports = {init: init,
 		initUser: initUser,
 		joinGroupChat: joinGroupChat,
+		joinInvitedGroupChat: joinInvitedGroupChat,
 		leaveGroupChat: leaveGroupChat,
+		exitGroupChat: exitGroupChat,
 		leaveAllGroupChat: leaveAllGroupChat};
 
 var session = require('./session');

@@ -6,4 +6,15 @@ var filterUserData = function(user) {
 		lastSeen: user.lastSeen, login: user.login};
 }
 
-module.exports = {filterUserData: filterUserData};
+var filterUsersData = function(users) {
+	var result = [];
+	
+	for (var i = 0; i < users.length; i++) {
+		result.push(filterUserData(users[i]));
+	}
+	
+	return result;
+}
+
+module.exports = {filterUserData: filterUserData,
+		filterUsersData: filterUsersData};

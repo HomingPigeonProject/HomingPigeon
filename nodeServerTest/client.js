@@ -106,6 +106,22 @@ window.addEventListener('load', function() {
 			});
 		}
 	});
+	server.on('membersJoin', function(data) {
+		console.log('membersJoin');
+		console.log(data)
+	});
+	server.on('membersLeave', function(data) {
+		console.log('membersLeave');
+		console.log(data);
+	});
+	server.on('membersInvited', function(data) {
+		console.log('membersInvited');
+		console.log(data);
+	});
+	server.on('membersExit', function(data) {
+		console.log('membersExit');
+		console.log(data);
+	});
 	server.on('exitGroup', function(data) {
 		if (data.status == 'success') {
 			console.log('exited group!');
@@ -159,15 +175,6 @@ window.addEventListener('load', function() {
 		if (data.status == 'success')
 			console.log(data);
 	});
-	
-	server.on('memberJoin', function(data) {
-		console.log(data)
-	});
-	
-	server.on('memberLeave', function(data) {
-		console.log(data);
-	});
-
 	reset();
 });
 
