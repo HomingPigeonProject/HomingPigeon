@@ -1,0 +1,7 @@
+#Fri Nov 11 10:05:00 KST 2016
+base.0=/home/pthevenet/Documents/workspace/HomingPigeon/Android/app/build/intermediates/transforms/dex/debug/folders/1000/10/instant-run-bootstrap_1dabae3c81ea61ac5503a873e7adb95643bee8a9
+renamed.1=classes2.dex
+renamed.0=classes.dex
+file.1=/home/pthevenet/Documents/workspace/HomingPigeon/Android/app/build/intermediates/transforms/dex/debug/folders/1000/10/instant-run_e1fe65ab346ed4e5c96ef4830e91b59df8cf5340/classes.dex
+base.1=/home/pthevenet/Documents/workspace/HomingPigeon/Android/app/build/intermediates/transforms/dex/debug/folders/1000/10/instant-run_e1fe65ab346ed4e5c96ef4830e91b59df8cf5340
+file.0=/home/pthevenet/Documents/workspace/HomingPigeon/Android/app/build/intermediates/transforms/dex/debug/folders/1000/10/instant-run-bootstrap_1dabae3c81ea61ac5503a873e7adb95643bee8a9/classes.dex

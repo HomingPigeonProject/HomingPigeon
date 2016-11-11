@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<instant-run
+    abi="armeabi-v7a,armeabi"
+    api-level="23"
+    density="xxhdpi"
+    format="8"
+    plugin-version="2.2.2"
+    timestamp="28667563107646"
+    token="1615484623217741454"
+    verifier="COMPATIBLE" >
+
+    <task
+        name="javac"
+        duration="198" />
+    <task
+        name="instant-run-dex"
+        duration="22" />
+    <task
+        name="instant-run-transform"
+        duration="13" />
+    <task
+        name="verifier"
+        duration="1" />
+
+    <artifact
+        location="/home/pthevenet/Documents/workspace/HomingPigeon/Android/app/build/intermediates/reload-dex/debug/classes.dex"
+        type="RELOAD_DEX" />
+
+    <build
+        timestamp="28379470539024"
+        verifier="FULL_BUILD_REQUESTED" >
+        <artifact
+            location="/home/pthevenet/Documents/workspace/HomingPigeon/Android/app/build/outputs/apk/app-debug.apk"
+            type="MAIN" />
+    </build>
+    <build
+        timestamp="28458476335078"
+        verifier="COMPATIBLE" >
+        <artifact
+            location="/home/pthevenet/Documents/workspace/HomingPigeon/Android/app/build/intermediates/builds/debug/28458476335078/classes.dex"
+            type="RELOAD_DEX" />
+    </build>
+    <build
+        timestamp="28479099675974"
+        verifier="COMPATIBLE" >
+        <artifact
+            location="/home/pthevenet/Documents/workspace/HomingPigeon/Android/app/build/intermediates/builds/debug/28479099675974/classes.dex"
+            type="RELOAD_DEX" />
+    </build>
+    <build
+        timestamp="28515905035284"
+        verifier="COMPATIBLE" >
+        <artifact
+            location="/home/pthevenet/Documents/workspace/HomingPigeon/Android/app/build/intermediates/builds/debug/28515905035284/classes.dex"
+            type="RELOAD_DEX" />
+    </build>
+    <build
+        timestamp="28667563107646"
+        verifier="COMPATIBLE" >
+        <artifact
+            location="/home/pthevenet/Documents/workspace/HomingPigeon/Android/app/build/intermediates/reload-dex/debug/classes.dex"
+            type="RELOAD_DEX" />
+    </build>
+
+</instant-run>
