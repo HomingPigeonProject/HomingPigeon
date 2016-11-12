@@ -88,6 +88,10 @@ var queries = {
 			"(SELECT accountId as requestUserId, accountId2 as acceptUserId " +
 			"FROM Contacts  " +
 			"WHERE accountId = ? and accountId2 = ? and accepted = 0)) result ",
+			
+	getContactByGroup: "SELECT accountId as userId, accountId2 as userId2, " +
+			"id as contactId, accepted, groupId " +
+			"FROM Contacts WHERE groupId = ? ",
 
 	getGroupById: "SELECT g.id as groupId, g.name, g.nbMembers, " +
 			"max(m.date) as lastMessageDate, max(m.messageId) as lastMessageId " +
@@ -96,6 +100,18 @@ var queries = {
 			"FROM GroupMembers gm INNER JOIN " +
 			"Groups g ON gm.groupId = g.id " +
 			"WHERE g.id = ? " +
+			"LOCK IN SHARE MODE) g ON g.id = m.groupId ",
+			
+	getGroupOfUserById: "SELECT g.id as groupId, g.name, g.alias, " +
+			"g.nbMembers, max(m.date) as lastMessageDate, " +
+			"max(m.messageId) as lastMessageId " +
+			"FROM Messages m RIGHT JOIN " +
+			"(SELECT g.id, g.name, g.alias, count(*) as nbMembers " +
+			"FROM GroupMembers gm INNER JOIN " +
+			"(SELECT g.id, g.name, gm.alias " +
+			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
+			"WHERE gm.groupId = ? and gm.accountId = ? " +
+			"LOCK IN SHARE MODE) g ON g.id = gm.groupId " +
 			"LOCK IN SHARE MODE) g ON g.id = m.groupId ",
 	
 	getGroupListByUser: "SELECT g.id as groupId, g.name, g.alias, " +
@@ -125,8 +141,7 @@ var queries = {
 			"(SELECT gm.accountId, gm.ackStart, gm.ackMessageId " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
 			"WHERE g.id = ? " +
-			"LOCK IN SHARE MODE) m ON a.id = m.accountId " +
-			"LOCK IN SHARE MODE ",
+			"LOCK IN SHARE MODE) m ON a.id = m.accountId ",
 
 	getGroupMemberNumber: "SELECT count(*) " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
@@ -199,6 +214,9 @@ var queries = {
 			"accepted = 0 ",
 
 	updateGroupName: "UPDATE Groups SET name = ? WHERE id = ? ",
+	
+	updateContactGroupChat: "UPDATE Contacts SET groupId = ? " +
+			"WHERE ((accountId = ? and accountId2 = ?) or (accountId2 = ? and accountId = ?)) ",
 
 	lastInsertId: "SELECT LAST_INSERT_ID() as lastInsertId"
 };
@@ -267,9 +285,17 @@ var dbPrototype = {
 				[data.userId, data.userId2, data.userId, data.userId2],
 				callback);
 	},
+	getContactByGroup: function (data, callback) {
+		this.conn.query(selectLock(queries.getContactByGroup, data),
+				[data.groupId], callback);
+	},
 	getGroupById: function (data, callback) {
 		this.conn.query(selectLock(queries.getGroupById, data),
 				[data.groupId], callback);
+	},
+	getGroupOfUserById: function (data, callback) {
+		this.conn.query(selectLock(queries.getGroupOfUserById, data),
+				[data.groupId, data.userId], callback);
 	},
 	getGroupListByUser: function (data, callback) {
 		this.conn.query(selectLock(queries.getGroupListByUser, data),
@@ -389,6 +415,10 @@ var dbPrototype = {
 	updateGroupName: function(data, callback) {
 		this.conn.query(queries.updateGroupName,
 				[data.name, data.groupId], callback);
+	},
+	updateContactGroupChat: function(data, callback) {
+		this.conn.query(queries.updateContactGroupChat,
+				[data.groupId, data.userId, data.userId2, data.userId, data.userId2], callback);
 	},
 	lastInsertId: function(callback)  {
 		this.conn.query(queries.lastInsertId, callback);

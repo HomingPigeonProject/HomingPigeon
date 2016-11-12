@@ -43,6 +43,7 @@ window.addEventListener('load', function() {
 			var contactRemoveButton = document.createElement('button');
 			var contactAcceptButton = document.createElement('button');
 			var contactDenyButton = document.createElement('button');
+			var contactChatButton = document.createElement('button');
 			
 			contactForm.action = 'javascript:void(0);';
 			
@@ -66,11 +67,16 @@ window.addEventListener('load', function() {
 			contactDenyButton.type = 'button';
 			contactDenyButton.innerHTML = 'deny contact';
 			
+			contactChatButton.id = 'contactChatButton';
+			contactChatButton.type = 'button';
+			contactChatButton.innerHTML = 'create contact chat';
+			
 			contactForm.appendChild(contactInput);
 			contactForm.appendChild(contactAddButton);
 			contactForm.appendChild(contactRemoveButton);
 			contactForm.appendChild(contactAcceptButton);
 			contactForm.appendChild(contactDenyButton);
+			contactForm.appendChild(contactChatButton);
 
 			var groupListButton = document.createElement('button');
 			groupListButton.id = 'groupListButton';
@@ -153,6 +159,9 @@ window.addEventListener('load', function() {
 			});
 			$('#contactDenyButton').click(function() {
 				server.emit('denyContact', { email: $('#contactInput').val() });
+			});
+			$('#contactChatButton').click(function() {
+				server.emit('joinContactChat', { email: $('#contactInput').val() });
 			});
 			$('#groupListButton').click(function() {
 				server.emit('getGroupList');
@@ -242,6 +251,18 @@ window.addEventListener('load', function() {
 			groups.push(data.group);
 		} else {
 			console.log('failed to add group...');
+		}
+	});
+	server.on('contactChatRemoved', function(data) {
+		console.log('contact chat removed');
+		console.log(data);
+	});
+	server.on('joinContactChat', function(data) {
+		if (data.status == 'success') {
+			console.log('contact chat created');
+			console.log(data);
+		} else {
+			console.log('failed to create contact chat');
 		}
 	});
 	server.on('contactDenied', function(data) {

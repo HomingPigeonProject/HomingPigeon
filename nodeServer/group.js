@@ -46,7 +46,6 @@ function init(user) {
 	});
 	
 	// invite contacts to group
-	// TODO: when users are invited to contact group, detach from contact.
 	user.on('inviteGroupMembers', function(data) {
 		if (!session.validateRequest('inviteGroupMembers', user, true, data))
 			return;
@@ -71,37 +70,79 @@ function init(user) {
 				}
 			},
 			function(members, callback) {
-				// get every session of every member
-				var sessions = session.getUsersSessions(members);
+				this.data.invitedMembers = members;
 				
-				this.data.sessions = sessions;
-				this.data.members = members;
+				var sessions = session.getUsersSessions(members);
 				
 				chatManager.joinInvitedGroupChat({groupId: groupId, 
 					users: sessions, db: this.db}, callback);
 			},
 			function(callback) {
 				// get group info
-				this.db.getGroupById({groupId: groupId}, callback);
+				this.db.getGroupById({groupId: groupId, lock: true}, callback);
 			},
 			function(result, fields, callback) {
 				this.data.group = result[0];
 				
 				// get group member info
-				this.db.getGroupMembers({groupId: groupId}, callback);
+				this.db.getGroupMembers({groupId: groupId, lock: true}, callback);
 			},
 			function(result, fields, callback) {
-				var sessions = this.data.sessions;
-				var group = this.data.group;
-				var members = lib.filterUsersData(result);
+				this.data.totalMembers = result;
 				
-				group.members = members;
+				this.db.getContactByGroup({groupId: this.data.group.groupId, 
+					lock: true}, callback);
+			},
+			function(result, fields, callback) {
+				// if the group was for contact chat, it's not anymore
+				if (result.length > 0) {
+					var contact = result[0];
+					this.data.contact = contact;
+					
+					// set group id null
+					this.db.updateContactGroupChat({groupId: null,
+						userId: contact.userId, userId2: contact.userId2}, 
+						function(err, result, fields) {
+							callback(err, true, result);
+						});
+				} else 
+					callback(null, false, null);
+			},
+			// send any notifications
+			// this must be sent before commit
+			function(updated, result, callback) {
+				if (updated && result.affectedRows == 0)
+					return callback(new Error('failed to update contact info'));
+				
+				var group = this.data.group;
+				var invitedMembers = this.data.invitedMembers;
+				var totalMembers = this.data.totalMembers;
+				var contact = this.data.contact;
+
+				var sessions = session.getUsersSessions(members);
+				
+				if (contact) {
+					// notify two users of the contact
+					var sessions = session.getUsersSessions([{userId: contact.userId}, 
+						{userId: contact.userId2}]);
+					
+					for (var i = 0; i < sessions.length; i++) {
+						var contactUser = sessions[i];
+						
+						contactUser.emit('contactChatRemoved', {contactId: contact.contactId});
+					}
+				}
+				
+				// get every session of every member
+				var sessions = session.getUsersSessions(invitedMembers);
+				
+				group.members = totalMembers;
 				
 				// membersInvited event will replace this
-				user.emit('inviteGroupMembers', {status: 'success', groupId: groupId, members: members});
-			
+				//user.emit('inviteGroupMembers', {status: 'success', groupId: groupId, members: members});
+				user.emit('inviteGroupMembers', {status: 'success', groupId: groupId});
+				
 				// notify every online member
-				// this must be sent before commit
 				for (var i = 0; i < sessions.length; i++) {
 					var invitedUser = sessions[i];
 					
@@ -109,7 +150,7 @@ function init(user) {
 				}
 				
 				callback(null);
-			}
+			},
 		],
 		function(err) {
 			if (err) {
@@ -236,7 +277,7 @@ var getGroupList = function(data, callback) {
 				if (i >= groups.length)
 					return callback(null, groups);
 				
-				db.getGroupMembers({groupId: groups[i].groupId}, function(err, members) {
+				db.getGroupMembers({groupId: groups[i].groupId, lock: true}, function(err, members) {
 					if (err)
 						return callback(err);
 					
@@ -315,13 +356,37 @@ var addGroup = function(data, callback) {
 		function(result, callback) {
 			// get group member information
 			members = result;
+			this.data.members = members;
 			
 			if (name) 
-				return callback(null);
+				return callback(null, false, null);
 			
 			name = getDefaultGroupName(members);
-			this.db.updateGroupName({groupId: groupId, name: name}, callback);
+			this.db.updateGroupName({groupId: groupId, name: name},
+					function(err, result, fields) {
+				callback(err, true, result);
+			});
 		},
+		// get group info
+		function(updated, result, callback) {
+			console.log(updated + ', ' + result);
+			if (updated && result.affectedRows == 0)
+				return callback(new Error('failed to update name'));
+			
+			this.db.getGroupOfUserById({groupId: groupId, 
+				userId: user.userId, lock: true}, callback);
+		},
+		function(result, fields, callback) {
+			if (result.length == 0)
+				return callback(new Error('no group info'));
+			
+			var group = result[0];
+			
+			this.data.group = group;
+			group.members = this.data.members;
+			
+			callback(null);
+		}
 	],
 	function(err) {
 		if (err) {
@@ -329,7 +394,8 @@ var addGroup = function(data, callback) {
 			
 			callback(err);
 		} else {
-			callback(null, {groupId: groupId, name: name, members: members});
+			var sendMsg = lib.filterGroupData(this.data.group);
+			callback(null, sendMsg);
 		}
 	},
 	{db: data.db});
@@ -448,14 +514,14 @@ var getDefaultGroupName = function(members) {
 	for (var i = 1; i < members.length && i < 5; i++) {
 		var member = members[i];
 		
-		if (name.length + member.nickname.length + 2 > 125)
+		if (name.length + member.nickname.length + 2 > 125) {
+			// if member can't be fully listed, '...' is appended
+			name += '...';
 			break;
+		}
 		
 		name += ', ' + member.nickname;
 	}
-	// if members are more than 1, '...' is appended
-	if (i > 1)
-		name += '...';
 	
 	return name;
 }

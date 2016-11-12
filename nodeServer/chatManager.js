@@ -10,7 +10,7 @@ var allChatRoom = rbTree.createRBTree();
 
 /* User operations
  * name               arguments
- * joinContactChat    contactId(id of contact)
+ * joinContactChat    email(of contact)
  * readMessage        groupId
  * sendMessage        groupId, content, importance, location
  */
@@ -19,51 +19,100 @@ var init = function(user) {
 		if (!session.validateRequest('joinContactChat', user, true, data))
 			return;
 		
-		var contactId = data.contactId;
-		
 		dbManager.trxPattern([
 			function(callback) {
+				this.db.getUserByEmail({email: data.email, lock: true}, 
+						callback);
+			},
+			function(result, fields, callback) {
+				if (result.length == 0)
+					return callback(new Error('no such user'));
+				
+				var contactId = result[0].userId;
+				
 				this.db.getAcceptedContact({userId: user.userId, 
-					userId2: contactId}, callback);
+					userId2: contactId, lock: true}, callback);
 			},
 			function(result, fields, callback) {
 				if (result.length == 0)
 					return callback(new Error('No such contact found'));
 				
 				var contact = result[0];
+				var db = this.db;
+				var data = this.data;
 				
 				// groupId cannot be 0
-				if (contact.groupId)
-					return callback(null);
-				
-				var db = this.db;
-				
-				// create new group for contact
-				async.waterfall([
-					function(callback) {
-						data.user = user;
-						data.trx = false;
-						data.db = db;
-						data.members = [contact.email];
-						
-						group.startNewGroup(data, callback);
-					},
-					function(group, callback) {
-						var sessions = session.getUsersSessions(group.members);
-						
-						// let user know the new group for contact
-						for (var i = 0; i < sessions.length; i++) {
-							var session = sessions[i];
+				if (contact.groupId) {
+					// group already exists
+					async.waterfall([
+						function(callback) {
+							db.getGroupOfUserById({groupId: contact.groupId, 
+								userId: user.userId, lock: true}, callback);
+						},
+						function(result, fields, callback) {
+							if (result.length == 0)
+								return callback(new Error('failed to get group chat'));
 							
-							session.emit('joinContactChat', {status: 'success', group: group});
+							var group = result[0];
+							data.group = group;
+							
+							db.getGroupMembers({groupId: group.groupId, lock: true},
+									callback);
+						},
+						function(result, field, callback) {
+							var group = data.group;
+							
+							group.members = lib.filterUsersData(result);
+							
+							callback(null);
 						}
-						
-						callback(null);
-					}
-				],
-				function(err) {
-					callback(err);
-				});
+					],
+					function(err) {
+						callback(err);
+					});
+					
+				} else {
+					// create new group for contact
+					async.waterfall([
+						function(callback) {
+							group.startNewGroup({user: user, members: [contact.email],
+								trx: false, db: db}, callback);
+						},
+						function(group, callback) {
+							data.group = group;
+							
+							db.updateContactGroupChat({groupId: group.groupId,
+								userId: user.userId, userId2: contact.userId}, callback);
+						},
+						function(result, fields, callback) {
+							if (result.affectedRows == 0)
+								return callback(new Error('failed to update contact'));
+							
+							console.log(group.members);
+							
+							callback(null);
+						}
+					],
+					function(err) {
+						callback(err);
+					});
+				}
+			},
+			function(callback) {
+				var group = this.data.group;
+				var sessions = session.getUsersSessions(group.members);
+				
+				var sendMsg = lib.filterGroupData(group);
+				sendMsg.status = 'success';
+				
+				// let user know the new group for contact
+				for (var i = 0; i < sessions.length; i++) {
+					var s = sessions[i];
+					
+					s.emit('joinContactChat', sendMsg);
+				}
+				
+				callback(null);
 			}
 		],
 		function(err) {
@@ -160,9 +209,14 @@ var init = function(user) {
 		});
 	});
 	
+	// user have read messages id from data.ackFrom to ackTo inclusive
 	user.on('ackMessage', function(data) {
 		if (!session.validateRequest('ackMessage', user, true, data))
 			return;
+		
+		var groupId = data.groupId;
+		var ackFrom = data.ackFrom;
+		var ackTo = data.ackTo;
 		
 		dbManager.trxPattern([
 			function(callback) {
@@ -295,8 +349,8 @@ var enterGroupChat = function(data, callback) {
 			
 			async.waterfall([
 				function(callback) {
-					db.getGroupMembersByUser({groupId: groupId, userIds: userIds},
-							callback);
+					db.getGroupMembersByUser({groupId: groupId, userIds: userIds,
+						lock: true}, callback);
 				},
 				function(result, fields, callback) {
 					// check if every user are member of this group
@@ -363,8 +417,8 @@ var leaveGroupChat = function(data, callback) {
 	pattern([
 		// check if the user is group member
 		function(callback) {
-			this.db.getGroupMemberByUser({groupId: groupId, userId: user.userId},
-					callback);
+			this.db.getGroupMemberByUser({groupId: groupId, userId: user.userId,
+				lock: true}, callback);
 		},
 		function(result, fields, callback) {
 			if (result.length == 0)
@@ -457,12 +511,15 @@ var leaveAllGroupChat = function(data) {
 	for (var i in chatRooms) {
 		var chatRoom = chatRooms[i];
 		
-		chatRoom.leave({users: [user]}, function(err) {
-			if (err)
-				throw Error('chat room leave failed!');
-			
-			removeGroupChatIfEmpty(chatRoom);
-		});
+		(function(chatRoom) {
+			//NOTE: leave callback is asynchronously called
+			chatRoom.leave({users: [user]}, function(err) {
+				if (err)
+					throw Error('leaving chat room failed!');
+				
+				removeGroupChatIfEmpty(chatRoom);
+			});
+		})(chatRoom);
 	}
 	
 	console.log('exited every group');
@@ -497,4 +554,5 @@ var session = require('./session');
 var dbManager = require('./dbManager');
 var group = require('./group');
 var chat = require('./chat');
+var lib = require('./lib');
 var async = require('async');

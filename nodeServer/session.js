@@ -22,7 +22,7 @@ function init(user) {
 
 		dbManager.trxPattern([
 			function(callback) {
-				this.db.getUserById({userId: data.userId}, callback);
+				this.db.getUserById({userId: data.userId, lock: true}, callback);
 			}
 		],
 		function(err, result) {

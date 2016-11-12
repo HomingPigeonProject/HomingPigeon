@@ -16,5 +16,13 @@ var filterUsersData = function(users) {
 	return result;
 }
 
+var filterGroupData = function(group) {
+	return {groupId: group.groupId, name: group.name, 
+		nbMembers: group.nbMembers, lastMessageDate: group.lastMessageDate,
+		lastMessageId: group.lastMessageId, alias: group.alias,
+		members: group.members};
+}
+
 module.exports = {filterUserData: filterUserData,
-		filterUsersData: filterUsersData};
+		filterUsersData: filterUsersData,
+		filterGroupData: filterGroupData};

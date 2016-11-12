@@ -40,27 +40,6 @@ var chatRoomProto = {
 	//console.log(server.io.sockets.adapter.rooms);
 	//var room = server.io.sockets.adapter.rooms[this.getRoomName()];
 	
-	// get recent message 
-	// data.nbMessage : number of messages to retrieve 
-	getRecentMessages: function(data, callback) {
-		var user = data.user;
-		
-		data.groupId = this.groupId;
-		
-		dbManager.atomicPattern([
-			function(callback) {
-				this.db.getRecentMessages(data, callback);
-			}
-		],
-		function(err, result) {
-			if (err) {
-				callback(err);
-			} else {
-				callback(null, result);
-			}
-		});
-	},
-	
 	// broadcast message to all other members
 	// input: data.user, data.content, data.importance, data.location
 	sendMessage: function(data, callback) {
