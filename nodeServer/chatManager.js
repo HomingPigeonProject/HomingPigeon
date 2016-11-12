@@ -10,8 +10,9 @@ var allChatRoom = rbTree.createRBTree();
 
 /* User operations
  * name               arguments
- * joinContactChat    userId(id of contact)
- * joinGroupChat      groupId
+ * joinContactChat    contactId(id of contact)
+ * readMessage        groupId
+ * sendMessage        groupId, content, importance, location
  */
 var init = function(user) {
 	user.on('joinContactChat', function(data) {
@@ -22,7 +23,7 @@ var init = function(user) {
 		
 		dbManager.trxPattern([
 			function(callback) {
-				this.db.getContact({userId: user.userId, 
+				this.db.getAcceptedContact({userId: user.userId, 
 					userId2: contactId}, callback);
 			},
 			function(result, fields, callback) {

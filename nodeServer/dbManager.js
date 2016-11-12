@@ -24,35 +24,70 @@ pool.on('connection', function (connection) {
 
 // sql queries
 var queries = {
-	getUserById: "SELECT * FROM Accounts WHERE id = ? ",
+	getUserById: "SELECT *, id as userId FROM Accounts WHERE id = ? ",
 
-	getUserByEmail: "SELECT * FROM Accounts WHERE email = ? ",
+	getUserByEmail: "SELECT *, id as userId FROM Accounts WHERE email = ? ",
 
-	getUserBySession: "SELECT * " +
+	getUserBySession: "SELECT *, id as userId " +
 			"FROM Accounts INNER JOIN Sessions ON Accounts.id = Sessions.accountId " +
 			"WHERE sessionId = ? ",
 
-	getContactListByUser: "SELECT * " +
+	getAcceptedContactListByUser: "SELECT * " +
 			"FROM ((SELECT a.id as userId, a.email, a.nickname, a.picture, " +
 			"a.login, c.groupId, c.id as contactId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId " +
-			"WHERE c.accountId2 = ?) " +
+			"WHERE c.accountId2 = ? and c.accepted = 1) " +
 			"UNION " +
 			"(SELECT a.id as userId, a.email, a.nickname, a.picture, " +
 			"a.login, c.groupId, c.id as contactId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
-			"WHERE c.accountId = ?)) result " +
+			"WHERE c.accountId = ? and c.accepted = 1)) result " +
 			"ORDER BY result.nickname ",
-
+			
+	getPendingContactListByUser: "SELECT * " +
+			"FROM ((SELECT a.id as userId, a.email, a.nickname, a.picture, " +
+			"a.login, c.groupId, c.id as contactId " +
+			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId " +
+			"WHERE c.accountId2 = ? and c.accepted = 0) " +
+			"UNION " +
+			"(SELECT a.id as userId, a.email, a.nickname, a.picture, " +
+			"a.login, c.groupId, c.id as contactId " +
+			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
+			"WHERE c.accountId = ? and c.accepted = 0)) result " +
+			"ORDER BY result.contactId desc ",
+			
 	getContact: "SELECT * " +
-			"FROM ((SELECT c.id, a.email, a.nickname, a.picture, a.login, c.groupId " +
+			"FROM ((SELECT a.id as userId, a.email, a.nickname, a.picture, " +
+			"a.login, c.groupId, c.id as contactId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId " +
 			"WHERE c.accountId2 = ? and a.id = ?) " +
 			"UNION " +
-			"(SELECT c.id, a.email, a.nickname, a.picture, a.login, c.groupId " +
+			"(SELECT a.id as userId, a.email, a.nickname, a.picture, " +
+			"a.login, c.groupId, c.id as contactId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
 			"WHERE c.accountId = ? and a.id = ?)) result " +
 			"ORDER BY result.nickname ",
+
+	getAcceptedContact: "SELECT * " +
+			"FROM ((SELECT a.id as userId, a.email, a.nickname, a.picture, " +
+			"a.login, c.groupId, c.id as contactId " +
+			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId " +
+			"WHERE c.accountId2 = ? and a.id = ? and c.accepted = 1) " +
+			"UNION " +
+			"(SELECT a.id as userId, a.email, a.nickname, a.picture, " +
+			"a.login, c.groupId, c.id as contactId " +
+			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
+			"WHERE c.accountId = ? and a.id = ? and c.accepted = 1)) result " +
+			"ORDER BY result.nickname ",
+			
+	getPendingContact: "SELECT * " +
+			"FROM ((SELECT accountId as requestUserId, accountId2 as acceptUserId " +
+			"FROM Contacts " +
+			"WHERE accountId2 = ? and accountId = ? and accepted = 0) " +
+			"UNION " +
+			"(SELECT accountId as requestUserId, accountId2 as acceptUserId " +
+			"FROM Contacts  " +
+			"WHERE accountId = ? and accountId2 = ? and accepted = 0)) result ",
 
 	getGroupById: "SELECT g.id as groupId, g.name, g.nbMembers, " +
 			"max(m.date) as lastMessageDate, max(m.messageId) as lastMessageId " +
@@ -144,7 +179,12 @@ var queries = {
 	removeUser: "DELETE FROM Accounts WHERE email = ?",
 
 	removeContact: "DELETE FROM Contacts " +
-			"WHERE (accountId = ? and accountId2 = ?) or (accountId2 = ? and accountId = ?)",
+			"WHERE (accountId = ? and accountId2 = ? and accepted = 1) " +
+			"or (accountId2 = ? and accountId = ? and accepted = 1)",
+			
+	removePendingContact: "DELETE FROM Contacts " +
+			"WHERE (accountId = ? and accountId2 = ? and accepted = 0) " +
+			"or (accountId2 = ? and accountId = ? and accepted = 0)",
 
 	removeGroup: "DELETE FROM Groups WHERE id = ? ",
 
@@ -153,6 +193,10 @@ var queries = {
 	removeEvent: "DELETE FROM Events WHERE id = ? ",
 
 	removeEventParticipant: "DELETE FROM EventParticipants WHERE eventId = ? and accountId = ? ",
+	
+	acceptPendingContact: "UPDATE Contacts SET accepted = 1 " +
+			"WHERE ((accountId = ? and accountId2 = ?) or (accountId2 = ? and accountId = ?)) and " +
+			"accepted = 0 ",
 
 	updateGroupName: "UPDATE Groups SET name = ? WHERE id = ? ",
 
@@ -198,13 +242,28 @@ var dbPrototype = {
 		this.conn.query(selectLock(queries.getUserBySession, data),
 				[data.sessionId], callback);
 	},
-	getContactListByUser: function (data, callback) {
-		this.conn.query(selectLock(queries.getContactListByUser, data),
+	getAcceptedContactListByUser: function (data, callback) {
+		this.conn.query(selectLock(queries.getAcceptedContactListByUser, data),
+				[data.userId, data.userId], callback);
+	},
+	getPendingContactListByUser: function (data, callback) {
+		this.conn.query(selectLock(queries.getPendingContactListByUser, data),
 				[data.userId, data.userId], callback);
 	},
 	// get info of userId2 contacted by userId
 	getContact: function (data, callback) {
 		this.conn.query(selectLock(queries.getContact, data),
+				[data.userId, data.userId2, data.userId, data.userId2],
+				callback);
+	},
+	// get info of userId2 contacted by userId
+	getAcceptedContact: function (data, callback) {
+		this.conn.query(selectLock(queries.getAcceptedContact, data),
+				[data.userId, data.userId2, data.userId, data.userId2],
+				callback);
+	},
+	getPendingContact: function (data, callback) {
+		this.conn.query(selectLock(queries.getPendingContact, data),
 				[data.userId, data.userId2, data.userId, data.userId2],
 				callback);
 	},
@@ -268,7 +327,7 @@ var dbPrototype = {
 	},
 	addContact: function(data, callback)  {
 		this.conn.query(queries.addContact,
-				{accountId:data.userId, accountId2:data.userId2}, callback);
+				{accountId:data.requestUserId, accountId2:data.acceptUserId, accepted: 0}, callback);
 	},
 	addGroup: function(data, callback)  {
 		this.conn.query(queries.addGroup,
@@ -304,6 +363,11 @@ var dbPrototype = {
 				[data.userId, data.userId2, data.userId, data.userId2],
 				callback);
 	},
+	removePendingContact: function(data, callback)  {
+		this.conn.query(queries.removePendingContact,
+				[data.userId, data.userId2, data.userId, data.userId2],
+				callback);
+	},
 	removeGroup: function(data, callback)  {
 		this.conn.query(queries.removeGroup, [data.groupId], callback);
 	},
@@ -317,6 +381,10 @@ var dbPrototype = {
 	removeEventParticipant: function(data, callback)  {
 		this.conn.query(queries.removeEventParticipant,
 				[data.eventId, data.userId], callback);
+	},
+	acceptPendingContact: function(data, callback) {
+		this.conn.query(queries.acceptPendingContact,
+				[data.userId, data.userId2, data.userId, data.userId2], callback);
 	},
 	updateGroupName: function(data, callback) {
 		this.conn.query(queries.updateGroupName,

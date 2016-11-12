@@ -11,16 +11,28 @@ window.addEventListener('load', function() {
 		console.log('reconnected to server');
 		reset();
 	});
+	server.on('disconnect', function() {
+		console.log('diconnected from server');
+		logined = false;
+	});
+	server.on('error', function() {
+		console.log('connection error');
+	});
+	
 	server.on('login', function(data) {
 		console.log(data);
 		if (data.status == 'success') {
 			$('#loginStatus').text('status : logined');
 			logined = true;
-			$('#control').append("<button id='contactList' type='button'>get contact list</button>");
-			$('#contactList').click(function() {
+			$('#control').append("<button id='getContactList' type='button'>get contact list</button>");
+			$('#control').append("<button id='getPendingContactList' type='button'>get pending contact list</button>");
+			$('#getContactList').click(function() {
 				server.emit('getContactList');
 			});
-
+			$('#getPendingContactList').click(function() {
+				server.emit('getPendingContactList');
+			});
+			
 			// set profile
 			me = data.data;
 			
@@ -29,19 +41,36 @@ window.addEventListener('load', function() {
 			var contactInput = document.createElement('input');
 			var contactAddButton = document.createElement('button');
 			var contactRemoveButton = document.createElement('button');
+			var contactAcceptButton = document.createElement('button');
+			var contactDenyButton = document.createElement('button');
+			
 			contactForm.action = 'javascript:void(0);';
+			
 			contactInput.id = 'contactInput';
 			contactInput.placeholder = 'put contact email';
 			contactInput.type = 'text';
+			
 			contactAddButton.id = 'contactAddButton';
 			contactAddButton.type = 'button';
 			contactAddButton.innerHTML = 'add contact';
+			
 			contactRemoveButton.id = 'contactRemoveButton';
 			contactRemoveButton.type = 'button';
 			contactRemoveButton.innerHTML = 'remove contact';
+			
+			contactAcceptButton.id = 'contactAcceptButton';
+			contactAcceptButton.type = 'button';
+			contactAcceptButton.innerHTML = 'accept contact';
+			
+			contactDenyButton.id = 'contactDenyButton';
+			contactDenyButton.type = 'button';
+			contactDenyButton.innerHTML = 'deny contact';
+			
 			contactForm.appendChild(contactInput);
 			contactForm.appendChild(contactAddButton);
 			contactForm.appendChild(contactRemoveButton);
+			contactForm.appendChild(contactAcceptButton);
+			contactForm.appendChild(contactDenyButton);
 
 			var groupListButton = document.createElement('button');
 			groupListButton.id = 'groupListButton';
@@ -119,6 +148,12 @@ window.addEventListener('load', function() {
 			$('#contactRemoveButton').click(function() {
 				server.emit('removeContact', { email: $('#contactInput').val() });
 			});
+			$('#contactAcceptButton').click(function() {
+				server.emit('acceptContact', { email: $('#contactInput').val() });
+			});
+			$('#contactDenyButton').click(function() {
+				server.emit('denyContact', { email: $('#contactInput').val() });
+			});
 			$('#groupListButton').click(function() {
 				server.emit('getGroupList');
 			});
@@ -155,11 +190,9 @@ window.addEventListener('load', function() {
 		console.log(data);
 	});
 	server.on('newMessage', function(data) {
-		console.log('newMessage');
-		console.log(data);
 		// if message was sent for the chat
 		if (chatRoom.groupId == data.groupId) {
-			console.log(chatRoom.members);
+			//console.log(chatRoom.members);
 			if (data.userId == me.userId)
 				addMyMessage(data.content, chatRoom.members[data.userId].nickname, new Date().toString());
 			else
@@ -211,23 +244,50 @@ window.addEventListener('load', function() {
 			console.log('failed to add group...');
 		}
 	});
+	server.on('contactDenied', function(data) {
+		console.log('contact denied');
+		console.log(data);
+	});
+	server.on('newContact', function(data) {
+		console.log('new contact!');
+		console.log(data);
+	});
+	server.on('newPendingContact', function(data) {
+		console.log('new pending contact!');
+		console.log(data);
+	});
+	server.on('acceptContact', function(data) {
+		if (data.status == 'success') {
+			
+		} else {
+			console.log('failed to accept contact...');
+		}
+	});
+	server.on('denyContact', function(data) {
+		if (data.status == 'success') {
+			
+		} else {
+			console.log('failed to deny contact...');
+		}
+	});
 	server.on('addContact', function(data) {
 		if (data.status == 'success') {
-			console.log('added contact!');
-			console.log(data);
+			
 		} else {
 			console.log('failed to add contact...');
 		}
 	});
+	server.on('contactRemoved', function(data) {
+		console.log('removed contact!');
+		console.log(data);
+	});
 	server.on('removeContact', function(data) {
 		if (data.status == 'success') {
-			console.log('removed contact!');
-			console.log(data);
+			
 		} else {
 			console.log('failed to remove contact...');
 		}
 	});
-
 	server.on('getGroupList', function(data) {
 		if (data.status == 'success') {
 			console.log(data);
@@ -236,13 +296,15 @@ window.addEventListener('load', function() {
 			console.log('failed to get group list...');
 		}
 	});
-	// TODO: create contact list panel
+	server.on('getPendingContactList', function(data) {
+		if (data.status == 'success')
+			console.log(data);
+	});
 	server.on('getContactList', function(data) {
 		if (data.status == 'success')
 			console.log(data);
 	});
 	reset();
-	
 	
 	//click on the send button
 	$("#btn-chat").on('click', function(){

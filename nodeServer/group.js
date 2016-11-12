@@ -381,7 +381,7 @@ var addMembers = function(data, userCallback) {
 							return callback(null, true, null, null);
 						
 						// user can invite only contacts
-						this.db.getContact({userId: user.userId, userId2: peer.id, lock: true}, 
+						this.db.getAcceptedContact({userId: user.userId, userId2: peer.id, lock: true}, 
 						function(err, result, fields) {
 							callback(err, false, result, fields);
 						});
