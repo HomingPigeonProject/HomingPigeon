@@ -14,13 +14,12 @@
  * memberLeave
  * memberInvited
  * memberExit
+ * messageAck
  */
 
 var init = function(user) {
 };
 
-// TODO: join, invited method must get list of users intead of one
-//       so that invited or joined users don't get notification among them
 var chatRoomProto = {
 	groupId: undefined,
 	
@@ -80,6 +79,16 @@ var chatRoomProto = {
 			
 			member.emit(name, message);
 		}
+	},
+	
+	// send ack to every online users
+	sendAck: function(data, callback) {
+		var ackFrom = data.ackFrom;
+		var ackTo = data.ackTo;
+		
+		this.broadcastAll('messageAck', {ackFrom: ackFrom, ackTo: ackTo});
+		
+		callback(null);
 	},
 	
 	printMembers: function() {
