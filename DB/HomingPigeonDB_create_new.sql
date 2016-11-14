@@ -26,7 +26,7 @@ CREATE TABLE Contacts (
     accountId int NOT NULL,
     accountId2 int NOT NULL,
     groupId int,                                     /* Group id for two users' chat */
-    accepted bit(1) NOT NULL DEFAULT 0,
+    accepted bit(1) NOT NULL DEFAULT 0,              /* if 0, accountId is waiting for accountId2 to accept */
     CONSTRAINT Contacts_pk PRIMARY KEY (id)
 );
 
@@ -107,7 +107,7 @@ ALTER TABLE Contacts ADD CONSTRAINT Contacts_Accounts2 FOREIGN KEY (accountId2)
     REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
 ALTER TABLE Contacts ADD CONSTRAINT Contacts_GroupId FOREIGN KEY (groupId)
-    REFERENCES Groups (id) ON UPDATE CASCADE ON DELETE CASCADE;
+    REFERENCES Groups (id) ON UPDATE SET NULL ON DELETE SET NULL;
 
 -- GroupMembers
 ALTER TABLE GroupMembers ADD INDEX GroupMembers_Accounts_Groups (accountId, groupId);

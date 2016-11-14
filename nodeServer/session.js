@@ -22,7 +22,7 @@ function init(user) {
 
 		dbManager.trxPattern([
 			function(callback) {
-				this.db.getUserById({userId: data.userId}, callback);
+				this.db.getUserById({userId: data.userId, lock: true}, callback);
 			}
 		],
 		function(err, result) {
@@ -75,7 +75,7 @@ function init(user) {
 						// fail init, close connection;
 						user.disconnect(false);
 					} else {
-						console.log(user.email + ' is joined to groups');
+						console.log(user.email + ' joined groups');
 					}
 				});
 			}
@@ -88,6 +88,7 @@ function init(user) {
 		} else {
 			// leave every online chat
 			chatManager.leaveAllGroupChat({user: user});
+			removeUserSession(user);
 			
 			console.log('user ' + user.email + ' disconnected');
 		}
@@ -137,8 +138,40 @@ function addUserSession(user) {
 	return true;
 }
 
-function getUserSessions(userId) {
-	return users.get(userId);
+// get sessions of a user or users
+// users are assumed to be logined so must have session
+// mustExist : user should have at least one session
+function getUserSessions(user, mustExist) {
+	var sessions = users.get(user.userId);
+	
+	if (mustExist && (!sessions || sessions.indexOf(user) < 0))
+		throw Error('user session get failed, but user is alive');
+	
+	return sessions;
+}
+
+//mustExist : every user should have at least one session
+function getUsersSessions(users, mustExist) {
+	var sessionSum = [];
+	
+	for (var i = 0; i < users.length; i++) {
+		var user = users[i];
+		var sessions = getUserSessions(user, mustExist);
+		
+		if (sessions && sessions.length > 0) {
+			for (var j = 0; j < sessions.length; j++) {
+				var session = sessions[j];
+				
+				// don't make duplicate entries
+				if (sessionSum.indexOf(session) >= 0)
+					continue;
+				
+				sessionSum.push(session);
+			}
+		}
+	}
+	
+	return sessionSum;
 }
 
 function removeUserSession(user) {
@@ -151,14 +184,15 @@ function removeUserSession(user) {
 	userSessions.splice(userSessions.indexOf(user), 1);
 
 	// if no sessions, remove from tree
-	if (userSessions.length == 0)
-		users.remove(user.userId);
+	if (userSessions.length == 0 &&
+			!users.remove(user.userId))
+		throw Error('failed to remove user session');
 
 	return true;
 }
 
-function removeAllUserSession(userId) {
-	if (users.remove(userId))
+function removeAllUserSession(user) {
+	if (users.remove(user.userId))
 		return true;
 
 	return false;
@@ -177,6 +211,7 @@ module.exports = {init: init,
 		validateRequest: validateRequest,
 		addUserSession: addUserSession,
 		getUserSessions: getUserSessions,
+		getUsersSessions: getUsersSessions,
 		removeUserSession: removeUserSession,
 		removeAllUserSession: removeAllUserSession};
 
