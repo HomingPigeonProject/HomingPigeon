@@ -279,7 +279,7 @@ var getPendingContactList = function(data, callback) {
 		if (err) {
 			callback(err);
 		} else {
-			callback(null, result)
+			callback(null, result);
 		}
 	},
 	{db: data.db});
@@ -313,11 +313,8 @@ var reactPendingContact = function(data, callback) {
 			if (result.length == 0)
 				return callback(new Error('You don\'t have such waiting contact'));
 			
-			if (result[0].requestUserId == user.userId) {
-				if (accept)
-					return callback(new Error('The other user did not accept'));
-				else
-					return callback(new Error('You already accepted contact'));
+			if (accept && result[0].requestUserId == user.userId) {
+				return callback(new Error('You already accepted contact'));
 			}
 			
 			var peerId = this.data.peer.userId;

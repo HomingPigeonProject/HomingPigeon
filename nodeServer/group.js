@@ -162,6 +162,7 @@ function init(user) {
 	});
 	
 	// the user exit from group
+	// TODO: when a user exit, messages of the user will not be shown to other users anymore...
 	user.on('exitGroup', function(data) {
 		if (!session.validateRequest('exitGroup', user, true, data))
 			return;
@@ -288,6 +289,8 @@ var getGroupList = function(data, callback) {
 					for (var j = 0; j < members.length; j++)
 						groups[i].members.push(lib.filterUserData(members[j]));
 					
+					groups[i] = lib.filterGroupData(groups[i]);
+					
 					getMembers(i + 1);
 				});
 			}
@@ -369,7 +372,6 @@ var addGroup = function(data, callback) {
 		},
 		// get group info
 		function(updated, result, callback) {
-			console.log(updated + ', ' + result);
 			if (updated && result.affectedRows == 0)
 				return callback(new Error('failed to update name'));
 			
@@ -394,8 +396,8 @@ var addGroup = function(data, callback) {
 			
 			callback(err);
 		} else {
-			var sendMsg = lib.filterGroupData(this.data.group);
-			callback(null, sendMsg);
+			var result = lib.filterGroupData(this.data.group);
+			callback(null, result);
 		}
 	},
 	{db: data.db});
