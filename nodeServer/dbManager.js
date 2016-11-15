@@ -46,12 +46,12 @@ var queries = {
 			
 	getPendingContactListByUser: "SELECT * " +
 			"FROM ((SELECT a.id as userId, a.email, a.nickname, a.picture, " +
-			"a.login, c.groupId, c.id as contactId " +
+			"a.login, c.groupId, c.id as contactId, 1 as invited " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId " +
 			"WHERE c.accountId2 = ? and c.accepted = 0) " +
 			"UNION " +
 			"(SELECT a.id as userId, a.email, a.nickname, a.picture, " +
-			"a.login, c.groupId, c.id as contactId " +
+			"a.login, c.groupId, c.id as contactId, 0 as invited " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
 			"WHERE c.accountId = ? and c.accepted = 0)) result " +
 			"ORDER BY result.contactId desc ",
