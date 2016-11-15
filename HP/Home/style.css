@@ -7,7 +7,6 @@
   margin-left: 3px;
 }
 
-
 .contact {
   width: 252px;
   padding: 2px;
@@ -35,6 +34,28 @@
   text-align: center;
   float: right;
 }
+.denyContactButton {
+  width: 20px;
+  height: 20px;
+  padding: 0px;
+  box-sizing: border-box;
+  border: 0;
+  text-align: center;
+  float: right;
+}
+
+
+.acceptContactButton {
+  width: 20px;
+  height: 20px;
+  padding: 0px;
+  box-sizing: border-box;
+  border: 0;
+  text-align: center;
+  float: right;
+}
+
+
 .exitGroupButton {
   width: 20px;
   height: 20px;

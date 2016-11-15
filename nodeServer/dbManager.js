@@ -8,8 +8,8 @@ var async = require('async');
 var pool = mysql.createPool({
     host : 'localhost',
     port : 3306,
-    user : 'user',
-    password : 'HomingPigeon0!',
+    user : 'root',
+    password : 'team3',
     database:'HomingPigeon',
     connectionLimit:64,
     waitForConnections:true,
@@ -43,7 +43,7 @@ var queries = {
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
 			"WHERE c.accountId = ? and c.accepted = 1)) result " +
 			"ORDER BY result.nickname ",
-			
+
 	getPendingContactListByUser: "SELECT * " +
 			"FROM ((SELECT a.id as userId, a.email, a.nickname, a.picture, " +
 			"a.login, c.groupId, c.id as contactId " +
@@ -55,7 +55,7 @@ var queries = {
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
 			"WHERE c.accountId = ? and c.accepted = 0)) result " +
 			"ORDER BY result.contactId desc ",
-			
+
 	getContact: "SELECT * " +
 			"FROM ((SELECT a.id as userId, a.email, a.nickname, a.picture, " +
 			"a.login, c.groupId, c.id as contactId " +
@@ -79,7 +79,7 @@ var queries = {
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
 			"WHERE c.accountId = ? and a.id = ? and c.accepted = 1)) result " +
 			"ORDER BY result.nickname ",
-			
+
 	getPendingContact: "SELECT * " +
 			"FROM ((SELECT accountId as requestUserId, accountId2 as acceptUserId " +
 			"FROM Contacts " +
@@ -88,7 +88,7 @@ var queries = {
 			"(SELECT accountId as requestUserId, accountId2 as acceptUserId " +
 			"FROM Contacts  " +
 			"WHERE accountId = ? and accountId2 = ? and accepted = 0)) result ",
-			
+
 	getContactByGroup: "SELECT accountId as userId, accountId2 as userId2, " +
 			"id as contactId, accepted, groupId " +
 			"FROM Contacts WHERE groupId = ? ",
@@ -101,7 +101,7 @@ var queries = {
 			"Groups g ON gm.groupId = g.id " +
 			"WHERE g.id = ? " +
 			"LOCK IN SHARE MODE) g ON g.id = m.groupId ",
-			
+
 	getGroupOfUserById: "SELECT g.id as groupId, g.name, g.alias, " +
 			"g.nbMembers, max(m.date) as lastMessageDate, " +
 			"max(m.messageId) as lastMessageId " +
@@ -113,7 +113,7 @@ var queries = {
 			"WHERE gm.groupId = ? and gm.accountId = ? " +
 			"LOCK IN SHARE MODE) g ON g.id = gm.groupId " +
 			"LOCK IN SHARE MODE) g ON g.id = m.groupId ",
-	
+
 	getGroupListByUser: "SELECT g.id as groupId, g.name, g.alias, " +
 			"g.nbMembers, max(m.date) as lastMessageDate, " +
 			"max(m.messageId) as lastMessageId " +
@@ -131,7 +131,7 @@ var queries = {
 
 	getGroupMemberByUser: "SELECT * FROM GroupMembers " +
 			"WHERE groupId = ? and accountId = ? ",
-			
+
 	getGroupMembersByUser: "SELECT * FROM GroupMembers " +
 		"WHERE groupId = ? and accountId in (?) ",
 
@@ -196,7 +196,7 @@ var queries = {
 	removeContact: "DELETE FROM Contacts " +
 			"WHERE (accountId = ? and accountId2 = ? and accepted = 1) " +
 			"or (accountId2 = ? and accountId = ? and accepted = 1)",
-			
+
 	removePendingContact: "DELETE FROM Contacts " +
 			"WHERE (accountId = ? and accountId2 = ? and accepted = 0) " +
 			"or (accountId2 = ? and accountId = ? and accepted = 0)",
@@ -208,13 +208,13 @@ var queries = {
 	removeEvent: "DELETE FROM Events WHERE id = ? ",
 
 	removeEventParticipant: "DELETE FROM EventParticipants WHERE eventId = ? and accountId = ? ",
-	
+
 	acceptPendingContact: "UPDATE Contacts SET accepted = 1 " +
 			"WHERE ((accountId = ? and accountId2 = ?) or (accountId2 = ? and accountId = ?)) and " +
 			"accepted = 0 ",
 
 	updateGroupName: "UPDATE Groups SET name = ? WHERE id = ? ",
-	
+
 	updateContactGroupChat: "UPDATE Contacts SET groupId = ? " +
 			"WHERE ((accountId = ? and accountId2 = ?) or (accountId2 = ? and accountId = ?)) ",
 
@@ -491,11 +491,11 @@ var dbPatternProto = {
 			// default settings
 			this.createDB = true;
 		}
-		
+
 		// default async is waterfall
 		if (!this.async)
 			this.async = async.waterfall;
-		
+
 		this.data = {};
 
 		return this;
@@ -534,7 +534,7 @@ var atomicPatternGen = function() {
 
 		// request connection
 		var _getConnection = function(callback) {
-			if (this.createDB) 
+			if (this.createDB)
 				getConnection(callback);
 			else
 				callback(null, null);

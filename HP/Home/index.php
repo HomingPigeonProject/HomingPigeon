@@ -54,21 +54,48 @@
       <button type='submit'>session login</button>
     </form>
     -->
+
+
+    <form>
+      <input id="contactInput" type="text" placeholder="contact email"></input>
+      <button id="contactAddButton" type="button">add contact</button>
+    </form>
+
+    <form>
+      <input id="createGroupNameInput" type="text" placeholder="group name"></input>
+      <button id="createGroupButton" type="button">create group</button>
+    </form>
   </div>
+
+
 
 
   <div id="list-group">
 
-    <div id="pending-contact-list">
-      <!-- TODO : fill -->
+    <div id="pending-contact-list-full">
+      <p class="listTitle">Pending Contacts</p>
+      <div id="pending-contact-list">
+      </div>
     </div>
 
-    <div id="contact-list">
+    <!--
+    <div id="pending-group-list-full">
+      <p class="listTitle">Pending Groups</p>
+      <div id="pending-group-list">
+      </div>
+    </div>
+    -->
 
+    <div id="contact-list-full">
+      <p class="listTitle">Contacts</p>
+      <div id="contact-list">
+      </div>
     </div>
 
-    <div id="group-list">
-
+    <div id="group-list-full">
+      <p class="listTitle">Groups</p>
+      <div id="group-list">
+      </div>
     </div>
 
   </div>
