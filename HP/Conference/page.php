@@ -115,7 +115,6 @@
       ?>
     </div>
 
-    <a href="anotherpage.php">anotherpage</a>
 
       <h2 id="title">Start a room</h2>
 

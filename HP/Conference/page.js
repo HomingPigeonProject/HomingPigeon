@@ -219,6 +219,13 @@ document.getElementById("btn-chat").addEventListener("click", function() {
   sendMessage(msg);
 }, false);
 
+$(document).keypress(function(e) {
+  if (e.which == 13) {
+    console.log("pressed");
+    var msg = document.getElementById("btn-input").value;
+    sendMessage(msg);
+  }
+});
 
 document.getElementById("imp-dl-btn").addEventListener("click", function() {
   var level = document.getElementById("importance-choice-dl").selectedIndex;

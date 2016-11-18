@@ -3,6 +3,16 @@ var sessionId = document.getElementById("phpSessionId").textContent.replace(/\s/
 //console.log("The user id is : ", userId);
 //console.log("The session  id is : ", sessionId);
 
+var groups;
+// my info
+var me;
+
+// chat room info
+var chatRoom = {
+	groupId: null,
+	members: {},
+};
+
 var logined = false;
 var port = 4000;
 var server = io.connect('https://vps332892.ovh.net:4000');
@@ -18,6 +28,13 @@ window.addEventListener('load', function() {
 		console.log('reconnected to server');
 		reset();
 		server.emit('login', {userId: userId});
+	});
+	server.on('disconnect', function() {
+		console.log('diconnected from server');
+		logined = false;
+	});
+	server.on('error', function() {
+		console.log('connection error');
 	});
 	server.on('login', function(data) {
 		if (data.status == 'success') {
@@ -36,9 +53,54 @@ window.addEventListener('load', function() {
 				server.emit('getPendingContactList');
 			});
 			$('#createGroupButton').click(function () {
-				server.emit('addGroup', {name: $('#createGroupNameInput').val(), members: new Array()});
+				server.emit('addGroup', {name: $('#createGroupNameInput').val(), members: new Array(me['email'])});
 				server.emit('getGroupList');
 			});
+
+			////////////////////////////////////////////////////////////
+			// NEW
+			///////////////////////////////////////////////////////////
+
+			me = data.data;
+
+			{
+				var right = document.getElementById("right");
+
+				// For testion TODO
+				var chatControlTitle = document.createElement('p');
+				chatControlTitle.innerHTML = 'Join chat';
+				right.appendChild(chatControlTitle);
+
+
+				var chatForm = document.createElement('form');
+
+				var groupIdInput = document.createElement('input');
+				groupIdInput.id = 'groupIdInput';
+				groupIdInput.placeholder = 'put group id for chat';
+				groupIdInput.type = 'text';
+
+
+				var chatJoinButton = document.createElement('button');
+				chatJoinButton.id = 'chatJoinButton';
+				chatJoinButton.type = 'button';
+				chatJoinButton.innerHTML = 'join chat';
+
+
+				chatForm.appendChild(groupIdInput);
+				chatForm.appendChild(chatJoinButton);
+
+				right.appendChild(chatForm);
+
+				$('#chatJoinButton').click(function() {
+					var groupId = $('#groupIdInput').val();
+					$('.chat').html('');
+					setGroup(groupId);
+					server.emit('readMessage', {groupId: groupId});
+					console.log('start chat in group ' + groupId);
+				});
+
+			}
+
 		}
 	});
 
@@ -60,6 +122,7 @@ window.addEventListener('load', function() {
 		if (data.status == 'success') {
 			console.log('group added');
 			server.emit('getGroupList');
+			groups.push(data.group);
 		} else {
 			console.log('failed to add group');
 		}
@@ -79,6 +142,19 @@ window.addEventListener('load', function() {
 		}
 	});
 
+	server.on('newContact', function(data) {
+		server.emit('getContactList');
+		server.emit('getPendingContactList');
+	});
+	server.on('contactDenied', function (data) {
+		server.emit('getPendingContactList');
+	});
+	server.on('contactRemoved', function (data) {
+		server.emit('getContactList');
+	});
+	server.on('newPendingContact', function(data) {
+		server.emit('getPendingContactList');
+	});
 	server.on('getPendingContactList', function(data) {
 		if (data.status == 'success') {
 			var pcontacts = data.contacts;
@@ -99,7 +175,7 @@ window.addEventListener('load', function() {
 	});
 	server.on('getGroupList', function(data) {
 		if (data.status == 'success') {
-			var groups = data.groups;
+			groups = data.groups;
 			var groupListDiv = document.getElementById("group-list");
 			printGroupList(groups, groupListDiv, false);
 		} else {
@@ -107,18 +183,84 @@ window.addEventListener('load', function() {
 		}
 	});
 
-	/*
-	server.on('getPendingGroupList', function(data) {
-		if (data.status == 'success') {
-			var pgroups = data.groups;
-			var groupListDiv = document.getElementById("group-list");
-			printGroupList(groups, groupListDiv, true);
-		} else {
-			console.log('failed to get pending group list');
-		}
 
+	////////////////NEW
+
+
+
+	server.on('readMessage', function(data) {
+		console.log('readMessage');
+		console.log(data);
+		if (data.status == 'success') {
+			addOldMessages(data.messages);
+		}
 	});
-	*/
+	server.on('sendMessage', function(data) {
+		console.log('sendMessage');
+		console.log(data);
+	});
+	server.on('newMessage', function(data) {
+		// if message was sent for the chat
+		if (chatRoom.groupId == data.groupId) {
+			//console.log(chatRoom.members);
+			if (data.userId == me.userId)
+				addMyMessage(data.content, chatRoom.members[data.userId].nickname, new Date());
+			else
+				addMessage(data.content, chatRoom.members[data.userId].nickname, new Date());
+		} else {
+			// else, it is a notification
+			console.log('newMessage!!');
+			console.log(data);
+		}
+	});
+	server.on('membersJoin', function(data) {
+		console.log('membersJoin');
+		console.log(data);
+	});
+	server.on('membersLeave', function(data) {
+		console.log('membersLeave');
+		console.log(data);
+	});
+	server.on('membersInvited', function(data) {
+		console.log('membersInvited');
+		console.log(data);
+	});
+	server.on('membersExit', function(data) {
+		console.log('membersExit');
+		console.log(data);
+	});
+	server.on('contactChatRemoved', function(data) {
+		console.log('contact chat removed');
+		console.log(data);
+	});
+	server.on('joinContactChat', function(data) {
+		if (data.status == 'success') {
+			console.log('contact chat created');
+			resetChatBox();
+			var groupId = data.groupId;
+			setGroup(groupId);
+			server.emit('readMessage', {groupId: groupId});
+
+		} else {
+			console.log('failed to create contact chat');
+		}
+	});
+	reset();
+
+
+
+	//click on the send button
+	$("#btn-chat").on('click', function(){
+		sentMessage();
+	});
+
+	//check the pressed key and if it is enter then send message
+	$(document).keypress(function(e){
+		if (e.which == 13){
+			sentMessage();
+		}
+	});
+
 
 
 });
@@ -144,7 +286,6 @@ function printContactList(contacts, parentDiv, pending) {
 		var url = document.getElementById("phpURL").textContent;
 
 		if (pending && invited) {
-
 			var denyContactButton = document.createElement("button");
 			denyContactButton.className = "denyContactButton";
 			denyContactButton.innerHTML = "❌";
@@ -156,14 +297,15 @@ function printContactList(contacts, parentDiv, pending) {
 			acceptContactButton.innerHTML = "✔️";
 			acceptContactButton.id = contact["email"];
 			div.appendChild(acceptContactButton);
+			div.appendChild(document.createElement('br'));
 
-		} else if (pending && !pending) {
-
+		} else if (pending && !invited) {
 			var denyContactButton = document.createElement("button");
 			denyContactButton.className = "denyContactButton";
 			denyContactButton.innerHTML = "❌";
 			denyContactButton.id = contact["email"];
 			div.appendChild(denyContactButton);
+			div.appendChild(document.createElement('br'));
 
 		} else {
 			var removeContactButton = document.createElement("button");
@@ -171,26 +313,23 @@ function printContactList(contacts, parentDiv, pending) {
 			removeContactButton.innerHTML = "❌";
 			removeContactButton.id = contact["email"];
 			div.appendChild(removeContactButton);
+
+			var contactConferenceLink = document.createElement('a');
+			contactConferenceLink.className = "conferenceLink";
+			contactConferenceLink.appendChild(document.createTextNode("conference"));
+			contactConferenceLink.title = "conference";
+			contactConferenceLink.target = "_blank ";
+			contactConferenceLink.href = "../Conference/page.php?" + "c" + contact["contactId"];
+			div.appendChild(contactConferenceLink);
+
+			var contactChatButton = document.createElement("button");
+			contactChatButton.className = "contactChatButton";
+			contactChatButton.innerHTML = "join chat";
+			contactChatButton.id = contact['email'];
+			contactChatButton['data-groupId'] = contact['groupId'];
+			div.appendChild(document.createElement('br'));
+			div.appendChild(contactChatButton);
 		}
-
-		var contactConferenceLink = document.createElement('a');
-		contactConferenceLink.className = "conferenceLink";
-		contactConferenceLink.appendChild(document.createTextNode("conference"));
-		contactConferenceLink.title = "conference";
-		contactConferenceLink.target = "_blank ";
-		contactConferenceLink.href = "../Conference/page.php?" + "c" + contact["contactId"];
-
-		var contactChatLink = document.createElement('a');
-		contactChatLink.className = "chatLink";
-		contactChatLink.appendChild(document.createTextNode("chat"));
-		contactChatLink.title = "chat";
-		contactChatLink.href = "http://www.google.com";
-
-
-		div.appendChild(contactConferenceLink);
-		div.appendChild(document.createElement('br'));
-		div.appendChild(contactChatLink);
-
 		parentDiv.appendChild(div);
 	}
 
@@ -207,6 +346,23 @@ function printContactList(contacts, parentDiv, pending) {
 		server.emit('removeContact', {email: this.id});
 		server.emit('getContactList');
 	});
+	$('.contactChatButton').click(function() {
+		resetChatBox();
+		var contactEmail = this.id;
+		var groupId = this['data-groupId'];
+		if (!groupId) {
+			console.log("erere");
+			server.emit('joinContactChat', { email: contactEmail});
+		} else {
+			var groupId = this.id;
+			setGroup(groupId);
+			server.emit('readMessage', {groupId: groupId});
+		}
+
+
+		//server.emit('readMessage', {groupId: groupId});
+		//console.log('start chat in group ' + groupId);
+	});
 
 }
 
@@ -215,61 +371,71 @@ function printGroupList(groups, parentDiv, pending) {
 	var arrayLength = groups.length;
 	for (var i = 0; i < arrayLength; i++) {
 		var group = groups[i];
-		var invited = true;
+		if(!group["contactId"]) {
+			var invited = true;
 
-		var div = document.createElement("div");
-		div.className ="group";
+			var div = document.createElement("div");
+			div.className ="group";
 
-		var groupName = document.createElement("p");
-		groupName.textContent = group["name"];
-		groupName.className="group-contactName";
-		div.appendChild(groupName);
+			var groupName = document.createElement("p");
+			groupName.textContent = group["name"];
+			groupName.className="group-contactName";
+			div.appendChild(groupName);
 
-		var url = document.getElementById("phpURL").textContent;
+			var url = document.getElementById("phpURL").textContent;
 
-		var groupConferenceLink = document.createElement('a');
-		groupConferenceLink.className = "conferenceLink";
-		groupConferenceLink.appendChild(document.createTextNode("conference"));
-		groupConferenceLink.title = "conference";
-		groupConferenceLink.target = "_blank ";
-		groupConferenceLink.href = "../Conference/page.php?" + "g" + group["id"];
+			console.log("HEHEHE ");
+			console.log(group);
 
-		var groupChatLink = document.createElement('a');
-		groupChatLink.className = "chatLink";
-		groupChatLink.appendChild(document.createTextNode("chat"));
-		groupChatLink.title = "chat";
-		groupChatLink.href = "http://www.google.com";
+			var groupConferenceLink = document.createElement('a');
+			groupConferenceLink.className = "conferenceLink";
+			groupConferenceLink.appendChild(document.createTextNode("conference"));
+			groupConferenceLink.title = "conference";
+			groupConferenceLink.target = "_blank ";
+			groupConferenceLink.href = "../Conference/page.php?" + "g" + group["groupId"];
 
-		var exitGroupButton = document.createElement("button");
-		exitGroupButton.className = "exitGroupButton";
-		exitGroupButton.innerHTML = "❌";
-		exitGroupButton.id = group["id"];
+			var groupChatButton = document.createElement("button");
+			groupChatButton.className = "groupChatButton";
+			groupChatButton.innerHTML = "join chat";
+			groupChatButton.id = group["groupId"];
 
-		var addContactToGroupForm = document.createElement('form');
-		var addContactToGroupEmail = document.createElement('input');
-		addContactToGroupEmail.type = 'test';
-		addContactToGroupEmail.placeholder = 'contact email';
-		addContactToGroupEmail.className = "addContactToGroupEmail";
-		var addContactToGroupButton = document.createElement('button');
-		addContactToGroupButton.innerHTML = "add";
-		addContactToGroupButton.className = "addContactToGroupButton";
-		addContactToGroupButton.id = group["id"];
+			var exitGroupButton = document.createElement("button");
+			exitGroupButton.className = "exitGroupButton";
+			exitGroupButton.innerHTML = "❌";
+			exitGroupButton.id = group["groupId"];
 
-		addContactToGroupForm.appendChild(addContactToGroupEmail);
-		addContactToGroupForm.appendChild(addContactToGroupButton);
+			var addContactToGroupForm = document.createElement('form');
+			var addContactToGroupEmail = document.createElement('input');
+			addContactToGroupEmail.type = 'test';
+			addContactToGroupEmail.placeholder = 'contact email';
+			addContactToGroupEmail.className = "addContactToGroupEmail";
+			var addContactToGroupButton = document.createElement('button');
+			addContactToGroupButton.className = "addContactToGroupButton";
+			addContactToGroupButton.innerHTML = "➕";
+			addContactToGroupButton.id = group["groupId"];
 
-		div.appendChild(exitGroupButton);
-		div.appendChild(groupConferenceLink);
-		div.appendChild(document.createElement('br'));
-		div.appendChild(groupChatLink);
+			addContactToGroupForm.appendChild(addContactToGroupEmail);
+			addContactToGroupForm.appendChild(addContactToGroupButton);
 
-		div.appendChild(addContactToGroupForm);
+			div.appendChild(exitGroupButton);
+			div.appendChild(groupConferenceLink);
+			div.appendChild(document.createElement('br'));
+			//div.appendChild(groupChatLink);
+			div.appendChild(groupChatButton);
 
+			div.appendChild(addContactToGroupForm);
 
+			parentDiv.appendChild(div);
+		}
 
-		parentDiv.appendChild(div);
 	}
-
+	$('.groupChatButton').click(function() {
+		resetChatBox();
+		var groupId = this.id;
+		setGroup(groupId);
+		server.emit('readMessage', {groupId: groupId});
+		console.log('start chat in group ' + groupId);
+	});
 	$('.exitGroupButton').click(function(){
 		server.emit('exitGroup', {groupId: this.id});
 		server.emit('getGroupList');
@@ -282,7 +448,149 @@ function printGroupList(groups, parentDiv, pending) {
 
 }
 
+function resetChatBox() {
+	var ul = document.getElementById("ul-chatbox-messages");
+	ul.innerHTML="";
+}
+
 function reset() {
 	//$('#control').html("<label id='loginStatus'>status : not logined</label>");
 	logined = false;
+}
+
+function addOldMessages(messages) {
+	var chats = $('.chat > .chatMessage');
+	var j = 0;
+
+	for (var i = chats.length - 1; i >= 0; i--) {
+		do {
+			var chat = chats[i];
+			var newChat = messages[j];
+			var chatId = chat['data-messageId'];
+			var newId = messages[j].messageId;
+
+			var content = newChat.content;
+			var date = newChat.date;
+			var name = chatRoom.members[newChat.userId].nickname;
+
+			if (chatId == newId)
+				j++;
+			else if (chatId < newId) {
+				if (newChat.userId == me.userId)
+					$(chat).append(makeMyMessage(content, me.nickname, date));
+				else
+					$(chat).append(makeMessage(content, name, date));
+			} else
+				continue;
+
+			if (newChat.userId == me.userId)
+				$(chat).append(makeMyMessage(content, me.nickname, date));
+			else
+				$(chat).append(makeMessage(content, name, date));
+
+		} while (chatId < newId);
+	}
+
+	for (; j < messages.length; j++) {
+		var chat = $('.chat');
+		var newMessage = messages[j];
+
+		var content = newMessage.content;
+		var date = newMessage.date;
+		var name = chatRoom.members[newMessage.userId].nickname;
+
+		if (newMessage.userId == me.userId)
+			chat.prepend(makeMyMessage(content, me.nickname, date));
+		else
+			chat.prepend(makeMessage(content, name, date));
+
+		$('.chatTog').animate({ scrollTop: 50000 }, 1);
+	}
+}
+
+// find group and set for chat
+function setGroup(groupId) {
+	for (var i = 0; i < groups.length; i++) {
+		var group = groups[i];
+
+		if (group.groupId == groupId) {
+			var members = group.members;
+
+			chatRoom.groupId = groupId;
+			chatRoom.members = {};
+
+			for (var j = 0; j < members.length; j++) {
+				var member = members[j];
+
+				chatRoom.members[member.userId] = member;
+			}
+
+			break;
+		}
+	}
+}
+
+function makeMyMessage(msg, name, date) {
+	var r = '<li class="chatMessage right clearfix">' +
+						'<span class="chat-img pull-right">' +
+							'<img src="http://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" />' +
+						'</span>' +
+						'<div class="chat-body clearfix">' +
+							'<div class="header">' +
+								'<strong class="pull-right primary-font">' +
+									name +
+								'</strong>' +
+								'<small class="text-muted">' +
+									'<i class="fa fa-clock-o fa-fw"></i> ' +
+									date.toLocaleString().toString() +
+								'</small>' +
+							'</div>' +
+							'<p>'+msg+'</p>' +
+						'</div>' +
+					'</li>';
+	return r;
+}
+
+function makeMessage(msg, name, date) {
+	var r = '<li class="chatMessage left clearfix">' +
+						'<span class="chat-img pull-left">' +
+							'<img src="http://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle"/> ' +
+						'</span>' +
+						'<div class="chat-body clearfix">' +
+							'<div class="header">' +
+								'<strong class="primary-font">' +
+									name +
+								'</strong>' +
+								'<small class="pull-right text-muted">' +
+									'<i class="fa fa-clock-o fa-fw">' + '</i>' +
+									date.toLocaleString().toString() +
+								'</small>' +
+							'</div>' +
+							'<p>' + msg + '</p>' +
+						'</div>' +
+					'</li>';
+
+
+	return r;
+}
+
+function addMyMessage(msg, name, date){
+	$('.chat').append(makeMyMessage(msg, name, date));/*'<div class="message"></p>' + name + ' : ' + msg +   '</p></div>');*/
+	$('.chatTog').animate({ scrollTop: 50000 }, 1);
+}
+
+function addMessage(msg, name, date){
+	$('.chat').append(makeMessage(msg, name, date));/*'<div class="message"></p>' + name + ' : ' + msg +   '</p></div>');*/
+	$('.chatTog').animate({ scrollTop: 50000 }, 1);
+}
+
+//verification if text is not null then send to server and write it locally
+function sentMessage(){
+    if ($('.messageInput').val() != "" && logined){
+    	var content = $('.messageInput').val();
+      server.emit('sendMessage', {groupId: chatRoom.groupId, content: content, importance: 0, location: null} );
+
+      addMyMessage(content, me.nickname , new Date(), true);
+      $('.messageInput').val(''); //reset the messageInput
+    }
 }

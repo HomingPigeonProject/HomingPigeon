@@ -1,4 +1,29 @@
 
+#main {
+  overflow: hidden;
+}
+
+#left {
+  float: left;
+  width: 25%;
+  margin-left: 1%;
+  border: 1px solid gray;
+
+}
+
+#right {
+  float: right;
+  width: 70%;
+  margin-right: 1%;
+  border: 1px solid gray;
+
+}
+
+#chat-box {
+  width: 100%;
+}
+
+
 #list-group {
   font-family: Georgia;
 }
@@ -7,20 +32,28 @@
   margin-left: 3px;
 }
 
+.listTitle {
+  width: 90%;
+  margin: auto;
+  border: 1px solid navy;
+  text-align: center;
+  color: navy;
+  font-size: 16px;
+}
 .contact {
-  width: 252px;
-  padding: 2px;
+  width: 95%;
+  padding: 2%;
   border: 1px solid gray;
-  margin: 0;
+  margin: auto;
   color: navy;
   font-size: 15px;
 }
 
 .group {
-  width: 252px;
-  padding: 2px;
+  width: 95%;
+  padding: 2%;
   border: 1px solid gray;
-  margin: 0;
+  margin: auto;
   color: navy;
   font-size: 15px;
 }
@@ -66,13 +99,14 @@
   float: right;
 }
 
-.listTitle {
-  width: 252px;
-
-  border: 1px solid navy;
+.addContactToGroupButton {
+  width: 20px;
+  height: 20px;
+  padding: 0px;
+  box-sizing: border-box;
+  border: 0;
   text-align: center;
-  color: navy;
-  font-size: 16px;
+  float: right;
 }
 
 .conferenceLink {
@@ -83,17 +117,16 @@
 
 }
 
-
 .addContactToGroupButton {
   font-size: 10pt;
   text-align: center;
   float: right;
   height: 30px;
-  width: 50px;
+  width: 20%;
 }
 
 .addContactToGroupEmail {
   font-size: 10pt;
   height: 30px;
-  width: 160px;
+  width: 75%;
 }
