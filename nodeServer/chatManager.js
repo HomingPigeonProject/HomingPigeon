@@ -18,7 +18,7 @@ var init = function(user) {
 	user.on('joinContactChat', function(data) {
 		if (!session.validateRequest('joinContactChat', user, true, data))
 			return;
-		console.log(data.email);
+		
 		dbManager.trxPattern([
 			function(callback) {
 				this.db.getUserByEmail({email: data.email, lock: true}, 
@@ -63,6 +63,7 @@ var init = function(user) {
 							var group = data.group;
 							
 							group.members = lib.filterUsersData(result);
+							data.resMembers = [user];
 							
 							callback(null);
 						}
@@ -78,7 +79,7 @@ var init = function(user) {
 							group.startNewGroup({user: user, members: [contact.email],
 								trx: false, db: db}, callback);
 						},
-						function(group, callback) {
+						function(group, sessions, callback) {
 							data.group = group;
 							
 							db.updateContactGroupChat({contactId: contact.contactId, 
@@ -90,6 +91,10 @@ var init = function(user) {
 							
 							console.log(group.members);
 							
+							// update contactId
+							data.group.contactId = contact.contactId;
+							data.resMembers = data.group.members;
+							
 							callback(null);
 						}
 					],
@@ -100,7 +105,7 @@ var init = function(user) {
 			},
 			function(callback) {
 				var group = this.data.group;
-				var sessions = session.getUsersSessions(group.members);
+				var sessions = session.getUsersSessions(this.data.resMembers);
 				
 				var sendMsg = lib.filterGroupData(group);
 				sendMsg.status = 'success';
@@ -158,11 +163,13 @@ var init = function(user) {
 	user.on('sendMessage', function(data) {
 		if (!session.validateRequest('sendMessage', user, true, data))
 			return;
-		
+		// make sure client update group list on addGroup, joinContactChat, getGroupList
+		//console.log('message to ' + data.groupId + '(' + data.content + ')');
 		var groupId = parseInt(data.groupId);
 		var content = data.content || '';
 		var importance = data.importance || 0;
 		var location = data.location;
+		var date = new Date();
 		
 		dbManager.trxPattern([
 			function(callback) {
@@ -182,12 +189,12 @@ var init = function(user) {
 				
 				// broadcast message
 				chatRoom.sendMessage({user: user, content: content,
-					importance: importance, location: location}, callback);
+					importance: importance, location: location, date: date}, callback);
 			},
 			function(callback)
 			{
-				var message = {groupId: groupId, userId: user.userId,
-						content: content, importance: importance, location: location};
+				var message = {groupId: groupId, userId: user.userId, content: content, 
+						importance: importance, location: location, date: date};
 				
 				// save message in database
 				this.db.addMessage(message, callback);
@@ -407,7 +414,7 @@ var enterGroupChat = function(data, callback) {
 var leaveGroupChat = function(data, callback) {
 	var pattern;
 	
-	var user = data.user;
+	var users = data.users;
 	var groupId = data.groupId;
 	
 	if (data.trx)
@@ -415,29 +422,52 @@ var leaveGroupChat = function(data, callback) {
 	else
 		pattern = dbManager.atomicPattern;
 	
+	// no member to join
+	if (users.length == 0)
+		return callback(null);
+	
+	var userIds = [];
 	pattern([
 		// check if the user is group member
 		function(callback) {
-			this.db.getGroupMemberByUser({groupId: groupId, userId: user.userId,
+			// make array of user ids
+			for (var i = 0; i < users.length; i++)
+				userIds.push(users[i].userId);
+			
+			this.db.getGroupMembersByUser({groupId: groupId, userIds: userIds,
 				lock: true}, callback);
 		},
 		function(result, fields, callback) {
-			if (result.length == 0)
-				return callback(new Error('You are not member of group or' +
-											' no such group'));
+			// check if every user are member of this group
+			for (var i = 0; i < userIds.length; i++) {
+				var found = false;
+				
+				for (var j = 0; j < result.length; j++) {
+					var memberId = result[j].accountId;
+					
+					if (memberId == userIds[i]) {
+						found = true;
+						break;
+					}
+				}
+				
+				if (!found)
+					return callback(new Error('Some users are not member of group or' +
+					' no such group'));
+			}
 			
 			// get active chat
 			var chatRoom = allChatRoom.get(groupId);
 			var members = chatRoom.onlineMembers;
 			
-			// no active chatRoom or user did not join
-			if (!chatRoom || members.indexOf(user) < 0) {
+			// no active chatRoom
+			if (!chatRoom) {
 				return callback(null);
 			}
 			
 			this.data.chatRoom = chatRoom;
 			
-			chatRoom.leave({users: [user]}, callback);
+			chatRoom.leave({users: users}, callback);
 		},
 		function(callback) {
 			removeGroupChatIfEmpty(this.data.chatRoom);
@@ -533,53 +563,6 @@ var removeGroupChatIfEmpty = function(chatRoom) {
 		throw Error('chat room remove failed!');
 };
 
-// when contact chat members changes, it's not contact chat anymore
-// input: data.groupId
-var removeContactChat = function(data, callback) {
-	var pattern;
-	
-	var groupId = data.groupId;
-	
-	if (data.trx)
-		pattern = dbManager.trxPattern;
-	else
-		pattern = dbManager.atomicPattern;
-	
-	pattern([
-		function(callback) {			
-			this.db.getContactByGroup({groupId: this.data.groupId, 
-				lock: true}, callback);
-		},
-		function(result, fields, callback) {
-			// if the group was for contact chat, it's not anymore
-			if (result.length > 0) {
-				var contact = result[0];
-				this.data.contact = contact;
-				
-				// set group id null
-				this.db.updateContactGroupChat({contactId: null,
-					userId: contact.userId, userId2: contact.userId2}, 
-					function(err, result, fields) {
-						callback(err, true, result);
-					});
-			} else 
-				callback(null, false, null);
-		},
-		// send any notifications
-		// this must be sent before commit
-		function(updated, result, callback) {
-			if (updated && result.affectedRows == 0)
-				return callback(new Error('failed to update contact info'));
-			
-			callback(null);
-		}
-	],
-	function(err) {
-		callback(err);
-	},
-	{db: data.db});
-};
-
 // when number of online member in group is 0,
 // remove group chat
 var removeGroupChat = function(chatRoom) {
@@ -597,8 +580,7 @@ module.exports = {init: init,
 		joinInvitedGroupChat: joinInvitedGroupChat,
 		leaveGroupChat: leaveGroupChat,
 		exitGroupChat: exitGroupChat,
-		leaveAllGroupChat: leaveAllGroupChat,
-		removeContactChat: removeContactChat};
+		leaveAllGroupChat: leaveAllGroupChat};
 
 var session = require('./session');
 var dbManager = require('./dbManager');

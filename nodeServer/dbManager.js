@@ -100,22 +100,22 @@ var queries = {
 			"FROM Contacts c INNER JOIN Groups g ON c.id = g.contactId " +
 			"WHERE g.id = ? ",
 
-	getGroupById: "SELECT g.id as groupId, g.name, g.nbMembers, " +
+	getGroupById: "SELECT g.id as groupId, g.name, g.contactId, g.nbMembers, " +
 			"max(m.date) as lastMessageDate, max(m.messageId) as lastMessageId " +
 			"FROM Messages m RIGHT JOIN " +
-			"(SELECT g.id, g.name, count(*) as nbMembers " +
-			"FROM GroupMembers gm INNER JOIN " +
+			"(SELECT g.id, g.name, g.contactId, count(gm.accountId) as nbMembers " +
+			"FROM GroupMembers gm RIGHT JOIN " +
 			"Groups g ON gm.groupId = g.id " +
 			"WHERE g.id = ? " +
 			"LOCK IN SHARE MODE) g ON g.id = m.groupId ",
 			
-	getGroupOfUserById: "SELECT g.id as groupId, g.name, g.alias, " +
+	getGroupOfUserById: "SELECT g.id as groupId, g.name, g.contactId, g.alias, " +
 			"g.nbMembers, max(m.date) as lastMessageDate, " +
 			"max(m.messageId) as lastMessageId " +
 			"FROM Messages m RIGHT JOIN " +
-			"(SELECT g.id, g.name, g.alias, count(*) as nbMembers " +
-			"FROM GroupMembers gm INNER JOIN " +
-			"(SELECT g.id, g.name, gm.alias " +
+			"(SELECT g.id, g.name, g.contactId, g.alias, count(gm.accountId) as nbMembers " +
+			"FROM GroupMembers gm RIGHT JOIN " +
+			"(SELECT g.id, g.name, g.contactId, gm.alias " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
 			"WHERE gm.groupId = ? and gm.accountId = ? " +
 			"LOCK IN SHARE MODE) g ON g.id = gm.groupId " +
@@ -125,8 +125,8 @@ var queries = {
 			"g.nbMembers, max(m.date) as lastMessageDate, " +
 			"max(m.messageId) as lastMessageId " +
 			"FROM Messages m RIGHT JOIN " +
-			"(SELECT g.id, g.name, g.contactId, g.alias, count(*) as nbMembers " +
-			"FROM GroupMembers gm INNER JOIN " +
+			"(SELECT g.id, g.name, g.contactId, g.alias, count(gm.accountId) as nbMembers " +
+			"FROM GroupMembers gm RIGHT JOIN " +
 			"(SELECT g.id, g.name, g.contactId, gm.alias " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
 			"WHERE gm.accountId = ? and g.contactId is null " +
@@ -140,8 +140,8 @@ var queries = {
 			"g.nbMembers, max(m.date) as lastMessageDate, " +
 			"max(m.messageId) as lastMessageId " +
 			"FROM Messages m RIGHT JOIN " +
-			"(SELECT g.id, g.name, g.contactId, g.alias, count(*) as nbMembers " +
-			"FROM GroupMembers gm INNER JOIN " +
+			"(SELECT g.id, g.name, g.contactId, g.alias, count(gm.accountId) as nbMembers " +
+			"FROM GroupMembers gm RIGHT JOIN " +
 			"(SELECT g.id, g.name, g.contactId, gm.alias " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
 			"WHERE gm.accountId = ? and g.contactId is not null " +
@@ -155,8 +155,8 @@ var queries = {
 			"g.nbMembers, max(m.date) as lastMessageDate, " +
 			"max(m.messageId) as lastMessageId " +
 			"FROM Messages m RIGHT JOIN " +
-			"(SELECT g.id, g.name, g.contactId, g.alias, count(*) as nbMembers " +
-			"FROM GroupMembers gm INNER JOIN " +
+			"(SELECT g.id, g.name, g.contactId, g.alias, count(gm.accountId) as nbMembers " +
+			"FROM GroupMembers gm RIGHT JOIN " +
 			"(SELECT g.id, g.name, g.contactId, gm.alias " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
 			"WHERE gm.accountId = ? " +
@@ -239,6 +239,11 @@ var queries = {
 			"or (accountId2 = ? and accountId = ? and accepted = 0)",
 
 	removeGroup: "DELETE FROM Groups WHERE id = ? ",
+	
+	removeGroupIfNoMember: "DELETE FROM Groups WHERE id = ? and not " +
+			"(SELECT count(*) " +
+			"FROM GroupMembers " +
+			"WHERE groupId = ?) ",
 
 	removeGroupMember: "DELETE FROM GroupMembers WHERE groupId = ? and accountId = ? ",
 
@@ -413,7 +418,7 @@ var dbPrototype = {
 		this.conn.query(queries.addMessage,
 				{groupId:data.groupId, accountId:data.userId, nbread:1,
 			importance:data.importance, content:data.content,
-			location:data.location}, callback);
+			location:data.location, date:data.date}, callback);
 	},
 	addEvent: function(data, callback)  {
 		this.conn.query(queries.addEvent,
@@ -441,6 +446,9 @@ var dbPrototype = {
 	},
 	removeGroup: function(data, callback)  {
 		this.conn.query(queries.removeGroup, [data.groupId], callback);
+	},
+	removeGroupIfNoMember: function(data, callback)  {
+		this.conn.query(queries.removeGroupIfNoMember, [data.groupId, data.groupId], callback);
 	},
 	removeGroupMember: function(data, callback)  {
 		this.conn.query(queries.removeGroupMember,

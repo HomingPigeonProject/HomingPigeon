@@ -203,9 +203,9 @@ window.addEventListener('load', function() {
 		if (chatRoom.groupId == data.groupId) {
 			//console.log(chatRoom.members);
 			if (data.userId == me.userId)
-				addMyMessage(data.content, chatRoom.members[data.userId].nickname, new Date().toString());
+				addMyMessage(data.content, chatRoom.members[data.userId].nickname, data.date.toString());
 			else
-				addMessage(data.content, chatRoom.members[data.userId].nickname, new Date().toString());
+				addMessage(data.content, chatRoom.members[data.userId].nickname, data.date.toString());
 		} else {
 			// else, it is a notification
 			console.log('newMessage!!');
@@ -261,6 +261,7 @@ window.addEventListener('load', function() {
 		if (data.status == 'success') {
 			console.log('contact chat created');
 			console.log(data);
+			groups.push(data);
 		} else {
 			console.log('failed to create contact chat');
 		}
@@ -313,7 +314,7 @@ window.addEventListener('load', function() {
 		if (data.status == 'success') {
 			console.log(data);
 			groups = data.groups;
-			console.log(groups);
+			//console.log(groups);
 		} else {
 			console.log('failed to get group list...');
 		}
@@ -325,18 +326,6 @@ window.addEventListener('load', function() {
 	server.on('getContactList', function(data) {
 		if (data.status == 'success')
 			console.log(data);
-		/*
-		var contacts = data.contacts;
-		for (var i = 0; i < contacts.length; i++) {
-			var contact = contacts[i];
-			var groupId = contact.groupId;
-			var members = [me, contact];
-			if (!groupId)
-				continue;
-			
-			groups.push({groupId: groupId, members: members});
-		}
-		console.log(groups);*/
 	});
 	reset();
 	
