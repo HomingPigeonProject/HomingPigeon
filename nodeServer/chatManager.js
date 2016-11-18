@@ -18,7 +18,7 @@ var init = function(user) {
 	user.on('joinContactChat', function(data) {
 		if (!session.validateRequest('joinContactChat', user, true, data))
 			return;
-		
+		console.log(data.email);
 		dbManager.trxPattern([
 			function(callback) {
 				this.db.getUserByEmail({email: data.email, lock: true}, 
@@ -81,8 +81,8 @@ var init = function(user) {
 						function(group, callback) {
 							data.group = group;
 							
-							db.updateContactGroupChat({groupId: group.groupId,
-								userId: user.userId, userId2: contact.userId}, callback);
+							db.updateContactGroupChat({contactId: contact.contactId, 
+								groupId: group.groupId}, callback);
 						},
 						function(result, fields, callback) {
 							if (result.affectedRows == 0)
@@ -117,6 +117,7 @@ var init = function(user) {
 		],
 		function(err) {
 			if (err) {
+				console.log(err);
 				user.emit('joinContactChat', {status: 'fail', errorMsg: 'server error'});
 			}
 		});
@@ -532,6 +533,53 @@ var removeGroupChatIfEmpty = function(chatRoom) {
 		throw Error('chat room remove failed!');
 };
 
+// when contact chat members changes, it's not contact chat anymore
+// input: data.groupId
+var removeContactChat = function(data, callback) {
+	var pattern;
+	
+	var groupId = data.groupId;
+	
+	if (data.trx)
+		pattern = dbManager.trxPattern;
+	else
+		pattern = dbManager.atomicPattern;
+	
+	pattern([
+		function(callback) {			
+			this.db.getContactByGroup({groupId: this.data.groupId, 
+				lock: true}, callback);
+		},
+		function(result, fields, callback) {
+			// if the group was for contact chat, it's not anymore
+			if (result.length > 0) {
+				var contact = result[0];
+				this.data.contact = contact;
+				
+				// set group id null
+				this.db.updateContactGroupChat({contactId: null,
+					userId: contact.userId, userId2: contact.userId2}, 
+					function(err, result, fields) {
+						callback(err, true, result);
+					});
+			} else 
+				callback(null, false, null);
+		},
+		// send any notifications
+		// this must be sent before commit
+		function(updated, result, callback) {
+			if (updated && result.affectedRows == 0)
+				return callback(new Error('failed to update contact info'));
+			
+			callback(null);
+		}
+	],
+	function(err) {
+		callback(err);
+	},
+	{db: data.db});
+};
+
 // when number of online member in group is 0,
 // remove group chat
 var removeGroupChat = function(chatRoom) {
@@ -542,13 +590,15 @@ var removeGroupChat = function(chatRoom) {
 	return true;
 };
 
+
 module.exports = {init: init,
 		initUser: initUser,
 		joinGroupChat: joinGroupChat,
 		joinInvitedGroupChat: joinInvitedGroupChat,
 		leaveGroupChat: leaveGroupChat,
 		exitGroupChat: exitGroupChat,
-		leaveAllGroupChat: leaveAllGroupChat};
+		leaveAllGroupChat: leaveAllGroupChat,
+		removeContactChat: removeContactChat};
 
 var session = require('./session');
 var dbManager = require('./dbManager');
