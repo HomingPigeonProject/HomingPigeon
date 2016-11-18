@@ -34,6 +34,7 @@ CREATE TABLE Contacts (
 CREATE TABLE Groups (
     id int NOT NULL AUTO_INCREMENT,
     name varchar(128) DEFAULT NULL,                   /* Group name */
+    contactId int,                                    /* Contact id if this group is for contact chat */
     CONSTRAINT Groups_pk PRIMARY KEY (id)
 );
 
@@ -108,6 +109,13 @@ ALTER TABLE Contacts ADD CONSTRAINT Contacts_Accounts2 FOREIGN KEY (accountId2)
     
 ALTER TABLE Contacts ADD CONSTRAINT Contacts_GroupId FOREIGN KEY (groupId)
     REFERENCES Groups (id) ON UPDATE SET NULL ON DELETE SET NULL;
+
+-- Groups
+ALTER TABLE Groups ADD INDEX Groups_ContactId_Id (contactId, id);
+
+ALTER TABLE Groups ADD CONSTRAINT Groups_ContactId FOREIGN KEY (contactId)
+    REFERENCES Contacts (id) ON UPDATE SET NULL ON DELETE SET NULL;
+
 
 -- GroupMembers
 ALTER TABLE GroupMembers ADD INDEX GroupMembers_Accounts_Groups (accountId, groupId);

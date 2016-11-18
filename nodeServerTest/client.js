@@ -313,6 +313,7 @@ window.addEventListener('load', function() {
 		if (data.status == 'success') {
 			console.log(data);
 			groups = data.groups;
+			console.log(groups);
 		} else {
 			console.log('failed to get group list...');
 		}
@@ -324,6 +325,18 @@ window.addEventListener('load', function() {
 	server.on('getContactList', function(data) {
 		if (data.status == 'success')
 			console.log(data);
+		/*
+		var contacts = data.contacts;
+		for (var i = 0; i < contacts.length; i++) {
+			var contact = contacts[i];
+			var groupId = contact.groupId;
+			var members = [me, contact];
+			if (!groupId)
+				continue;
+
+			groups.push({groupId: groupId, members: members});
+		}
+		console.log(groups);*/
 	});
 	reset();
 
@@ -340,7 +353,7 @@ window.addEventListener('load', function() {
 	});
 });
 
-var groups;
+var groups = [];
 // my info
 var me;
 
@@ -367,35 +380,6 @@ function reset() {
 function addOldMessages(messages) {
 	var chats = $('.chat > .chatMessage');
 	var j = 0;
-
-	for (var i = chats.length - 1; i >= 0; i--) {
-		do {
-			var chat = chats[i];
-			var newChat = messages[j];
-			var chatId = chat['data-messageId'];
-			var newId = messages[j].messageId;
-
-			var content = newChat.content;
-			var date = newChat.date;
-			var name = chatRoom.members[newChat.userId].nickname;
-
-			if (chatId == newId)
-				j++;
-			else if (chatId < newId) {
-				if (newChat.userId == me.userId)
-					$(chat).append(makeMyMessage(content, me.nickname, date));
-				else
-					$(chat).append(makeMessage(content, name, date));
-			} else
-				continue;
-
-			if (newChat.userId == me.userId)
-				$(chat).append(makeMyMessage(content, me.nickname, date));
-			else
-				$(chat).append(makeMessage(content, name, date));
-
-		} while (chatId < newId);
-	}
 
 	for (; j < messages.length; j++) {
 		var chat = $('.chat');
@@ -431,7 +415,7 @@ function setGroup(groupId) {
 				chatRoom.members[member.userId] = member;
 			}
 
-			break;
+			return;
 		}
 	}
 }

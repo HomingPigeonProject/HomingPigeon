@@ -162,7 +162,7 @@ function init(user) {
 	});
 	
 	// the user exit from group
-	// TODO: when a user exit, messages of the user will not be shown to other users anymore...
+	// TODO: when a user exit, messages of the user will not be shown to the other users anymore...
 	user.on('exitGroup', function(data) {
 		if (!session.validateRequest('exitGroup', user, true, data))
 			return;
@@ -184,6 +184,9 @@ function init(user) {
 				// exit group chat
 				chatManager.exitGroupChat({groupId: groupId, user: user,
 					db: this.db}, callback);
+			},
+			function(callback) {
+				
 			}
 		],
 		function(err) {
@@ -267,7 +270,7 @@ var getGroupList = function(data, callback) {
 	pattern([
 		function(callback) {
 			// get group list of the user
-			this.db.getGroupListByUser({userId: user.userId, lock: true}, callback);
+			this.db.getAllGroupListByUser({userId: user.userId, lock: true}, callback);
 		},
 		function(result, fields, callback) {
 			var groups = result;
