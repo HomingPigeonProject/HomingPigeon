@@ -12,6 +12,12 @@ function init(user) {
 	 * exitGroup          groupId
 	 */
 	
+	/* User events 
+	 * name
+	 * membersInvited
+	 * membersExit
+	 */
+	
 	// get group list of the user
 	// input : None
 	// output : {status: 'success' or 'fail', groups: array of groups, errorMsg: error message}
@@ -89,15 +95,6 @@ function init(user) {
 			function(members, callback) {
 				this.data.invitedMembers = members;
 				
-				var sessions = session.getUsersSessions(members);
-				
-				chatManager.joinGroupChat({groupId: groupId, 
-					users: sessions, db: this.db}, callback);
-			},
-			function(errSessions, callback) {
-				if (errSessions)
-					chatManager.chatTryer.pushSessions(groupId, errSessions, true);
-				
 				invalidateContactGroup({groupId: groupId, 
 					db: this.db}, callback);
 			},
@@ -139,9 +136,6 @@ function init(user) {
 				
 				group.members = totalMembers;
 				
-				// membersInvited event will replace this
-				//user.emit('inviteGroupMembers', {status: 'success', groupId: groupId});
-				
 				// notify every online member
 				for (var i = 0; i < totalSessions.length; i++) {
 					var userSession = totalSessions[i];
@@ -155,6 +149,18 @@ function init(user) {
 				
 				callback(null);
 			},
+			function(callback) {
+				var sessions = session.getUsersSessions(this.data.invitedMembers);
+				
+				chatManager.joinGroupChat({groupId: groupId, 
+					users: sessions, db: this.db}, callback);
+			},
+			function(errSessions, callback) {
+				if (errSessions)
+					chatManager.chatTryer.pushSessions(groupId, errSessions, true);
+				
+				callback(null);
+			}
 		],
 		function(err) {
 			if (err) {
@@ -224,7 +230,7 @@ function init(user) {
 				var contact = this.data.contact;
 				
 				if (contact) {
-					// notify the other contact
+					// notify contact and the user
 					var sessions = session.getUsersSessions([{userId: contact.userId}, 
 						{userId: contact.userId2}]);
 					
@@ -247,6 +253,15 @@ function init(user) {
 						members: user.getUserInfo()});
 				}
 				
+				// notify the user
+				var sessions = session.getUserSessions(user);
+				
+				for(var i = 0; i < sessions.length; i++) {
+					var userSession = sessions[i];
+					
+					userSession.emit('exitGroup', {status: 'success', groupId: groupId});
+				}
+				
 				callback(null);
 			}
 		],
@@ -254,8 +269,6 @@ function init(user) {
 			if (err) {
 				console.log('failed to exit from group\r\n' + err);
 				user.emit('exitGroup', {status: 'fail', errorMsg:'server error'});
-			} else {
-				user.emit('exitGroup', {status: 'success', groupId: groupId});
 			}
 		});
 	});
@@ -459,7 +472,6 @@ var addGroup = function(data, callback) {
 };
 
 // 'user' adds users in 'members' to group 'groupId', calling 'callback' at the end
-// TODO: (BUG)trim cause error when member is undefined
 var addMembers = function(data, userCallback) {
 	var pattern;
 	
@@ -489,9 +501,14 @@ var addMembers = function(data, userCallback) {
 					return bigCallback(null);
 				
 				dbManager.atomicPattern([
-					// get user info
+					// process data from client
 					function(callback) {
-						this.db.getUserByEmail({email: members[i].trim(), lock: true}, callback);
+						var email = members[i];
+						if (email)
+							email = email.toString().trim();
+						
+						// get user info
+						this.db.getUserByEmail({email: email, lock: true}, callback);
 					},
 					function(result, fields, callback) {
 						

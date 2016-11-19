@@ -16,7 +16,7 @@ var pool = mysql.createPool({
     acquireTimeout:60000
 });
 
-// this is called before connection is used
+// this is called first when connection is created
 pool.on('connection', function (connection) {
 	connection.query('SET NAMES UTF8');
 	connection.query('SET AUTOCOMMIT=1');

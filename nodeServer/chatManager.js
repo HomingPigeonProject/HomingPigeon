@@ -233,6 +233,66 @@ var init = function(user) {
 			
 		});
 	});
+	
+	user.on('joinChat', function(data) {
+		if (!session.validateRequest('joinChat', user, true, data))
+			return;
+		
+		var groupId = data.groupId;
+		
+		dbManager.trxPattern([
+			function(callback) {
+				this.db.getGroupMemberByUser({groupId: groupId, userId: user.userId,
+					lock: true}, callback);
+			},
+			function(result, fields, callback) {
+				if (result.length == 0)
+					return callback(new Error('You are not member of group or' +
+					' no such group'));
+				
+				// join chat room
+				chatRoom.join({users: [user]}, callback);
+			}
+		],
+		function(err, errSessions) {
+			if (err || errSessions) {
+				user.emit('joinChat', {status: 'fail', 
+					errorMsg: 'failed to join chat, if you are a member, please retry'});
+			} else {
+				user.emit('joinChat', {status: 'success'});
+			}
+		});
+	});
+	
+	user.on('leaveChat', function(data) {
+		if (!session.validateRequest('leaveChat', user, true, data))
+			return;
+		
+		var groupId = data.groupId;
+		
+		dbManager.trxPattern([
+			function(callback) {
+				this.db.getGroupMemberByUser({groupId: groupId, userId: user.userId,
+					lock: true}, callback);
+			},
+			function(result, fields, callback) {
+				if (result.length == 0)
+					return callback(new Error('You are not member of group or' +
+					' no such group'));
+				
+				// join chat room
+				chatRoom.leave({users: [user]}, callback);
+			}
+		],
+		function(err, errSessions) {
+			if (err || errSessions) {
+				user.emit('leaveChat', {status: 'fail', 
+					errorMsg: 'failed to leave chat, if you are a member, please retry'});
+			} else {
+				user.emit('leaveChat', {status: 'success'});
+			}
+		});
+	});
 };
 
 // init user when logined
@@ -262,11 +322,14 @@ var initUser = function(user, callback) {
 							db: db}, callback);
 					}
 				],
-				function(err) {
+				function(err, errSessions) {
 					if (err) {
 						console.log('failed to join chat' + err);
 						throw err;
 					} else {
+						if (errSessions)
+							chatTryer.pushSessions(group.groupId, errSessions, true);
+						
 						joinGroupIter(i + 1);
 					}
 				});
@@ -293,23 +356,19 @@ var initUser = function(user, callback) {
 };
 
 // user enter group chat invited before
+// it should be synchronous until user joins chat
 // input : data.groupId, data.users
 var joinGroupChat = function(data, callback) {
-	var pattern;
-	
 	var users = data.users;
 	var groupId = data.groupId;
 	
-	if (data.trx)
-		pattern = dbManager.trxPattern;
-	else
-		pattern = dbManager.atomicPattern;
-	
 	// no member to join
 	if (users.length == 0)
-		return callback(null);
+		return callback(null, null);
 	
-	pattern([
+	chatTryer.removeSessions(users);
+	
+	async.waterfall([
 		// get chat room. create if does not exist
 		function(callback) {
 			var chatRoom = allChatRoom.get(groupId);
@@ -321,57 +380,8 @@ var joinGroupChat = function(data, callback) {
 					return callback(new Error('Failed to open chat'));
 			}
 			
-			this.data.chatRoom = chatRoom;
-			this.data.members = chatRoom.onlineMembers;
-			
-			callback(null);
-		},
-		// add users to group chat
-		function(callback) {
-			var db = this.db;
-			var members = this.data.members;
-			var chatRoom = this.data.chatRoom;
-			
-			var userIds = [];
-			
-			// make array of user ids
-			for (var i = 0; i < users.length; i++)
-				userIds.push(users[i].userId);
-			
-			async.waterfall([
-				function(callback) {
-					db.getGroupMembersByUser({groupId: groupId, userIds: userIds,
-						lock: true}, callback);
-				},
-				function(result, fields, callback) {
-					// check if every user are member of this group
-					for (var i = 0; i < userIds.length; i++) {
-						var found = false;
-						
-						for (var j = 0; j < result.length; j++) {
-							var memberId = result[j].accountId;
-							
-							if (memberId == userIds[i]) {
-								found = true;
-								break;
-							}
-						}
-						
-						if (!found)
-							return callback(new Error('Some users are not member of group or' +
-							' no such group'));
-					}
-					
-					// join chat room
-					chatRoom.join({users: users}, callback);
-				}
-			],
-			function(err, errSessions) {
-				if (err)
-					callback(err);
-				else
-					callback(null, errSessions);
-			});
+			// join chat room
+			chatRoom.join({users: users}, callback);
 		},
 	],
 	function(err, errSessions) {
@@ -380,72 +390,40 @@ var joinGroupChat = function(data, callback) {
 		} else {
 			callback(null, errSessions);
 		}
-	},
-	{db: data.db});
+	});
 };
 
 // when user leaves group
+// it should be synchronous until user leaves chat
 // input : data.groupId, data.users
 var leaveGroupChat = function(data, callback) {
-	var pattern;
-	
 	var users = data.users;
 	var groupId = data.groupId;
 	
-	if (data.trx)
-		pattern = dbManager.trxPattern;
-	else
-		pattern = dbManager.atomicPattern;
-	
 	// no member to join
 	if (users.length == 0)
-		return callback(null);
+		return callback(null, null);
 	
-	var userIds = [];
-	pattern([
+	chatTryer.removeSessions(users);
+	
+	var chatRoom;
+	async.waterfall([
 		// check if the user is group member
 		function(callback) {
-			// make array of user ids
-			for (var i = 0; i < users.length; i++)
-				userIds.push(users[i].userId);
-			
-			this.db.getGroupMembersByUser({groupId: groupId, userIds: userIds,
-				lock: true}, callback);
-		},
-		function(result, fields, callback) {
-			// check if every user are member of this group
-			for (var i = 0; i < userIds.length; i++) {
-				var found = false;
-				
-				for (var j = 0; j < result.length; j++) {
-					var memberId = result[j].accountId;
-					
-					if (memberId == userIds[i]) {
-						found = true;
-						break;
-					}
-				}
-				
-				if (!found)
-					return callback(new Error('Some users are not member of group or' +
-					' no such group'));
-			}
-			
+			var members;
 			// get active chat
-			var chatRoom = allChatRoom.get(groupId);
-			var members = chatRoom.onlineMembers;
+			chatRoom = allChatRoom.get(groupId);
+			members = chatRoom.onlineMembers;
 			
 			// no active chatRoom
 			if (!chatRoom) {
-				return callback(null);
+				return callback(null, null);
 			}
-			
-			this.data.chatRoom = chatRoom;
 			
 			chatRoom.leave({users: users}, callback);
 		},
 		function(errSessions, callback) {
-			removeGroupChatIfEmpty(this.data.chatRoom);
+			removeGroupChatIfEmpty(chatRoom);
 			
 			callback(null, errSessions);
 		}
@@ -456,8 +434,7 @@ var leaveGroupChat = function(data, callback) {
 		} else {
 			callback(null, errSessions);
 		}
-	},
-	{db: data.db});
+	});
 };
 
 
@@ -469,6 +446,8 @@ var leaveAllGroupChat = function(data) {
 	
 	if (!user || !chatRooms)
 		return;
+	
+	chatTryer.removeSession(user);
 	
 	for (var i in chatRooms) {
 		var chatRoom = chatRooms[i];
@@ -511,22 +490,48 @@ var removeGroupChat = function(chatRoom) {
 var chatTryer = (function() {
 	var requests = []; // remaining [groupId, session] to join
 	
+	// push one request
 	var pushSession = function(groupId, session, isJoin) {
 		var req = {groupId: groupId, session: session};
-		requests.push(req);
+		var handle = setTimeout(function() {trySession(req, isJoin)}, calcTimeToWait());
 		
-		setTimeout(trySession(req, isJoin), calcTimeToWait());
+		req.handle = handle;
+		requests.push(req);
 	};
 	
+	// push multiple requests
 	var pushSessions = function(groupId, sessions, isJoin) {
 		sessions.forEach(function(session) {
 			pushSession(groupId, session, isJoin);
 		});
 	};
 	
+	// cancel every request for session
+	var removeSession = function(session) {
+		requests.forEach(function(req) {
+			var session2 = req.session;
+			var handle = req.handle;
+			
+			if (session.userId == session2.userId) {
+				requests.splice(requests.indexOf(req), 1);
+				clearTimeout(handle);
+			}
+		});
+	};
+	
+	// cancel every request for sessions
+	var removeSessions = function(sessions) {
+		sessions.forEach(function(session) {
+			removeSession(session);
+		});
+	};
+	
 	var trySession = function(req, isJoin) {
 		var groupId = req.groupId;
 		var session = req.session;
+
+		// remove from list
+		requests.splice(requests.indexOf(req), 1);
 		
 		async.waterfall([
 			function(callback) {
@@ -541,12 +546,7 @@ var chatTryer = (function() {
 		function(err, errSessions) {
 			if (err || errSessions) {
 				// try again
-				setTimeout(trySession(req, isJoin), calcTimeToWait());
-			} else {
-				// remove from list
-				var index = requests.indexOf(req);
-				if (index >= 0)
-					requests.splice(index, 1);
+				pushSession(groupId, session, isJoin);
 			}
 		});
 	};
@@ -556,10 +556,13 @@ var chatTryer = (function() {
 		if (requests.length == 0)
 			return 100;
 		else
-			return request.length * 100;
+			return requests.length * 100;
 	};
 	
-	return {pushSession: pushSession, pushSessions: pushSessions};
+	return {pushSession: pushSession, 
+		pushSessions: pushSessions, 
+		removeSession: removeSession,
+		removeSessions: removeSessions};
 })();
 
 module.exports = {init: init,
