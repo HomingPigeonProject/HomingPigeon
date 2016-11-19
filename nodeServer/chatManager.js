@@ -89,8 +89,6 @@ var init = function(user) {
 							if (result.affectedRows == 0)
 								return callback(new Error('failed to update contact'));
 							
-							console.log(group.members);
-							
 							// update contactId
 							data.group.contactId = contact.contactId;
 							data.resMembers = data.group.members;
@@ -294,28 +292,13 @@ var initUser = function(user, callback) {
 	});
 };
 
-// user enter group chat invited
-var joinInvitedGroupChat = function(data, callback) {
-	data.invitation = true;
-	
-	enterGroupChat(data, callback);
-};
-
 // user enter group chat invited before
-var joinGroupChat = function(data, callback) {
-	data.invitation = false;
-	
-	enterGroupChat(data, callback);
-};
-
-// users enter group
 // input : data.groupId, data.users
-var enterGroupChat = function(data, callback) {
+var joinGroupChat = function(data, callback) {
 	var pattern;
 	
 	var users = data.users;
 	var groupId = data.groupId;
-	var invitation = data.invitation || false;
 	
 	if (data.trx)
 		pattern = dbManager.trxPattern;
@@ -379,38 +362,30 @@ var enterGroupChat = function(data, callback) {
 							' no such group'));
 					}
 					
-					// join room and notify members
-					if (invitation)
-						chatRoom.joinInvited({users: users}, callback);
-					else
-						chatRoom.join({users: users}, callback);
-				},
-				function(callback) {
-					// read at most 100 messages
-					//this.data.chatRoom.getRecentMessages({nbMessage: 100}, callback);
-					callback(null);
+					// join chat room
+					chatRoom.join({users: users}, callback);
 				}
 			],
-			function(err) {
+			function(err, errSessions) {
 				if (err)
 					callback(err);
 				else
-					callback(null);
+					callback(null, errSessions);
 			});
 		},
 	],
-	function(err) {
+	function(err, errSessions) {
 		if (err) {
 			callback(err);
 		} else {
-			callback(null);
+			callback(null, errSessions);
 		}
 	},
 	{db: data.db});
 };
 
 // when user leaves group
-// input : data.groupId, data.user
+// input : data.groupId, data.users
 var leaveGroupChat = function(data, callback) {
 	var pattern;
 	
@@ -469,66 +444,22 @@ var leaveGroupChat = function(data, callback) {
 			
 			chatRoom.leave({users: users}, callback);
 		},
-		function(callback) {
+		function(errSessions, callback) {
 			removeGroupChatIfEmpty(this.data.chatRoom);
 			
-			callback(null);
+			callback(null, errSessions);
 		}
 	],
-	function(err) {
+	function(err, errSessions) {
 		if (err) {
 			callback(err);
 		} else {
-			callback(null);
+			callback(null, errSessions);
 		}
 	},
 	{db: data.db});
 };
 
-// input : data.groupId, data.user
-var exitGroupChat = function(data, callback) {
-	var pattern;
-	
-	var user = data.user;
-	var groupId = data.groupId;
-	
-	if (data.trx)
-		pattern = dbManager.trxPattern;
-	else
-		pattern = dbManager.atomicPattern;
-	
-	pattern([
-		// assumed the user was group member
-		function(callback) {
-			
-			// get active chat
-			var chatRoom = allChatRoom.get(groupId);
-			var members = chatRoom.onlineMembers;
-			
-			// no active chatRoom or user did not join
-			if (!chatRoom || members.indexOf(user) < 0) {
-				return callback(null);
-			}
-			
-			this.data.chatRoom = chatRoom;
-			
-			chatRoom.exit({users: [user]}, callback);
-		},
-		function(callback) {
-			removeGroupChatIfEmpty(this.data.chatRoom);
-			
-			callback(null);
-		}
-	],
-	function(err) {
-		if (err) {
-			callback(err);
-		} else {
-			callback(null);
-		}
-	},
-	{db: data.db});
-};
 
 //when user disconnects, exit from every chats
 //input : data.user
@@ -544,9 +475,12 @@ var leaveAllGroupChat = function(data) {
 		
 		(function(chatRoom) {
 			//NOTE: leave callback is asynchronously called
-			chatRoom.leave({users: [user]}, function(err) {
-				if (err)
-					throw Error('leaving chat room failed!');
+			chatRoom.leave({users: [user]}, function(err, errSessions) {
+				if (errSessions) {
+					chatTryer.pushSessions(groupId, errSessions, false);
+					
+					console.log('User exit and leaving chat failed, try again...');
+				}
 				
 				removeGroupChatIfEmpty(chatRoom);
 			});
@@ -573,14 +507,67 @@ var removeGroupChat = function(chatRoom) {
 	return true;
 };
 
+// background process trying to join or leave chat 
+var chatTryer = (function() {
+	var requests = []; // remaining [groupId, session] to join
+	
+	var pushSession = function(groupId, session, isJoin) {
+		var req = {groupId: groupId, session: session};
+		requests.push(req);
+		
+		setTimeout(trySession(req, isJoin), calcTimeToWait());
+	};
+	
+	var pushSessions = function(groupId, sessions, isJoin) {
+		sessions.forEach(function(session) {
+			pushSession(groupId, session, isJoin);
+		});
+	};
+	
+	var trySession = function(req, isJoin) {
+		var groupId = req.groupId;
+		var session = req.session;
+		
+		async.waterfall([
+			function(callback) {
+				var arg = {groupId: groupId, users: [session]};
+				
+				if (isJoin)
+					joinGroupChat(arg, callback);
+				else
+					leaveGroupChat(arg, callback);
+			}
+		],
+		function(err, errSessions) {
+			if (err || errSessions) {
+				// try again
+				setTimeout(trySession(req, isJoin), calcTimeToWait());
+			} else {
+				// remove from list
+				var index = requests.indexOf(req);
+				if (index >= 0)
+					requests.splice(index, 1);
+			}
+		});
+	};
+	
+	// calculate next try time in milisec
+	var calcTimeToWait = function() {
+		if (requests.length == 0)
+			return 100;
+		else
+			return request.length * 100;
+	};
+	
+	return {pushSession: pushSession, pushSessions: pushSessions};
+})();
 
 module.exports = {init: init,
 		initUser: initUser,
 		joinGroupChat: joinGroupChat,
-		joinInvitedGroupChat: joinInvitedGroupChat,
 		leaveGroupChat: leaveGroupChat,
-		exitGroupChat: exitGroupChat,
-		leaveAllGroupChat: leaveAllGroupChat};
+		leaveAllGroupChat: leaveAllGroupChat,
+		chatTryer: chatTryer};
 
 var session = require('./session');
 var dbManager = require('./dbManager');

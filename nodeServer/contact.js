@@ -28,9 +28,9 @@ var init = function(user) {
 			function(err, result) {
 				if (err) {
 					console.log('failed to get contact list\r\n' + err);
+					
 					user.emit('getContactList', {status: 'fail', errorMsg:'server error'});
 				} else {
-					//console.log(result);
 					user.emit('getContactList', {status: 'success', contacts: result});
 				}
 		});
@@ -44,6 +44,7 @@ var init = function(user) {
 				function(err, result) {
 					if (err) {
 						console.log('failed to get pending contact list\r\n' + err);
+						
 						user.emit('getPendingContactList', {status: 'fail', errorMsg:'server error'});
 					} else {
 						//console.log(result);

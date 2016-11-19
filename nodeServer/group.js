@@ -23,6 +23,7 @@ function init(user) {
 			function(err, result) {
 				if (err) {	
 					console.log('failed to get group list\r\n' + err);
+					
 					user.emit('getGroupList', {status: 'fail', errorMsg:'server error'});
 				} else {
 					user.emit('getGroupList', {status: 'success', groups: result});
@@ -93,7 +94,10 @@ function init(user) {
 				chatManager.joinGroupChat({groupId: groupId, 
 					users: sessions, db: this.db}, callback);
 			},
-			function(callback) {
+			function(errSessions, callback) {
+				if (errSessions)
+					chatManager.chatTryer.pushSessions(groupId, errSessions, true);
+				
 				invalidateContactGroup({groupId: groupId, 
 					db: this.db}, callback);
 			},
@@ -186,7 +190,10 @@ function init(user) {
 				chatManager.leaveGroupChat({groupId: groupId, users: [user],
 					db: this.db}, callback);
 			},
-			function(callback) {
+			function(errSessions, callback) {
+				if (errSessions)
+					chatManager.chatTryer.pushSessions(groupId, errSessions, false);
+				
 				this.db.removeGroupMember({groupId: groupId, 
 					userId: user.userId}, callback);
 			},
@@ -287,10 +294,13 @@ var startNewGroup = function(data, callback) {
 				users: sessions, db: this.db}, callback);
 		}
 	],
-	function(err) {
+	function(err, errSessions) {
 		if (err) {
 			callback(err);
 		} else {
+			if (errSessions)
+				chatManager.chatTryer.pushSessions(groupId, errSessions, true);
+			
 			callback(null, this.data.group, this.data.sessions);
 		}
 	},

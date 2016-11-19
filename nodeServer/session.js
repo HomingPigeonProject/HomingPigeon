@@ -29,15 +29,14 @@ function init(user) {
 			// err.code, err.errno
 			if (err) {
 				user.emit('login', {status: 'fail', errorMsg: 'failed to loign'});
+				
 				console.log('login error\r\n' + err);
-				//throw err;
 			} else if (result.length < 1) {
 				// session not found
 				user.emit('login', {status: 'fail', errorMsg: 'session not found'});
 			} else {
 				// login
 				var data = result[0];
-				//user.sessionId = data.sessionId;
 				user.userId = data.id;
 				user.email = data.email;
 				user.nickname = data.nickname;
@@ -51,7 +50,6 @@ function init(user) {
 
 				// add to user session pool
 				if (!addUserSession(user)) {
-					console.log('??');
 					return user.disconnect(false);
 				}
 				

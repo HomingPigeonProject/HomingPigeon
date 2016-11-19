@@ -100,11 +100,13 @@ var chatRoomProto = {
 	},
 	
 	// input: data.users
+	// output: errSessions(if error, is list of sessions failed, otherwise null)
 	join: function(data, callback) {
 		var users = data.users;
 		var chatRoom = this;
 		var onlineMembers = this.onlineMembers;
 		var sessions = session.getUsersSessions(users, true);
+		var errSessions = [];
 		
 		var joinIter = function(i) {
 			if (i == sessions.length) {
@@ -120,7 +122,10 @@ var chatRoomProto = {
 				
 				chatRoom.printMembers();
 				
-				return callback(null);
+				if (errSessions.length == 0)
+					return callback(null, null);
+				else
+					return callback(null, errSessions);
 			}
 			
 			var user = sessions[i];
@@ -129,10 +134,9 @@ var chatRoomProto = {
 				return joinIter(i + 1);
 			
 			user.join(chatRoom.getRoomName(), function(err) {
-				// ignore errors
-				if (err)
-					joinIter(i + 1);
-				else {
+				if (err) {
+					errSessions.push(user);
+				} else {
 					onlineMembers.push(user);
 					user.chatRooms.push(chatRoom);
 					
@@ -145,11 +149,13 @@ var chatRoomProto = {
 	},
 	
 	// input: data.users
+	// output: errSessions(if error, is list of sessions failed, otherwise null)
 	leave: function(data, callback) {
 		var users = data.users;
 		var chatRoom = this;
 		var onlineMembers = this.onlineMembers;
 		var sessions = session.getUsersSessions(users, true);
+		var errSessions = [];
 		
 		var leaveIter = function(i) {
 			if (i == sessions.length) {
@@ -159,7 +165,10 @@ var chatRoomProto = {
 				
 				chatRoom.printMembers();
 				
-				return callback(null);
+				if (errSessions.length == 0)
+					return callback(null, null);
+				else
+					return callback(null, errSessions);
 			}
 			
 			var user = sessions[i];
@@ -168,9 +177,9 @@ var chatRoomProto = {
 				return leaveIter(i + 1);
 			
 			user.leave(chatRoom.getRoomName(), function(err) {
-				if (err)
-					leaveIter(i + 1);
-				else {
+				if (err) {
+					errSessions.push(user);
+				} else {
 					var memberIndex = onlineMembers.indexOf(user);
 					var chatRoomIndex = user.chatRooms.indexOf(chatRoom);
 					
