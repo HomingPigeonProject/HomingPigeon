@@ -177,7 +177,7 @@ var queries = {
 	getGroupMembers: "SELECT a.id as userId, a.email, a.nickname, " +
 			"a.picture, a.lastSeen, a.login " +
 			"FROM Accounts a INNER JOIN " +
-			"(SELECT gm.accountId, gm.ackStart, gm.ackMessageId " +
+			"(SELECT gm.accountId " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
 			"WHERE g.id = ? " +
 			"LOCK IN SHARE MODE) m ON a.id = m.accountId ",
@@ -198,6 +198,17 @@ var queries = {
 			"WHERE groupId = ? and messageId >= ? " +
 			"ORDER BY messageId desc " +
 			"LIMIT ? ",
+			
+	getAcksOfGroupByUser: "SELECT ackStart, ackEnd " +
+			"FROM MessageAcks " +
+			"WHERE groupId = ? and accountId = ? " +
+			"ORDER BY ackStart ",
+			
+	getConflictingAcks: "SELECT * " +
+			"FROM MessageAcks " +
+			"WHERE groupId = ? and accountId = ? and " +
+			"(? <= ackStart <= ? + 1 or ? - 1 <= ackEnd <= ?) " +
+			"ORDER BY ackStart ",
 
 	getEventById: "SELECT * FROM Events WHERE id = ? ",
 
@@ -225,6 +236,8 @@ var queries = {
 	addGroupMember: "INSERT INTO GroupMembers SET ?",
 
 	addMessage: "INSERT INTO Messages SET ?",
+	
+	addMessageAck: "INSERT INTO MessageAcks SET ?",
 
 	addEvent: "INSERT INTO Events SET ?",
 
@@ -248,6 +261,10 @@ var queries = {
 			"WHERE groupId = ?) ",
 
 	removeGroupMember: "DELETE FROM GroupMembers WHERE groupId = ? and accountId = ? ",
+	
+	removeConflictingAcks: "DELETE FROM MessageAcks " +
+			"WHERE groupId = ? and accountId = ? and " +
+			"(? <= ackStart <= ? + 1 or ? - 1 <= ackEnd <= ?) ",
 
 	removeEvent: "DELETE FROM Events WHERE id = ? ",
 
@@ -261,6 +278,9 @@ var queries = {
 
 	updateContactGroupChat: "UPDATE Groups SET contactId = ? " +
 			"WHERE id = ? ",
+			
+	updateMessageNbread: "UPDATE Messages SET nbread += ? " +
+			"WHERE groupId = ? and ? <= messageId <= ? and accountId != ? ",
 
 	lastInsertId: "SELECT LAST_INSERT_ID() as lastInsertId"
 };
@@ -379,6 +399,15 @@ var dbPrototype = {
 		this.conn.query(selectLock(queries.getMessagesFromId, data),
 				[data.groupId, data.startFrom, data.nbMessages], callback);
 	},
+	getAcksOfGroupByUser: function (data, callback) {
+		this.conn.query(selectLock(queries.getAcksOfGroupByUser, data),
+				[data.groupId, data.userId], callback);
+	},
+	getConflictingAcks: function (data, callback) {
+		this.conn.query(selectLock(queries.getConflictingAcks, data),
+				[data.groupId, data.userId, 
+					data.ackStart, data.ackEnd, data.ackStart, data.ackEnd], callback);
+	},
 	getEventById: function (data, callback) {
 		this.conn.query(selectLock(queries.getEventById, data),
 				[data.eventId], callback);
@@ -418,9 +447,14 @@ var dbPrototype = {
 	},
 	addMessage: function(data, callback)  {
 		this.conn.query(queries.addMessage,
-				{groupId:data.groupId, accountId:data.userId, nbread:1,
+				{groupId:data.groupId, accountId:data.userId, nbread: data.nbread,
 			importance:data.importance, content:data.content,
 			location:data.location, date:data.date}, callback);
+	},
+	addMessageAck: function(data, callback)  {
+		this.conn.query(queries.addMessageAck,
+				{groupId:data.groupId, accountId:data.userId, 
+			ackStart:data.ackStart, ackEnd:data.ackEnd}, callback);
 	},
 	addEvent: function(data, callback)  {
 		this.conn.query(queries.addEvent,
@@ -456,6 +490,11 @@ var dbPrototype = {
 		this.conn.query(queries.removeGroupMember,
 				[data.groupId, data.userId], callback);
 	},
+	removeConflictingAcks: function(data, callback)  {
+		this.conn.query(queries.removeConflictingAcks,
+				[data.groupId, data.userId, 
+					data.ackStart, data.ackEnd, data.ackStart, data.ackEnd], callback);
+	},
 	removeEvent: function(data, callback)  {
 		this.conn.query(queries.removeEvent, [data.eventId], callback);
 	},
@@ -474,6 +513,14 @@ var dbPrototype = {
 	updateContactGroupChat: function(data, callback) {
 		this.conn.query(queries.updateContactGroupChat,
 				[data.contactId, data.groupId], callback);
+	},
+	incrementMessageNbread: function(data, callback) {
+		this.conn.query(queries.updateMessageNbread,
+				[1, data.groupId, data.ackStart, data.ackEnd, data.userId], callback);
+	},
+	decrementMessageNbread: function(data, callback) {
+		this.conn.query(queries.updateMessageNbread,
+				[-1, data.groupId, data.ackStart, data.ackEnd, data.userId], callback);
 	},
 	lastInsertId: function(callback)  {
 		this.conn.query(queries.lastInsertId, callback);

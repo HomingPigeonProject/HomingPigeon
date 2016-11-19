@@ -81,6 +81,13 @@ function init(user) {
 		
 		dbManager.trxPattern([
 			function(callback) {
+				this.db.getGroupMemberByUser({groupId: groupId, 
+					userId: user.userId, lock: true}, callback);
+			},
+			function(result, fields, callback) {
+				if (result.length == 0)
+					return callback(new Error('You are not a group member or no such group'));
+				
 				if (!groupId)
 					return callback(new Error('no group id'));
 				
@@ -142,7 +149,6 @@ function init(user) {
 					if (invitedSessions.indexOf(userSession) >= 0)
 						userSession.emit('addGroup', {status: 'success', group: group});
 					else
-						// TODO: include ack start
 						userSession.emit('membersInvited', {groupId: group.groupId, 
 							members: lib.filterUsersData(invitedMembers)});
 				}
@@ -188,8 +194,8 @@ function init(user) {
 					userId: user.userId, lock: true}, callback);
 			},
 			function(result, fields, callback) {
-				if (result.affectedRows === 0) {
-					return callback(new Error('user is already not in group'));
+				if (result.length == 0) {
+					return callback(new Error('You are already not in group'));
 				}
 				
 				// leave group chat
@@ -226,7 +232,13 @@ function init(user) {
 				this.db.getGroupMembers({groupId: groupId, lock: true}, callback);
 			},
 			function(result, fields, callback) {
-				var totalMembers = result;
+				this.data.totalMembers = result;
+				/*
+				undoAcks({groupId: groupId, user: user}, callback);*/
+				callback(null);
+			},
+			function(callback) {
+				var totalMembers = this.data.totalMembers;
 				var contact = this.data.contact;
 				
 				if (contact) {
@@ -274,6 +286,65 @@ function init(user) {
 	});
 }
 
+// undo every ack given by the user in the group
+// input: data.user, data.groupId
+var undoAcks = function(data, callback) {
+	var pattern;
+	
+	var user = data.user;
+	var groupId = data.groupId;
+	
+	if (data.trx)
+		pattern = dbManager.trxPattern;
+	else
+		pattern = dbManager.atomicPattern;
+	
+	pattern([
+		function(callback) {
+			this.db.getAcksOfGroupByUser({groupId: groupId, userId: user.userId,
+				lock: true}, callback);
+		},
+		function(result, fields, callback) {
+			var db = this.db;
+			this.data.acks = result;
+			
+			var updateIter = function(i) {
+				if (i == result.length) {
+					return callback(null);
+				}
+				
+				var ack = result[i];
+				
+				db.decrementMessageNbread({groupId: groupId, userId: user.userId,
+					ackStart: ack.ackStart, ackEnd: ack.ackEnd},
+					function(err, result, fields) {
+						if (err) {
+							callback(err);
+						} else {
+							updateIter(i + 1);
+						}
+					});
+			};
+			
+			updateIter(0);
+		},
+		function(callback) {
+			var acks = this.data.acks;
+			
+			// tell online members to undo acks
+			chatManager.undoAcks({groupId: groupId, acks: acks}, callback);
+		}
+	],
+	function(err) {
+		if (err) {
+			callback(err);
+		} else {
+			callback(null);
+		}
+	},
+	{db: data.db});
+};
+
 // create new group and chat room and notify members
 // input: data.user, data.members(array of email)
 var startNewGroup = function(data, callback) {
@@ -311,6 +382,8 @@ var startNewGroup = function(data, callback) {
 		if (err) {
 			callback(err);
 		} else {
+			var groupId = this.data.group.groupId;
+			
 			if (errSessions)
 				chatManager.chatTryer.pushSessions(groupId, errSessions, true);
 			
@@ -540,7 +613,7 @@ var addMembers = function(data, userCallback) {
 						if (result.length > 0)
 							return addMembersIter(i + 1, bigCallback);
 						
-						// TODO : ackStart should be coordinated
+						// TODO : ackStart in groupMembers table is deprecated
 						this.db.addGroupMember({groupId: groupId, userId: peer.id,
 							ackStart: 0}, callback);
 					},
