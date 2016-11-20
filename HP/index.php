@@ -24,6 +24,12 @@
       <a href="register.php">Sign Up</a>
     </p>
 
+    <p>
+      Please visit these pages to accept the certificates :
+      <a href="https://vps332892.ovh.net:4000">4000</a>
+      <a href="https://vps332892.ovh.net:8888">8888</a>
+    </p>
+
   <?php } ?>
 
 

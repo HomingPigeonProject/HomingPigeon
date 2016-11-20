@@ -1,22 +1,22 @@
+
 var userId = str = document.getElementById("phpUserId").textContent.replace(/\s/g, "");
 var sessionId = document.getElementById("phpSessionId").textContent.replace(/\s/g, "");
-//console.log("The user id is : ", userId);
-//console.log("The session  id is : ", sessionId);
-
 var groups;
-// my info
 var me;
-
-// chat room info
+var logined = false;
+var port = 4000;
+var server = io.connect('https://vps332892.ovh.net:4000');
 var chatRoom = {
 	groupId: null,
 	members: {},
 };
 
-var logined = false;
-var port = 4000;
-var server = io.connect('https://vps332892.ovh.net:4000');
+/* ------------------------	*/
+/*			Event Listeners			*/
+/* ------------------------	*/
+
 window.addEventListener('load', function() {
+
 	var controlDiv = document.getElementById('control');
 
 	server.on('connect', function() {
@@ -57,53 +57,9 @@ window.addEventListener('load', function() {
 				server.emit('getGroupList');
 			});
 
-			////////////////////////////////////////////////////////////
-			// NEW
-			///////////////////////////////////////////////////////////
-
 			me = data.data;
-
-			{
-				var right = document.getElementById("right");
-
-				// For testion TODO
-				var chatControlTitle = document.createElement('p');
-				chatControlTitle.innerHTML = 'Join chat';
-				right.appendChild(chatControlTitle);
-
-
-				var chatForm = document.createElement('form');
-
-				var groupIdInput = document.createElement('input');
-				groupIdInput.id = 'groupIdInput';
-				groupIdInput.placeholder = 'put group id for chat';
-				groupIdInput.type = 'text';
-
-
-				var chatJoinButton = document.createElement('button');
-				chatJoinButton.id = 'chatJoinButton';
-				chatJoinButton.type = 'button';
-				chatJoinButton.innerHTML = 'join chat';
-
-
-				chatForm.appendChild(groupIdInput);
-				chatForm.appendChild(chatJoinButton);
-
-				right.appendChild(chatForm);
-
-				$('#chatJoinButton').click(function() {
-					var groupId = $('#groupIdInput').val();
-					$('.chat').html('');
-					setGroup(groupId);
-					server.emit('readMessage', {groupId: groupId});
-					console.log('start chat in group ' + groupId);
-				});
-
-			}
-
 		}
 	});
-
 	server.on('exitGroup', function(data) {
 		if (data.status == 'success') {
 			console.log('group exited');
@@ -141,7 +97,6 @@ window.addEventListener('load', function() {
 			console.log('failed to remove contact');
 		}
 	});
-
 	server.on('newContact', function(data) {
 		server.emit('getContactList');
 		server.emit('getPendingContactList');
@@ -182,12 +137,6 @@ window.addEventListener('load', function() {
 			console.log('failed to get group list');
 		}
 	});
-
-
-	////////////////NEW
-
-
-
 	server.on('readMessage', function(data) {
 		console.log('readMessage');
 		console.log(data);
@@ -247,24 +196,18 @@ window.addEventListener('load', function() {
 	});
 	reset();
 
-
-
 	//click on the send button
 	$("#btn-chat").on('click', function(){
-		sentMessage();
+		sendMessage();
 	});
 
 	//check the pressed key and if it is enter then send message
 	$(document).keypress(function(e){
 		if (e.which == 13){
-			sentMessage();
+			sendMessage();
 		}
 	});
-
-
-
 });
-
 
 function printContactList(contacts, parentDiv, pending) {
 	parentDiv.innerHTML = "";
@@ -327,8 +270,13 @@ function printContactList(contacts, parentDiv, pending) {
 			contactChatButton.innerHTML = "join chat";
 			contactChatButton.id = contact['email'];
 			contactChatButton['data-groupId'] = contact['groupId'];
+			contactChatButton['data-nickname'] = contact['nickname'];
 			div.appendChild(document.createElement('br'));
 			div.appendChild(contactChatButton);
+
+
+
+			console.log("contact : ", contact);
 		}
 		parentDiv.appendChild(div);
 	}
@@ -350,20 +298,25 @@ function printContactList(contacts, parentDiv, pending) {
 		resetChatBox();
 		var contactEmail = this.id;
 		var groupId = this['data-groupId'];
+		var nickName = this['data-nickname'];
+		console.log("the group id :");
+		console.log(groupId);
 		if (!groupId) {
-			console.log("erere");
+			console.log("join contact chat");
 			server.emit('joinContactChat', { email: contactEmail});
 		} else {
-			var groupId = this.id;
 			setGroup(groupId);
 			server.emit('readMessage', {groupId: groupId});
 		}
 
-
-		//server.emit('readMessage', {groupId: groupId});
-		//console.log('start chat in group ' + groupId);
+		var panelHeading = document.getElementById("panel-heading");
+		panelHeading.innerHTML = "<i class='fa fa-comments fa-fw'></i> Chat - " + nickName;
+							"<div class='btn-group pull-right'>" +
+									"<button type='button' class='btn btn-default btn-xs chatToggle'>" +
+										"<i class='fa fa-chevron-down chatChevron'></i>" +
+									"</button>" +
+								"</div>";
 	});
-
 }
 
 function printGroupList(groups, parentDiv, pending) {
@@ -384,9 +337,6 @@ function printGroupList(groups, parentDiv, pending) {
 
 			var url = document.getElementById("phpURL").textContent;
 
-			console.log("HEHEHE ");
-			console.log(group);
-
 			var groupConferenceLink = document.createElement('a');
 			groupConferenceLink.className = "conferenceLink";
 			groupConferenceLink.appendChild(document.createTextNode("conference"));
@@ -398,6 +348,7 @@ function printGroupList(groups, parentDiv, pending) {
 			groupChatButton.className = "groupChatButton";
 			groupChatButton.innerHTML = "join chat";
 			groupChatButton.id = group["groupId"];
+			groupChatButton["data-groupName"] = group["name"];
 
 			var exitGroupButton = document.createElement("button");
 			exitGroupButton.className = "exitGroupButton";
@@ -432,9 +383,18 @@ function printGroupList(groups, parentDiv, pending) {
 	$('.groupChatButton').click(function() {
 		resetChatBox();
 		var groupId = this.id;
+		var groupName = this["data-groupName"];
 		setGroup(groupId);
 		server.emit('readMessage', {groupId: groupId});
 		console.log('start chat in group ' + groupId);
+
+		var panelHeading = document.getElementById("panel-heading");
+		panelHeading.innerHTML = "<i class='fa fa-comments fa-fw'></i> Chat - " + groupName;
+		          "<div class='btn-group pull-right'>" +
+		              "<button type='button' class='btn btn-default btn-xs chatToggle'>" +
+		                "<i class='fa fa-chevron-down chatChevron'></i>" +
+		              "</button>" +
+		            "</div>";
 	});
 	$('.exitGroupButton').click(function(){
 		server.emit('exitGroup', {groupId: this.id});
@@ -470,7 +430,8 @@ function addOldMessages(messages) {
 			var newId = messages[j].messageId;
 
 			var content = newChat.content;
-			var date = newChat.date;
+
+			var date = new Date(newChat.date);
 			var name = chatRoom.members[newChat.userId].nickname;
 
 			if (chatId == newId)
@@ -496,7 +457,7 @@ function addOldMessages(messages) {
 		var newMessage = messages[j];
 
 		var content = newMessage.content;
-		var date = newMessage.date;
+		var date = new Date(newMessage.date);
 		var name = chatRoom.members[newMessage.userId].nickname;
 
 		if (newMessage.userId == me.userId)
@@ -533,7 +494,7 @@ function setGroup(groupId) {
 function makeMyMessage(msg, name, date) {
 	var r = '<li class="chatMessage right clearfix">' +
 						'<span class="chat-img pull-right">' +
-							'<img src="http://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" />' +
+							'<img src="https://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" />' +
 						'</span>' +
 						'<div class="chat-body clearfix">' +
 							'<div class="header">' +
@@ -554,7 +515,7 @@ function makeMyMessage(msg, name, date) {
 function makeMessage(msg, name, date) {
 	var r = '<li class="chatMessage left clearfix">' +
 						'<span class="chat-img pull-left">' +
-							'<img src="http://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle"/> ' +
+							'<img src="https://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle"/> ' +
 						'</span>' +
 						'<div class="chat-body clearfix">' +
 							'<div class="header">' +
@@ -585,7 +546,7 @@ function addMessage(msg, name, date){
 }
 
 //verification if text is not null then send to server and write it locally
-function sentMessage(){
+function sendMessage(){
     if ($('.messageInput').val() != "" && logined){
     	var content = $('.messageInput').val();
       server.emit('sendMessage', {groupId: chatRoom.groupId, content: content, importance: 0, location: null} );
