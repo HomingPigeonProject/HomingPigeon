@@ -262,6 +262,9 @@ var queries = {
 
 	removeGroupMember: "DELETE FROM GroupMembers WHERE groupId = ? and accountId = ? ",
 	
+	removeAcksOfGroupByUser: "DELETE FROM MessageAcks " +
+			"WHERE groupId = ? and accountId = ? ",
+	
 	removeConflictingAcks: "DELETE FROM MessageAcks " +
 			"WHERE groupId = ? and accountId = ? and " +
 			"(? <= ackStart <= ? + 1 or ? - 1 <= ackEnd <= ?) ",
@@ -279,7 +282,7 @@ var queries = {
 	updateContactGroupChat: "UPDATE Groups SET contactId = ? " +
 			"WHERE id = ? ",
 			
-	updateMessageNbread: "UPDATE Messages SET nbread += ? " +
+	updateMessageNbread: "UPDATE Messages SET nbread = nbread + (?) " +
 			"WHERE groupId = ? and ? <= messageId <= ? and accountId != ? ",
 
 	lastInsertId: "SELECT LAST_INSERT_ID() as lastInsertId"
@@ -488,6 +491,10 @@ var dbPrototype = {
 	},
 	removeGroupMember: function(data, callback)  {
 		this.conn.query(queries.removeGroupMember,
+				[data.groupId, data.userId], callback);
+	},
+	removeAcksOfGroupByUser: function(data, callback)  {
+		this.conn.query(queries.removeAcksOfGroupByUser,
 				[data.groupId, data.userId], callback);
 	},
 	removeConflictingAcks: function(data, callback)  {

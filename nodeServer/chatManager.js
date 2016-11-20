@@ -229,7 +229,7 @@ var init = function(user) {
 		
 		if (ackStart > ackEnd)
 			return;
-		
+		console.log('groupId ' + groupId + ' ack ' + ackStart + ' ~ ' + ackEnd);
 		dbManager.trxPattern([
 			function(callback) {
 				// check if the user is member of the group
@@ -240,8 +240,8 @@ var init = function(user) {
 				if (result.length == 0)
 					return callback(new Error('You are not a member of group or no such group'));
 				
-				this.db.getConflictingTwoAcks({groupId: groupId, userId: user.userId,
-					ackStart: ackStart, ackEnd: ackEnd, update: true});
+				this.db.getConflictingAcks({groupId: groupId, userId: user.userId,
+					ackStart: ackStart, ackEnd: ackEnd, update: true}, callback);
 			},
 			function(result, fields, callback) {
 				var ack, ack2;
@@ -254,35 +254,47 @@ var init = function(user) {
 						ack.ackEnd >= ackEnd)
 					return callback(new Error('Already acked'));
 				
-				var curAckStart = ackStart;
-				var curAckEnd = ackEnd;
 				var mergedAckStart = ackStart;
 				var mergedAckEnd = ackEnd;
 				
-				if (ack && ack.ackStart <= ackStart) {
-					mergedAckStart = ack.ackStart;
-					curAckStart = ack.ackEnd + 1;
-				}
-				
-				for (var i = 1; i < result.length - 1; i++) {
-					var ack = result[i];
-					
-					if (ack.ackStart <= curAckStart) {
-						curAckStart = ack.ackEnd + 1;
-						continue;
+				if (ack) {
+					if (ack.ackStart <= ackStart) {
+						mergedAckStart = ack.ackStart;
+					} else {
+						newAcks.push({ackStart: ackStart, ackEnd: ack.ackStart - 1});
 					}
 					
-					curAckEnd = ack.ackStart - 1;
+					var curAckStart = ack.ackEnd + 1;
+					var curAckEnd;
 					
-					if (curAckStart <= curAckEnd) {
-						newAcks.push({ackStart: curAckStart, ackEnd: curAckEnd});
+					for (var i = 1; i < result.length; i++) {
+						var ack = result[i];
+						
+						if (ack.ackStart <= curAckStart) {
+							curAckStart = ack.ackEnd + 1;
+							continue;
+						}
+						
+						curAckEnd = ack.ackStart - 1;
+						
+						if (curAckStart <= curAckEnd)
+							newAcks.push({ackStart: curAckStart, ackEnd: curAckEnd});
+						
 						curAckStart = ack.ackEnd + 1;
 					}
+					
+					if (ack2.ackEnd >= ackEnd) {
+						mergedAckEnd = ack2.ackEnd;
+					} else {
+						newAcks.push({ackStart: ack2.ackEnd + 1, ackEnd: ackEnd});
+					}
+				} else {
+					// no conflicts, just add
+					newAcks.push({ackStart: ackStart, ackEnd: ackEnd});
 				}
 				
-				if (ack2 && ack.ackEnd > ackEnd) {
-					mergedAckEnd = ack.ackEnd;
-				}
+				console.log(newAcks);
+				console.log('merged ' + mergedAckStart + ' ~ ' + mergedAckEnd);
 				
 				this.data.mergedAckStart = mergedAckStart;
 				this.data.mergedAckEnd = mergedAckEnd;
@@ -298,7 +310,7 @@ var init = function(user) {
 				
 				// store new ack
 				this.db.addMessageAck({groupId: groupId, userId: user.userId,
-					ackStart: mergedAckStart, ackEnd: mergedAckEnd}, callback);
+					ackStart: ackStart, ackEnd: ackEnd}, callback);
 			},
 			function(result, fields, callback) {
 				var acks = this.data.newAcks;
@@ -327,13 +339,25 @@ var init = function(user) {
 			function(callback) {
 				var acks = this.data.newAcks;
 				
-				acks.forEach(function(ack) {
-					// notify users
+				var notifyIter = function(i) {
+					if (i == acks.length) {
+						return callback(null);
+					}
+					
+					var ack = acks[i];
+					
 					notifyAck({groupId: groupId, user: user,
-						ackStart: ack.ackStart, ackEnd: ack.ackEnd}, callback);
-				});
+						ackStart: ack.ackStart, ackEnd: ack.ackEnd}, 
+						function(err) {
+							if (err) {
+								callback(err);
+							} else {
+								notifyIter(i + 1);
+							}
+						});
+				};
 				
-				callback(null);
+				notifyIter(0);
 			}
 		],
 		function(err) {
@@ -490,8 +514,11 @@ var joinGroupChat = function(data, callback) {
 					return callback(new Error('Failed to open chat'));
 			}
 			
+			// every sessions of users will enter chat
+			var sessions = session.getUsersSessions(users, true);
+			
 			// join chat room
-			chatRoom.join({users: users}, callback);
+			chatRoom.join({users: sessions}, callback);
 		},
 	],
 	function(err, errSessions) {
@@ -530,7 +557,10 @@ var leaveGroupChat = function(data, callback) {
 				return callback(null, null);
 			}
 			
-			chatRoom.leave({users: users}, callback);
+			// every sessions of users will leave chat
+			var sessions = session.getUsersSessions(users, true);
+			
+			chatRoom.leave({users: sessions}, callback);
 		},
 		function(errSessions, callback) {
 			removeGroupChatIfEmpty(chatRoom);
@@ -564,7 +594,10 @@ var notifyAck = function(data, callback) {
 				return callback(null);
 			}
 			
-			chatRoom.sendAck({user: user, ackStart: ackStart,
+			// sender will not get ack of itself
+			var sessions = session.getUserSessions(user, true);
+			
+			chatRoom.sendAck({users: sessions, user: user, ackStart: ackStart,
 				ackEnd: ackEnd}, callback);
 		},
 	],
@@ -578,6 +611,7 @@ var notifyAck = function(data, callback) {
 };
 
 var undoAcks = function(data, callback) {
+	var user = data.user;
 	var groupId = data.groupId;
 	var acks = data.acks;
 	
@@ -592,7 +626,7 @@ var undoAcks = function(data, callback) {
 				return callback(null);
 			}
 			
-			chatRoom.undoAcks({acks: acks}, callback); 		
+			chatRoom.undoAcks({acks: acks, user: user}, callback); 		
 		},
 	],
 	function(err) {

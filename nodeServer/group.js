@@ -233,8 +233,11 @@ function init(user) {
 			},
 			function(result, fields, callback) {
 				this.data.totalMembers = result;
-				/*
-				undoAcks({groupId: groupId, user: user}, callback);*/
+				
+				//TODO: When user exits, dec nbread of all messages the user sent
+				//      when user invited, inc nbread of all messages the user sent
+				//      or don't do this and let this to be handled in client
+				//undoAcks({groupId: groupId, user: user}, callback);
 				callback(null);
 			},
 			function(callback) {
@@ -305,15 +308,21 @@ var undoAcks = function(data, callback) {
 				lock: true}, callback);
 		},
 		function(result, fields, callback) {
-			var db = this.db;
 			this.data.acks = result;
 			
+			this.db.removeAcksOfGroupByUser({groupId: groupId, userId: user.userId}, 
+					callback);
+		},
+		function(result, fields, callback) {
+			var db = this.db;
+			var acks = this.data.acks;
+			
 			var updateIter = function(i) {
-				if (i == result.length) {
+				if (i == acks.length) {
 					return callback(null);
 				}
 				
-				var ack = result[i];
+				var ack = acks[i];
 				
 				db.decrementMessageNbread({groupId: groupId, userId: user.userId,
 					ackStart: ack.ackStart, ackEnd: ack.ackEnd},
@@ -332,7 +341,7 @@ var undoAcks = function(data, callback) {
 			var acks = this.data.acks;
 			
 			// tell online members to undo acks
-			chatManager.undoAcks({groupId: groupId, acks: acks}, callback);
+			chatManager.undoAcks({groupId: groupId, acks: acks, user: user}, callback);
 		}
 	],
 	function(err) {

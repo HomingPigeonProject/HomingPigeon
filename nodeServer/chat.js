@@ -81,32 +81,44 @@ var chatRoomProto = {
 		callback(null);
 	},
 	
+	// send ack to all user except users
 	sendAck: function(data, callback) {
+		var users = data.users;
 		var user = data.user;
 		var ackStart = data.ackStart || null;
 		var ackEnd = data.ackEnd || null;
 		
-		var message = {groupId: this.groupId, ackStart: ackStart, ackEnd: ackEnd};
+		var message = {groupId: this.groupId, userId: user.userId,
+				ackStart: ackStart, ackEnd: ackEnd};
 		
-		// broadcast message to all users except read user sessions
-		this.broadcast(user, 'messageAck', message);
+		// broadcast
+		this.broadcastFilter(function(user) {
+			if (users.indexOf(user) >= 0)
+				return true;
+			
+			return false;
+		}, 'messageAck', message);
 		
 		callback(null);
 	},
 	
+	// send undo ack to all users
+	// all sender user sessions must have left chat room
 	undoAcks: function(data, callback) {
 		var user = data.user;
 		var acks = data.acks;
+		var chatRoom = this;
 		var i = 0;
 		
 		if (acks.length == 0)
 			return callback(null);
 		
 		acks.forEach(function(ack) {
-			var message = {groupId: this.groupId, ackStart: ack.ackStart, ackEnd: ack.ackEnd};
+			var message = {groupId: this.groupId, userId: user.userId,
+					ackStart: ack.ackStart, ackEnd: ack.ackEnd};
 			
 			// broadcast message to all users
-			this.broadcastAll('messageAckUndo', message);
+			chatRoom.broadcastAll('messageAckUndo', message);
 			
 			i++;
 			if(i == acks.length)
@@ -126,10 +138,9 @@ var chatRoomProto = {
 	// input: data.users
 	// output: errSessions(if error, is list of sessions failed, otherwise null)
 	join: function(data, callback) {
-		var users = data.users;
+		var sessions = data.users;
 		var chatRoom = this;
 		var onlineMembers = this.onlineMembers;
-		var sessions = session.getUsersSessions(users, true);
 		var errSessions = [];
 		
 		var joinIter = function(i) {
@@ -142,7 +153,7 @@ var chatRoomProto = {
 					return false;
 				},
 				'membersJoin',
-				{groupId: chatRoom.groupId, members: lib.filterUsersData(users)});
+				{groupId: chatRoom.groupId, members: lib.filterUsersData(sessions)});
 				
 				chatRoom.printMembers();
 				
@@ -176,17 +187,16 @@ var chatRoomProto = {
 	// input: data.users
 	// output: errSessions(if error, is list of sessions failed, otherwise null)
 	leave: function(data, callback) {
-		var users = data.users;
+		var sessions = data.users;
 		var chatRoom = this;
 		var onlineMembers = this.onlineMembers;
-		var sessions = session.getUsersSessions(users, true);
 		var errSessions = [];
 		
 		var leaveIter = function(i) {
 			if (i == sessions.length) {
 				// notify users
 				chatRoom.broadcastAll('membersLeave',
-						{groupId: chatRoom.groupId, members: lib.filterUsersData(users)});
+						{groupId: chatRoom.groupId, members: lib.filterUsersData(sessions)});
 				
 				chatRoom.printMembers();
 				

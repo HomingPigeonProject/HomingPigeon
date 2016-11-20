@@ -193,9 +193,23 @@ window.addEventListener('load', function() {
 		if (data.status == 'success') {
 			addOldMessages(data.messages);
 		}
+		if (data.messages.length > 0) {
+			var ackEnd = data.messages[0].messageId;
+			var ackStart = data.messages[data.messages.length - 1].messageId;
+			server.emit('ackMessage', {groupId: data.messages[0].groupId,
+				ackStart: ackStart, ackEnd: ackEnd});
+		}
 	});
 	server.on('sendMessage', function(data) {
 		console.log('sendMessage');
+		console.log(data);
+	});
+	server.on('messageAck', function(data) {
+		console.log('ack');
+		console.log(data);
+	});
+	server.on('messageAckUndo', function(data) {
+		console.log('undo ack');
 		console.log(data);
 	});
 	server.on('newMessage', function(data) {
