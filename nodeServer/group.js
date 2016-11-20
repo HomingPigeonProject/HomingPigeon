@@ -237,6 +237,10 @@ function init(user) {
 				//TODO: When user exits, dec nbread of all messages the user sent
 				//      when user invited, inc nbread of all messages the user sent
 				//      or don't do this and let this to be handled in client
+				//NOTE: What client has to do, 
+				//      When ack comes, increment nbread of messages in interval other than messages of sent user
+				//      When undo comes, decrement nbread of messages in interval other than messages of sent user
+				//      When user of message is not in group, ignore 1 nbread because it is by missing user 
 				//undoAcks({groupId: groupId, user: user}, callback);
 				callback(null);
 			},

@@ -227,12 +227,12 @@ window.addEventListener('load', function() {
 		}
 	});
 	server.on('membersJoin', function(data) {
-		console.log('membersJoin');
-		console.log(data);
+		//console.log('membersJoin');
+		//console.log(data);
 	});
 	server.on('membersLeave', function(data) {
-		console.log('membersLeave');
-		console.log(data);
+		//console.log('membersLeave');
+		//console.log(data);
 	});
 	server.on('membersInvited', function(data) {
 		console.log('membersInvited');

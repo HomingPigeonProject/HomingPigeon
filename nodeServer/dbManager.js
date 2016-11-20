@@ -212,10 +212,13 @@ var queries = {
 
 	getEventById: "SELECT * FROM Events WHERE id = ? ",
 
-	getEventListByUser: "SELECT e.id, e.nbParticipants, e.nbParticipantsMax, " +
-			"e.date, e.length, e.description, e.groupId " +
+	getEventListByUser: "SELECT e.id as eventId, count(*) as nbParticipants, " +
+			"e.nbParticipantsMax, e.date, e.description, e.groupId " +
+			"FROM EventParticipants ep RIGHT JOIN " +
+			"(SELECT * " +
 			"FROM Events e INNER JOIN EventParticipants ep ON e.id = ep.eventId " +
-			"WHERE ep.accountId = ? ",
+			"WHERE ep.accountId = ?) e ON e.id = ep.eventId " +
+			"",
 
 	getEventParticipants: "SELECT a.id, a.email, a.nickname, a.picture, a.login " +
 			"FROM Accounts a INNER JOIN " +
