@@ -12,6 +12,12 @@ function init(user) {
 	 * exitGroup          groupId
 	 */
 	
+	/* User events 
+	 * name
+	 * membersInvited
+	 * membersExit
+	 */
+	
 	// get group list of the user
 	// input : None
 	// output : {status: 'success' or 'fail', groups: array of groups, errorMsg: error message}
@@ -23,6 +29,7 @@ function init(user) {
 			function(err, result) {
 				if (err) {	
 					console.log('failed to get group list\r\n' + err);
+					
 					user.emit('getGroupList', {status: 'fail', errorMsg:'server error'});
 				} else {
 					user.emit('getGroupList', {status: 'success', groups: result});
@@ -74,6 +81,13 @@ function init(user) {
 		
 		dbManager.trxPattern([
 			function(callback) {
+				this.db.getGroupMemberByUser({groupId: groupId, 
+					userId: user.userId, lock: true}, callback);
+			},
+			function(result, fields, callback) {
+				if (result.length == 0)
+					return callback(new Error('You are not a group member or no such group'));
+				
 				if (!groupId)
 					return callback(new Error('no group id'));
 				
@@ -88,12 +102,6 @@ function init(user) {
 			function(members, callback) {
 				this.data.invitedMembers = members;
 				
-				var sessions = session.getUsersSessions(members);
-				
-				chatManager.joinGroupChat({groupId: groupId, 
-					users: sessions, db: this.db}, callback);
-			},
-			function(callback) {
 				invalidateContactGroup({groupId: groupId, 
 					db: this.db}, callback);
 			},
@@ -135,22 +143,30 @@ function init(user) {
 				
 				group.members = totalMembers;
 				
-				// membersInvited event will replace this
-				//user.emit('inviteGroupMembers', {status: 'success', groupId: groupId});
-				
 				// notify every online member
 				for (var i = 0; i < totalSessions.length; i++) {
 					var userSession = totalSessions[i];
 					if (invitedSessions.indexOf(userSession) >= 0)
 						userSession.emit('addGroup', {status: 'success', group: group});
 					else
-						// TODO: include ack start
 						userSession.emit('membersInvited', {groupId: group.groupId, 
 							members: lib.filterUsersData(invitedMembers)});
 				}
 				
 				callback(null);
 			},
+			function(callback) {
+				var sessions = session.getUsersSessions(this.data.invitedMembers);
+				
+				chatManager.joinGroupChat({groupId: groupId, 
+					users: sessions, db: this.db}, callback);
+			},
+			function(errSessions, callback) {
+				if (errSessions)
+					chatManager.chatTryer.pushSessions(groupId, errSessions, true);
+				
+				callback(null);
+			}
 		],
 		function(err) {
 			if (err) {
@@ -178,15 +194,18 @@ function init(user) {
 					userId: user.userId, lock: true}, callback);
 			},
 			function(result, fields, callback) {
-				if (result.affectedRows === 0) {
-					return callback(new Error('user is already not in group'));
+				if (result.length == 0) {
+					return callback(new Error('You are already not in group'));
 				}
 				
 				// leave group chat
 				chatManager.leaveGroupChat({groupId: groupId, users: [user],
 					db: this.db}, callback);
 			},
-			function(callback) {
+			function(errSessions, callback) {
+				if (errSessions)
+					chatManager.chatTryer.pushSessions(groupId, errSessions, false);
+				
 				this.db.removeGroupMember({groupId: groupId, 
 					userId: user.userId}, callback);
 			},
@@ -213,11 +232,17 @@ function init(user) {
 				this.db.getGroupMembers({groupId: groupId, lock: true}, callback);
 			},
 			function(result, fields, callback) {
-				var totalMembers = result;
+				this.data.totalMembers = result;
+				/*
+				undoAcks({groupId: groupId, user: user}, callback);*/
+				callback(null);
+			},
+			function(callback) {
+				var totalMembers = this.data.totalMembers;
 				var contact = this.data.contact;
 				
 				if (contact) {
-					// notify the other contact
+					// notify contact and the user
 					var sessions = session.getUsersSessions([{userId: contact.userId}, 
 						{userId: contact.userId2}]);
 					
@@ -240,6 +265,15 @@ function init(user) {
 						members: user.getUserInfo()});
 				}
 				
+				// notify the user
+				var sessions = session.getUserSessions(user);
+				
+				for(var i = 0; i < sessions.length; i++) {
+					var userSession = sessions[i];
+					
+					userSession.emit('exitGroup', {status: 'success', groupId: groupId});
+				}
+				
 				callback(null);
 			}
 		],
@@ -247,12 +281,69 @@ function init(user) {
 			if (err) {
 				console.log('failed to exit from group\r\n' + err);
 				user.emit('exitGroup', {status: 'fail', errorMsg:'server error'});
-			} else {
-				user.emit('exitGroup', {status: 'success', groupId: groupId});
 			}
 		});
 	});
 }
+
+// undo every ack given by the user in the group
+// input: data.user, data.groupId
+var undoAcks = function(data, callback) {
+	var pattern;
+	
+	var user = data.user;
+	var groupId = data.groupId;
+	
+	if (data.trx)
+		pattern = dbManager.trxPattern;
+	else
+		pattern = dbManager.atomicPattern;
+	
+	pattern([
+		function(callback) {
+			this.db.getAcksOfGroupByUser({groupId: groupId, userId: user.userId,
+				lock: true}, callback);
+		},
+		function(result, fields, callback) {
+			var db = this.db;
+			this.data.acks = result;
+			
+			var updateIter = function(i) {
+				if (i == result.length) {
+					return callback(null);
+				}
+				
+				var ack = result[i];
+				
+				db.decrementMessageNbread({groupId: groupId, userId: user.userId,
+					ackStart: ack.ackStart, ackEnd: ack.ackEnd},
+					function(err, result, fields) {
+						if (err) {
+							callback(err);
+						} else {
+							updateIter(i + 1);
+						}
+					});
+			};
+			
+			updateIter(0);
+		},
+		function(callback) {
+			var acks = this.data.acks;
+			
+			// tell online members to undo acks
+			chatManager.undoAcks({groupId: groupId, acks: acks}, callback);
+		}
+	],
+	function(err) {
+		if (err) {
+			callback(err);
+		} else {
+			callback(null);
+		}
+	},
+	{db: data.db});
+};
 
 // create new group and chat room and notify members
 // input: data.user, data.members(array of email)
@@ -287,10 +378,15 @@ var startNewGroup = function(data, callback) {
 				users: sessions, db: this.db}, callback);
 		}
 	],
-	function(err) {
+	function(err, errSessions) {
 		if (err) {
 			callback(err);
 		} else {
+			var groupId = this.data.group.groupId;
+			
+			if (errSessions)
+				chatManager.chatTryer.pushSessions(groupId, errSessions, true);
+			
 			callback(null, this.data.group, this.data.sessions);
 		}
 	},
@@ -449,7 +545,6 @@ var addGroup = function(data, callback) {
 };
 
 // 'user' adds users in 'members' to group 'groupId', calling 'callback' at the end
-// TODO: (BUG)trim cause error when member is undefined
 var addMembers = function(data, userCallback) {
 	var pattern;
 	
@@ -479,9 +574,14 @@ var addMembers = function(data, userCallback) {
 					return bigCallback(null);
 				
 				dbManager.atomicPattern([
-					// get user info
+					// process data from client
 					function(callback) {
-						this.db.getUserByEmail({email: members[i].trim(), lock: true}, callback);
+						var email = members[i];
+						if (email)
+							email = email.toString().trim();
+						
+						// get user info
+						this.db.getUserByEmail({email: email, lock: true}, callback);
 					},
 					function(result, fields, callback) {
 						
@@ -513,7 +613,7 @@ var addMembers = function(data, userCallback) {
 						if (result.length > 0)
 							return addMembersIter(i + 1, bigCallback);
 						
-						// TODO : ackStart should be coordinated
+						// TODO : ackStart in groupMembers table is deprecated
 						this.db.addGroupMember({groupId: groupId, userId: peer.id,
 							ackStart: 0}, callback);
 					},

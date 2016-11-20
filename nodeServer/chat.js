@@ -13,6 +13,7 @@
  * membersJoin
  * membersLeave
  * messageAck
+ * messageAckUndo
  */
 
 var init = function(user) {
@@ -36,24 +37,6 @@ var chatRoomProto = {
 	// returns list of user connections
 	//console.log(server.io.sockets.adapter.rooms);
 	//var room = server.io.sockets.adapter.rooms[this.getRoomName()];
-	
-	// broadcast message to all other members
-	// input: data.user, data.content, data.importance, data.location
-	sendMessage: function(data, callback) {
-		var user = data.user;
-		var content = data.content || '';
-		var importance = data.importance || 0;
-		var location = data.location;
-		var date = data.date;
-		
-		var message = {groupId: this.groupId, userId: user.userId, content: content, 
-				importance: importance, location: location, date: date};
-		
-		// broadcast message to all other users in chat
-		this.broadcast(user, 'newMessage', message);
-		
-		callback(null);
-	},
 	
 	// user broadcasts message to other users
 	// assumed the user is member of this group
@@ -80,14 +63,55 @@ var chatRoomProto = {
 		}
 	},
 	
-	// send ack to every online users
-	sendAck: function(data, callback) {
-		var ackFrom = data.ackFrom;
-		var ackTo = data.ackTo;
+	// broadcast message to all other members
+	// input: data.user, data.content, data.importance, data.location
+	sendMessage: function(data, callback) {
+		var user = data.user;
+		var content = data.content || '';
+		var importance = data.importance || 0;
+		var location = data.location;
+		var date = data.date;
 		
-		this.broadcastAll('messageAck', {ackFrom: ackFrom, ackTo: ackTo});
+		var message = {groupId: this.groupId, userId: user.userId, content: content, 
+				importance: importance, location: location, date: date};
+		
+		// broadcast message to all other users in chat
+		this.broadcast(user, 'newMessage', message);
 		
 		callback(null);
+	},
+	
+	sendAck: function(data, callback) {
+		var user = data.user;
+		var ackStart = data.ackStart || null;
+		var ackEnd = data.ackEnd || null;
+		
+		var message = {groupId: this.groupId, ackStart: ackStart, ackEnd: ackEnd};
+		
+		// broadcast message to all users except read user sessions
+		this.broadcast(user, 'messageAck', message);
+		
+		callback(null);
+	},
+	
+	undoAcks: function(data, callback) {
+		var user = data.user;
+		var acks = data.acks;
+		var i = 0;
+		
+		if (acks.length == 0)
+			return callback(null);
+		
+		acks.forEach(function(ack) {
+			var message = {groupId: this.groupId, ackStart: ack.ackStart, ackEnd: ack.ackEnd};
+			
+			// broadcast message to all users
+			this.broadcastAll('messageAckUndo', message);
+			
+			i++;
+			if(i == acks.length)
+				callback(null);
+		});
 	},
 	
 	printMembers: function() {
@@ -100,11 +124,13 @@ var chatRoomProto = {
 	},
 	
 	// input: data.users
+	// output: errSessions(if error, is list of sessions failed, otherwise null)
 	join: function(data, callback) {
 		var users = data.users;
 		var chatRoom = this;
 		var onlineMembers = this.onlineMembers;
 		var sessions = session.getUsersSessions(users, true);
+		var errSessions = [];
 		
 		var joinIter = function(i) {
 			if (i == sessions.length) {
@@ -120,7 +146,10 @@ var chatRoomProto = {
 				
 				chatRoom.printMembers();
 				
-				return callback(null);
+				if (errSessions.length == 0)
+					return callback(null, null);
+				else
+					return callback(null, errSessions);
 			}
 			
 			var user = sessions[i];
@@ -129,10 +158,10 @@ var chatRoomProto = {
 				return joinIter(i + 1);
 			
 			user.join(chatRoom.getRoomName(), function(err) {
-				// ignore errors
-				if (err)
-					joinIter(i + 1);
-				else {
+				if (err) {
+					errSessions.push(user);
+				} else {
+					errSessions.push(user);
 					onlineMembers.push(user);
 					user.chatRooms.push(chatRoom);
 					
@@ -145,11 +174,13 @@ var chatRoomProto = {
 	},
 	
 	// input: data.users
+	// output: errSessions(if error, is list of sessions failed, otherwise null)
 	leave: function(data, callback) {
 		var users = data.users;
 		var chatRoom = this;
 		var onlineMembers = this.onlineMembers;
 		var sessions = session.getUsersSessions(users, true);
+		var errSessions = [];
 		
 		var leaveIter = function(i) {
 			if (i == sessions.length) {
@@ -159,7 +190,10 @@ var chatRoomProto = {
 				
 				chatRoom.printMembers();
 				
-				return callback(null);
+				if (errSessions.length == 0)
+					return callback(null, null);
+				else
+					return callback(null, errSessions);
 			}
 			
 			var user = sessions[i];
@@ -168,9 +202,9 @@ var chatRoomProto = {
 				return leaveIter(i + 1);
 			
 			user.leave(chatRoom.getRoomName(), function(err) {
-				if (err)
-					leaveIter(i + 1);
-				else {
+				if (err) {
+					errSessions.push(user);
+				} else {
 					var memberIndex = onlineMembers.indexOf(user);
 					var chatRoomIndex = user.chatRooms.indexOf(chatRoom);
 					

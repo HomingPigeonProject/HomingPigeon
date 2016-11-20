@@ -25,7 +25,6 @@ CREATE TABLE Contacts (
     id int NOT NULL AUTO_INCREMENT,
     accountId int NOT NULL,
     accountId2 int NOT NULL,
-    groupId int,                                     /* Group id for two users' chat */
     accepted bit(1) NOT NULL DEFAULT 0,              /* if 0, accountId is waiting for accountId2 to accept */
     CONSTRAINT Contacts_pk PRIMARY KEY (id)
 );
@@ -61,6 +60,15 @@ CREATE TABLE Messages (
     location varchar(25),                            /* Location sharing */
     leftGroup bit(1) DEFAULT 0,                      /* Left group? */
     CONSTRAINT Messages_pk PRIMARY KEY (id)
+);
+
+CREATE TABLE MessageAcks (
+    id bigint unsigned NOT NULL AUTO_INCREMENT,
+    groupId int NOT NULL,
+    accountId int NOT NULL,
+    ackStart int unsigned NOT NULL,                  /* The user read from here(inclusive) */
+    ackEnd int unsigned NOT NULL,                    /* until here(inclusive) */
+    CONSTRAINT MessagesAcks_pk PRIMARY KEY (id)
 );
 
 -- 
@@ -106,9 +114,6 @@ ALTER TABLE Contacts ADD CONSTRAINT Contacts_Accounts FOREIGN KEY (accountId)
 
 ALTER TABLE Contacts ADD CONSTRAINT Contacts_Accounts2 FOREIGN KEY (accountId2)
     REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
-    
-ALTER TABLE Contacts ADD CONSTRAINT Contacts_GroupId FOREIGN KEY (groupId)
-    REFERENCES Groups (id) ON UPDATE SET NULL ON DELETE SET NULL;
 
 -- Groups
 ALTER TABLE Groups ADD INDEX Groups_ContactId_Id (contactId, id);
@@ -136,6 +141,16 @@ ALTER TABLE Messages ADD CONSTRAINT Messages_Accounts FOREIGN KEY (accountId)
     REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
 
 ALTER TABLE Messages ADD CONSTRAINT Messages_GroupId FOREIGN KEY (groupId)
+    REFERENCES Groups (id) ON UPDATE CASCADE ON DELETE CASCADE;
+    
+-- MessageAcks
+ALTER TABLE MessageAcks ADD INDEX MessageAcks_AckStart (ackStart, ackEnd);
+ALTER TABLE MessageAcks ADD INDEX MessageAcks_AckEnd (ackEnd, ackStart);
+
+ALTER TABLE MessageAcks ADD CONSTRAINT MessageAcks_Accounts FOREIGN KEY (accountId) 
+    REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
+    
+ALTER TABLE MessageAcks ADD CONSTRAINT MessageAcks_GroupId FOREIGN KEY(groupId)
     REFERENCES Groups (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
 -- Localisations
