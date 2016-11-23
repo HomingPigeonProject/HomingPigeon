@@ -1,5 +1,5 @@
 //var socket = io.connect('http://vps332892.ovh.net:4000');
-var socket = io.connect('http://143.248.180.220:3000');
+var socket = io.connect('http://192.249.22.38:3000');
 
 function addMyMessage(msg, pseudo, date){
   $('.chat').append('<li class="right clearfix"><span class="chat-img pull-right"><img src="http://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" /></span><div class="chat-body clearfix"><div class="header"><strong class="pull-right primary-font">'+pseudo+'</strong><small class="text-muted"><i class="fa fa-clock-o fa-fw"></i> '+date+'</small></div><p>'+msg+'</p></div></li>');/*'<div class="message"></p>' + pseudo + ' : ' + msg +   '</p></div>');*/
@@ -44,9 +44,11 @@ function setPseudo(){
 }
 
 //to receive the message for us
-socket.on('messageReception', function(message, id, date){
-    addMessage(message, id, date);
-    console.log(message);
+socket.on('messageReception', function(message){
+    addMessage(message['message'], message['id'], message['date']);
+    console.log(message['message']);
+    console.log(message['id']);
+    console.log(message['date']);
 });
 
 //some interface stuff and buttons

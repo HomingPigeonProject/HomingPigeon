@@ -28,6 +28,7 @@ var connectedLobby = {
         });
         this.connected = conn;
     },
+    //not used
     getPseudoList : function(){
         var conn = [];
         this.connected.forEach(function(data){
@@ -35,6 +36,7 @@ var connectedLobby = {
         });
         return conn;
     },
+    //not used
     getPseudoById: function(id){
         var conn = null;
         this.connected.forEach(function(data){
@@ -57,14 +59,14 @@ io.sockets.on('connection', function(socket){
     socket.on('message', function(message, id, date){
         var pseudo = "billy";//connectedLobby.getPseudoById(socket.id);
         console.log("user " + pseudo + " send this : " + message + " to : " + id); //message to message.text etc....
-        var data = { 'message' : message, id : 'id', date: new Date().toString()};
+        var data = { 'message' : message, id : id, date: new Date().toString()};
         socket.broadcast.emit('messageReception',data);
       });
     //
         //test
     //
       socket.on("message", function(message, id, date) {
-       io.emit("messageReception", message, id, date);
+       io.emit("messageReception", {message: message, id: id, date: date});
       });
       //
           //end test
