@@ -6,11 +6,22 @@ var filterUserData = function(user) {
 		lastSeen: user.lastSeen, login: user.login};
 }
 
+// data of multiple users, it filters duplicate
 var filterUsersData = function(users) {
 	var result = [];
 	
+	var contains = function(user) {
+		for (var i = 0; i < result.length; i++) {
+			if (result[i].userId == user.userId)
+				return true;
+		}
+		
+		return false;
+	};
+	
 	for (var i = 0; i < users.length; i++) {
-		result.push(filterUserData(users[i]));
+		if (!contains(users[i]))
+			result.push(filterUserData(users[i]));
 	}
 	
 	return result;
@@ -20,7 +31,7 @@ var filterGroupData = function(group) {
 	return {groupId: group.groupId, name: group.name, 
 		nbMembers: group.nbMembers, lastMessageDate: group.lastMessageDate,
 		lastMessageId: group.lastMessageId, alias: group.alias,
-		members: group.members};
+		members: group.members, contactId: group.contactId || null};
 }
 
 module.exports = {filterUserData: filterUserData,

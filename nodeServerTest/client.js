@@ -18,7 +18,7 @@ window.addEventListener('load', function() {
 	server.on('error', function() {
 		console.log('connection error');
 	});
-	
+
 	server.on('login', function(data) {
 		console.log(data);
 		if (data.status == 'success') {
@@ -32,10 +32,10 @@ window.addEventListener('load', function() {
 			$('#getPendingContactList').click(function() {
 				server.emit('getPendingContactList');
 			});
-			
+
 			// set profile
 			me = data.data;
-			
+
 			// create contact list manage panel
 			var contactForm = document.createElement('form');
 			var contactInput = document.createElement('input');
@@ -44,33 +44,33 @@ window.addEventListener('load', function() {
 			var contactAcceptButton = document.createElement('button');
 			var contactDenyButton = document.createElement('button');
 			var contactChatButton = document.createElement('button');
-			
+
 			contactForm.action = 'javascript:void(0);';
-			
+
 			contactInput.id = 'contactInput';
 			contactInput.placeholder = 'put contact email';
 			contactInput.type = 'text';
-			
+
 			contactAddButton.id = 'contactAddButton';
 			contactAddButton.type = 'button';
 			contactAddButton.innerHTML = 'add contact';
-			
+
 			contactRemoveButton.id = 'contactRemoveButton';
 			contactRemoveButton.type = 'button';
 			contactRemoveButton.innerHTML = 'remove contact';
-			
+
 			contactAcceptButton.id = 'contactAcceptButton';
 			contactAcceptButton.type = 'button';
 			contactAcceptButton.innerHTML = 'accept contact';
-			
+
 			contactDenyButton.id = 'contactDenyButton';
 			contactDenyButton.type = 'button';
 			contactDenyButton.innerHTML = 'deny contact';
-			
+
 			contactChatButton.id = 'contactChatButton';
 			contactChatButton.type = 'button';
 			contactChatButton.innerHTML = 'create contact chat';
-			
+
 			contactForm.appendChild(contactInput);
 			contactForm.appendChild(contactAddButton);
 			contactForm.appendChild(contactRemoveButton);
@@ -110,7 +110,7 @@ window.addEventListener('load', function() {
 			groupForm.appendChild(groupAddButton);
 			groupForm.appendChild(inviteMemberButton);
 			groupForm.appendChild(exitGroupButton);
-			
+
 			var chatControlTitle = document.createElement('p');
 			var chatForm = document.createElement('form');
 			var groupIdInput = document.createElement('input');
@@ -126,7 +126,7 @@ window.addEventListener('load', function() {
 			chatRefreshButton.id = 'chatRefreshButton';
 			chatRefreshButton.type = 'button';
 			chatRefreshButton.innerHTML = 'refresh';
-			
+
 			chatForm.appendChild(groupIdInput);
 			chatForm.appendChild(chatJoinButton);
 			chatForm.appendChild(chatRefreshButton);
@@ -193,9 +193,23 @@ window.addEventListener('load', function() {
 		if (data.status == 'success') {
 			addOldMessages(data.messages);
 		}
+		if (data.messages.length > 0) {
+			var ackEnd = data.messages[0].messageId;
+			var ackStart = data.messages[data.messages.length - 1].messageId;
+			server.emit('ackMessage', {groupId: data.messages[0].groupId,
+				ackStart: ackStart, ackEnd: ackEnd});
+		}
 	});
 	server.on('sendMessage', function(data) {
 		console.log('sendMessage');
+		console.log(data);
+	});
+	server.on('messageAck', function(data) {
+		console.log('ack');
+		console.log(data);
+	});
+	server.on('messageAckUndo', function(data) {
+		console.log('undo ack');
 		console.log(data);
 	});
 	server.on('newMessage', function(data) {
@@ -203,9 +217,9 @@ window.addEventListener('load', function() {
 		if (chatRoom.groupId == data.groupId) {
 			//console.log(chatRoom.members);
 			if (data.userId == me.userId)
-				addMyMessage(data.content, chatRoom.members[data.userId].nickname, new Date().toString());
+				addMyMessage(data.content, chatRoom.members[data.userId].nickname, data.date.toString());
 			else
-				addMessage(data.content, chatRoom.members[data.userId].nickname, new Date().toString());
+				addMessage(data.content, chatRoom.members[data.userId].nickname, data.date.toString());
 		} else {
 			// else, it is a notification
 			console.log('newMessage!!');
@@ -213,12 +227,12 @@ window.addEventListener('load', function() {
 		}
 	});
 	server.on('membersJoin', function(data) {
-		console.log('membersJoin');
-		console.log(data);
+		//console.log('membersJoin');
+		//console.log(data);
 	});
 	server.on('membersLeave', function(data) {
-		console.log('membersLeave');
-		console.log(data);
+		//console.log('membersLeave');
+		//console.log(data);
 	});
 	server.on('membersInvited', function(data) {
 		console.log('membersInvited');
@@ -261,6 +275,7 @@ window.addEventListener('load', function() {
 		if (data.status == 'success') {
 			console.log('contact chat created');
 			console.log(data);
+			groups.push(data);
 		} else {
 			console.log('failed to create contact chat');
 		}
@@ -279,21 +294,21 @@ window.addEventListener('load', function() {
 	});
 	server.on('acceptContact', function(data) {
 		if (data.status == 'success') {
-			
+
 		} else {
 			console.log('failed to accept contact...');
 		}
 	});
 	server.on('denyContact', function(data) {
 		if (data.status == 'success') {
-			
+
 		} else {
 			console.log('failed to deny contact...');
 		}
 	});
 	server.on('addContact', function(data) {
 		if (data.status == 'success') {
-			
+
 		} else {
 			console.log('failed to add contact...');
 		}
@@ -304,7 +319,7 @@ window.addEventListener('load', function() {
 	});
 	server.on('removeContact', function(data) {
 		if (data.status == 'success') {
-			
+
 		} else {
 			console.log('failed to remove contact...');
 		}
@@ -313,6 +328,7 @@ window.addEventListener('load', function() {
 		if (data.status == 'success') {
 			console.log(data);
 			groups = data.groups;
+			//console.log(groups);
 		} else {
 			console.log('failed to get group list...');
 		}
@@ -326,7 +342,7 @@ window.addEventListener('load', function() {
 			console.log(data);
 	});
 	reset();
-	
+
 	//click on the send button
 	$("#btn-chat").on('click', function(){
 	  sentMessage();
@@ -340,7 +356,7 @@ window.addEventListener('load', function() {
 	});
 });
 
-var groups;
+var groups = [];
 // my info
 var me;
 
@@ -367,49 +383,20 @@ function reset() {
 function addOldMessages(messages) {
 	var chats = $('.chat > .chatMessage');
 	var j = 0;
-	
-	for (var i = chats.length - 1; i >= 0; i--) {
-		do {
-			var chat = chats[i];
-			var newChat = messages[j];
-			var chatId = chat['data-messageId'];
-			var newId = messages[j].messageId;
 
-			var content = newChat.content;
-			var date = newChat.date;
-			var name = chatRoom.members[newChat.userId].nickname;
-			
-			if (chatId == newId)
-				j++;
-			else if (chatId < newId) {
-				if (newChat.userId == me.userId)
-					$(chat).append(makeMyMessage(content, me.nickname, date));
-				else
-					$(chat).append(makeMessage(content, name, date));
-			} else
-				continue;
-			
-			if (newChat.userId == me.userId)
-				$(chat).append(makeMyMessage(content, me.nickname, date));
-			else
-				$(chat).append(makeMessage(content, name, date));
-				
-		} while (chatId < newId);
-	}
-	
 	for (; j < messages.length; j++) {
 		var chat = $('.chat');
 		var newMessage = messages[j];
-		
+
 		var content = newMessage.content;
 		var date = newMessage.date;
 		var name = chatRoom.members[newMessage.userId].nickname;
-		
+
 		if (newMessage.userId == me.userId)
 			chat.prepend(makeMyMessage(content, me.nickname, date));
 		else
 			chat.prepend(makeMessage(content, name, date));
-		
+
 		$('.chatTog').animate({ scrollTop: 50000 }, 1);
 	}
 }
@@ -418,20 +405,20 @@ function addOldMessages(messages) {
 function setGroup(groupId) {
 	for (var i = 0; i < groups.length; i++) {
 		var group = groups[i];
-		
+
 		if (group.groupId == groupId) {
 			var members = group.members;
-			
+
 			chatRoom.groupId = groupId;
 			chatRoom.members = {};
-			
+
 			for (var j = 0; j < members.length; j++) {
 				var member = members[j];
-				
+
 				chatRoom.members[member.userId] = member;
 			}
-			
-			break;
+
+			return;
 		}
 	}
 }
@@ -459,7 +446,7 @@ function sentMessage(){
     if ($('.messageInput').val() != "" && logined){
     	var content = $('.messageInput').val();
       server.emit('sendMessage', {groupId: chatRoom.groupId, content: content, importance: 0, location: null} );
-      
+
       addMyMessage(content, me.nickname , new Date().toString(), true);
       $('.messageInput').val(''); //reset the messageInput
     }

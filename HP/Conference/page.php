@@ -6,9 +6,6 @@
   include_once '../dbconnect.php';
 ?>
 
-
-
-
 <?php   //checking if the user has the right to access this room
 
   $room = explode("?", $_SERVER['REQUEST_URI'])[1];
@@ -24,7 +21,6 @@
   // if roomNb starts with a g : group, by a c : contact
   if ($roomType == "") {
     // null
-
     header($defaultPage);
 
   } else if ($roomType == "g") {
@@ -74,28 +70,26 @@
                 width: 100%;
                 height: 100%;
             }
-
-            #split-left {}
-            #split-right {float:right;}
-
         </style>
 
         <link href="../../bootstrap/css/landing-page.css" rel="stylesheet">
         <link href="../../bootstrap/css/bootstrap.min.css" rel="stylesheet">
         <link href="../../bootstrap/font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
-        <link href="http://fonts.googleapis.com/css?family=Lato:300,400,700,300italic,400italic,700italic" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700,300italic,400italic,700italic" rel="stylesheet" type="text/css">
         <link href="../../bootstrap/dist/css/timeline.css" rel="stylesheet">
         <link href="../../bootstrap/dist/css/sb-admin-2.css" rel="stylesheet">
         <link href="../../bootstrap/metisMenu/dist/metisMenu.min.css" rel="stylesheet">
         <link href="../../bootstrap/morrisjs/morris.css" rel="stylesheet">
 
-
+        <link rel="stylesheet" type="text/css" href="style.css">
 
 
     </head>
 
 
   <body id="body">
+
+  <div id="main"> <!-- main div -->
 
     <!-- Session info and logout option -->
     <ul>
@@ -115,17 +109,20 @@
       ?>
     </div>
 
-    <a href="anotherpage.php">anotherpage</a>
+    <!--
 
-      <h2 id="title">Start a room</h2>
+    <h2 id="title">Start a room</h2>
 
-      <p id="subTitle"></p>
+    <p id="subTitle"></p>
 
-      <form id="createRoom">
-          <input id="createRoomInput"/>
-          <button type="submit" id="createRoomBtn">Create it!</button>
-      </form>
+    <form id="createRoom">
+        <input id="createRoomInput"/>
+        <button type="submit" id="createRoomBtn">Create it!</button>
+    </form>
 
+    -->
+
+    <div id="top">
       <!-- Local Video -->
       <div class="videoContainer">
           <video id="localVideo" style="height: 150px;" oncontextmenu="return false;"></video>
@@ -141,12 +138,17 @@
         <button type="button" id="audioMute" onclick="muteAudio()">Mute Audio</button>
         <button type="button" id="audioUnmute" onclick="unmuteAudio()">Unmute Audio</button>
       </div>
+    </div>
 
+
+    <div id="left">
       <!-- Remote Video(s) -->
       <div id="remotes"></div>
+    </div>
+
+    <div id="right">
 
       <!-- Text chat -->
-
       <div class="row">
         <div class="col-lg-4">
           <br/><br/><br/><br/>
@@ -156,14 +158,14 @@
             </div>
             <div class="panel-body chatTog">
               <ul class="chat" id="chat-list">
-                <!-- Here are inserted the messages -->
+                <!-- Here are displayed the messages -->
               </ul>
             </div>
 
             <div class="panel-footer chatTog">
               <div class="input-group">
 
-                <input id="btn-input" type="text" class="form-control input-sm" placeholder="Type your message here..." />
+                <input id="btn-input" type="text" class="form-control input-sm messageInput" placeholder="Type your message here..." />
                 <span class="input-group-btn">
                   <button class="btn btn-warning btn-sm" id="btn-chat">Send</button>
                 </span>
@@ -182,11 +184,9 @@
           </div>
         </div>
       </div>
-
       <!-- End of Text chat -->
 
-      <!--- Download summary option -->
-
+      <!--- Download summary -->
       <div id="summary-option">
 
         <form>
@@ -199,13 +199,16 @@
         <button id="imp-dl-btn" type="submit">Download Summary</button>
 
       </div>
-
       <!---End of download summary option -->
 
-      <script type="text/javascript"></script>
-      <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
-      <script src="latest-v2.js"></script>
-      <script src='page.js'></script>
+    </div>
 
-    </body>
+
+    <script type="text/javascript"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+    <script src="latest-v2.js"></script>
+    <script src='page.js'></script>
+
+  </div> <!-- main div -->
+  </body>
 </html>

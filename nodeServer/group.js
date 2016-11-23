@@ -12,6 +12,12 @@ function init(user) {
 	 * exitGroup          groupId
 	 */
 	
+	/* User events 
+	 * name
+	 * membersInvited
+	 * membersExit
+	 */
+	
 	// get group list of the user
 	// input : None
 	// output : {status: 'success' or 'fail', groups: array of groups, errorMsg: error message}
@@ -23,6 +29,7 @@ function init(user) {
 			function(err, result) {
 				if (err) {	
 					console.log('failed to get group list\r\n' + err);
+					
 					user.emit('getGroupList', {status: 'fail', errorMsg:'server error'});
 				} else {
 					user.emit('getGroupList', {status: 'success', groups: result});
@@ -38,11 +45,27 @@ function init(user) {
 		if (!session.validateRequest('addGroup', user, true, data))
 			return;
 		
-		// add user itself to group
-		data.user = user;
-		data.trx = true;
-		
-		startNewGroup(data, function(err) {});
+		dbManager.trxPattern([
+			function(callback) {
+				// add user itself to group
+				data.user = user;
+				data.db = this.db;
+				
+				startNewGroup(data, callback);
+			},
+			function(group, sessions, callback) {
+				// notify every online member
+				// this must be sent before commit
+				for (var i = 0; i < sessions.length; i++)
+					sessions[i].emit('addGroup', {status: 'success', group: group});
+				
+				callback(null);
+			}
+		],
+		function(err) {
+			if (err)
+				user.emit('addGroup', {status: 'fail', errorMsg:'server error'});
+		});
 	});
 	
 	// invite contacts to group
@@ -58,6 +81,13 @@ function init(user) {
 		
 		dbManager.trxPattern([
 			function(callback) {
+				this.db.getGroupMemberByUser({groupId: groupId, 
+					userId: user.userId, lock: true}, callback);
+			},
+			function(result, fields, callback) {
+				if (result.length == 0)
+					return callback(new Error('You are not a group member or no such group'));
+				
 				if (!groupId)
 					return callback(new Error('no group id'));
 				
@@ -72,12 +102,12 @@ function init(user) {
 			function(members, callback) {
 				this.data.invitedMembers = members;
 				
-				var sessions = session.getUsersSessions(members);
-				
-				chatManager.joinInvitedGroupChat({groupId: groupId, 
-					users: sessions, db: this.db}, callback);
+				invalidateContactGroup({groupId: groupId, 
+					db: this.db}, callback);
 			},
-			function(callback) {
+			function(contact, callback) {
+				this.data.contact = contact;
+				
 				// get group info
 				this.db.getGroupById({groupId: groupId, lock: true}, callback);
 			},
@@ -87,39 +117,13 @@ function init(user) {
 				// get group member info
 				this.db.getGroupMembers({groupId: groupId, lock: true}, callback);
 			},
-			function(result, fields, callback) {
-				this.data.totalMembers = result;
-				
-				this.db.getContactByGroup({groupId: this.data.group.groupId, 
-					lock: true}, callback);
-			},
-			function(result, fields, callback) {
-				// if the group was for contact chat, it's not anymore
-				if (result.length > 0) {
-					var contact = result[0];
-					this.data.contact = contact;
-					
-					// set group id null
-					this.db.updateContactGroupChat({groupId: null,
-						userId: contact.userId, userId2: contact.userId2}, 
-						function(err, result, fields) {
-							callback(err, true, result);
-						});
-				} else 
-					callback(null, false, null);
-			},
 			// send any notifications
 			// this must be sent before commit
-			function(updated, result, callback) {
-				if (updated && result.affectedRows == 0)
-					return callback(new Error('failed to update contact info'));
-				
+			function(result, fields, callback) {	
 				var group = this.data.group;
 				var invitedMembers = this.data.invitedMembers;
-				var totalMembers = this.data.totalMembers;
+				var totalMembers = result;
 				var contact = this.data.contact;
-
-				var sessions = session.getUsersSessions(members);
 				
 				if (contact) {
 					// notify two users of the contact
@@ -134,23 +138,35 @@ function init(user) {
 				}
 				
 				// get every session of every member
-				var sessions = session.getUsersSessions(invitedMembers);
+				var totalSessions = session.getUsersSessions(totalMembers);
+				var invitedSessions = session.getUsersSessions(invitedMembers);
 				
 				group.members = totalMembers;
 				
-				// membersInvited event will replace this
-				//user.emit('inviteGroupMembers', {status: 'success', groupId: groupId, members: members});
-				user.emit('inviteGroupMembers', {status: 'success', groupId: groupId});
-				
 				// notify every online member
-				for (var i = 0; i < sessions.length; i++) {
-					var invitedUser = sessions[i];
-					
-					invitedUser.emit('addGroup', {status: 'success', group: group});
+				for (var i = 0; i < totalSessions.length; i++) {
+					var userSession = totalSessions[i];
+					if (invitedSessions.indexOf(userSession) >= 0)
+						userSession.emit('addGroup', {status: 'success', group: group});
+					else
+						userSession.emit('membersInvited', {groupId: group.groupId, 
+							members: lib.filterUsersData(invitedMembers)});
 				}
 				
 				callback(null);
 			},
+			function(callback) {
+				var sessions = session.getUsersSessions(this.data.invitedMembers);
+				
+				chatManager.joinGroupChat({groupId: groupId, 
+					users: sessions, db: this.db}, callback);
+			},
+			function(errSessions, callback) {
+				if (errSessions)
+					chatManager.chatTryer.pushSessions(groupId, errSessions, true);
+				
+				callback(null);
+			}
 		],
 		function(err) {
 			if (err) {
@@ -162,6 +178,7 @@ function init(user) {
 	});
 	
 	// the user exit from group
+	// TODO: when a user exit, messages of the user will not be shown to the other users anymore...
 	user.on('exitGroup', function(data) {
 		if (!session.validateRequest('exitGroup', user, true, data))
 			return;
@@ -173,28 +190,173 @@ function init(user) {
 		
 		dbManager.trxPattern([
 			function(callback) {
-				this.db.removeGroupMember({groupId: groupId, userId: user.userId}, callback);
+				this.db.getGroupMemberByUser({groupId: groupId, 
+					userId: user.userId, lock: true}, callback);
+			},
+			function(result, fields, callback) {
+				if (result.length == 0) {
+					return callback(new Error('You are already not in group'));
+				}
+				
+				// leave group chat
+				chatManager.leaveGroupChat({groupId: groupId, users: [user],
+					db: this.db}, callback);
+			},
+			function(errSessions, callback) {
+				if (errSessions)
+					chatManager.chatTryer.pushSessions(groupId, errSessions, false);
+				
+				this.db.removeGroupMember({groupId: groupId, 
+					userId: user.userId}, callback);
 			},
 			function(result, fields, callback) {
 				if (result.affectedRows === 0) {
-					return callback(new Error('user is already not in group'));
+					return callback(new Error('failed to remove user from group'));
 				}
 				
-				// exit group chat
-				chatManager.exitGroupChat({groupId: groupId, user: user,
-					db: this.db}, callback);
+				invalidateContactGroup({groupId: groupId, db: this.db}, 
+						callback);
+			},
+			function(contact, callback) {
+				this.data.contact = contact;
+				
+				// remove group if there's no member in group
+				this.db.removeGroupIfNoMember({groupId: groupId, lock: true}, 
+						callback);
+			},
+			function(result, fields, callback) {
+				if (result.affectedRows > 0)
+					console.log('group ' + groupId + ' is removed from db');
+				
+				// get group member info
+				this.db.getGroupMembers({groupId: groupId, lock: true}, callback);
+			},
+			function(result, fields, callback) {
+				this.data.totalMembers = result;
+				
+				//TODO: When user exits, dec nbread of all messages the user sent
+				//      when user invited, inc nbread of all messages the user sent
+				//      or don't do this and let this to be handled in client
+				//NOTE: What client has to do, 
+				//      When ack comes, increment nbread of messages in interval other than messages of sent user
+				//      When undo comes, decrement nbread of messages in interval other than messages of sent user
+				//      When user of message is not in group, ignore 1 nbread because it is by missing user 
+				//undoAcks({groupId: groupId, user: user}, callback);
+				callback(null);
+			},
+			function(callback) {
+				var totalMembers = this.data.totalMembers;
+				var contact = this.data.contact;
+				
+				if (contact) {
+					// notify contact and the user
+					var sessions = session.getUsersSessions([{userId: contact.userId}, 
+						{userId: contact.userId2}]);
+					
+					for (var i = 0; i < sessions.length; i++) {
+						var contactUser = sessions[i];
+						
+						contactUser.emit('contactChatRemoved', {contactId: contact.contactId});
+					}
+				}
+				
+				// notify remaining users
+				var totalSessions = session.getUsersSessions(totalMembers);
+				
+				// notify every online member
+				for (var i = 0; i < totalSessions.length; i++) {
+					var userSession = totalSessions[i];
+					
+					// TODO: include user ack information(start, end)
+					userSession.emit('membersExit', {groupId: groupId, 
+						members: user.getUserInfo()});
+				}
+				
+				// notify the user
+				var sessions = session.getUserSessions(user);
+				
+				for(var i = 0; i < sessions.length; i++) {
+					var userSession = sessions[i];
+					
+					userSession.emit('exitGroup', {status: 'success', groupId: groupId});
+				}
+				
+				callback(null);
 			}
 		],
 		function(err) {
 			if (err) {
 				console.log('failed to exit from group\r\n' + err);
-				return user.emit('exitGroup', {status: 'fail', errorMsg:'server error'});
+				user.emit('exitGroup', {status: 'fail', errorMsg:'server error'});
 			}
-			
-			user.emit('exitGroup', {status: 'success', groupId: groupId});
 		});
 	});
 }
+
+// undo every ack given by the user in the group
+// input: data.user, data.groupId
+var undoAcks = function(data, callback) {
+	var pattern;
+	
+	var user = data.user;
+	var groupId = data.groupId;
+	
+	if (data.trx)
+		pattern = dbManager.trxPattern;
+	else
+		pattern = dbManager.atomicPattern;
+	
+	pattern([
+		function(callback) {
+			this.db.getAcksOfGroupByUser({groupId: groupId, userId: user.userId,
+				lock: true}, callback);
+		},
+		function(result, fields, callback) {
+			this.data.acks = result;
+			
+			this.db.removeAcksOfGroupByUser({groupId: groupId, userId: user.userId}, 
+					callback);
+		},
+		function(result, fields, callback) {
+			var db = this.db;
+			var acks = this.data.acks;
+			
+			var updateIter = function(i) {
+				if (i == acks.length) {
+					return callback(null);
+				}
+				
+				var ack = acks[i];
+				
+				db.decrementMessageNbread({groupId: groupId, userId: user.userId,
+					ackStart: ack.ackStart, ackEnd: ack.ackEnd},
+					function(err, result, fields) {
+						if (err) {
+							callback(err);
+						} else {
+							updateIter(i + 1);
+						}
+					});
+			};
+			
+			updateIter(0);
+		},
+		function(callback) {
+			var acks = this.data.acks;
+			
+			// tell online members to undo acks
+			chatManager.undoAcks({groupId: groupId, acks: acks, user: user}, callback);
+		}
+	],
+	function(err) {
+		if (err) {
+			callback(err);
+		} else {
+			callback(null);
+		}
+	},
+	{db: data.db});
+};
 
 // create new group and chat room and notify members
 // input: data.user, data.members(array of email)
@@ -227,25 +389,18 @@ var startNewGroup = function(data, callback) {
 			// create chatRoom and join every online members
 			chatManager.joinGroupChat({groupId: group.groupId, 
 				users: sessions, db: this.db}, callback);
-		},
-		function(callback) {
-			var sessions = this.data.sessions;
-			var group = this.data.group;
-			
-			// notify every online member
-			// this must be sent before commit
-			for (var i = 0; i < sessions.length; i++)
-				sessions[i].emit('addGroup', {status: 'success', group: group});
-			
-			callback(null);
 		}
 	],
-	function(err) {
+	function(err, errSessions) {
 		if (err) {
-			user.emit('addGroup', {status: 'fail', errorMsg:'server error'});
 			callback(err);
 		} else {
-			callback(err, this.data.group);
+			var groupId = this.data.group.groupId;
+			
+			if (errSessions)
+				chatManager.chatTryer.pushSessions(groupId, errSessions, true);
+			
+			callback(null, this.data.group, this.data.sessions);
 		}
 	},
 	{db: data.db});
@@ -266,7 +421,7 @@ var getGroupList = function(data, callback) {
 	pattern([
 		function(callback) {
 			// get group list of the user
-			this.db.getGroupListByUser({userId: user.userId, lock: true}, callback);
+			this.db.getAllGroupListByUser({userId: user.userId, lock: true}, callback);
 		},
 		function(result, fields, callback) {
 			var groups = result;
@@ -287,6 +442,8 @@ var getGroupList = function(data, callback) {
 					
 					for (var j = 0; j < members.length; j++)
 						groups[i].members.push(lib.filterUserData(members[j]));
+					
+					groups[i] = lib.filterGroupData(groups[i]);
 					
 					getMembers(i + 1);
 				});
@@ -369,7 +526,6 @@ var addGroup = function(data, callback) {
 		},
 		// get group info
 		function(updated, result, callback) {
-			console.log(updated + ', ' + result);
 			if (updated && result.affectedRows == 0)
 				return callback(new Error('failed to update name'));
 			
@@ -394,8 +550,8 @@ var addGroup = function(data, callback) {
 			
 			callback(err);
 		} else {
-			var sendMsg = lib.filterGroupData(this.data.group);
-			callback(null, sendMsg);
+			var result = lib.filterGroupData(this.data.group);
+			callback(null, result);
 		}
 	},
 	{db: data.db});
@@ -431,9 +587,14 @@ var addMembers = function(data, userCallback) {
 					return bigCallback(null);
 				
 				dbManager.atomicPattern([
-					// get user info
+					// process data from client
 					function(callback) {
-						this.db.getUserByEmail({email: members[i].trim(), lock: true}, callback);
+						var email = members[i];
+						if (email)
+							email = email.toString().trim();
+						
+						// get user info
+						this.db.getUserByEmail({email: email, lock: true}, callback);
 					},
 					function(result, fields, callback) {
 						
@@ -465,7 +626,7 @@ var addMembers = function(data, userCallback) {
 						if (result.length > 0)
 							return addMembersIter(i + 1, bigCallback);
 						
-						// TODO : ackStart should be coordinated
+						// TODO : ackStart in groupMembers table is deprecated
 						this.db.addGroupMember({groupId: groupId, userId: peer.id,
 							ackStart: 0}, callback);
 					},
@@ -501,6 +662,58 @@ var addMembers = function(data, userCallback) {
 	},
 	{db: data.db});
 };
+
+
+//when contact chat members changes, it's not contact chat anymore
+//input: data.groupId
+//output: contact
+var invalidateContactGroup = function(data, callback) {
+	var pattern;
+	
+	var groupId = data.groupId;
+	
+	if (data.trx)
+		pattern = dbManager.trxPattern;
+	else
+		pattern = dbManager.atomicPattern;
+	
+	pattern([
+		function(callback) {			
+			this.db.getContactByGroup({groupId: groupId, 
+				lock: true}, callback);
+		},
+		function(result, fields, callback) {
+			// if the group was for contact chat, it's not anymore
+			if (result.length > 0) {
+				var contact = result[0];
+				this.data.contact = contact;
+				
+				// set group id null
+				this.db.updateContactGroupChat({contactId: null,
+					groupId: groupId}, 
+					function(err, result, fields) {
+						callback(err, true, result);
+					});
+			} else 
+				callback(null, false, null);
+		},
+		// send any notifications
+		// this must be sent before commit
+		function(updated, result, callback) {
+			// when no such contact group or contact id for group is already null,
+			// affected rows is 0
+			if (updated && result.affectedRows == 0)
+				return callback(new Error('failed to update contact info'));
+			
+			callback(null);
+		}
+	],
+	function(err) {
+		callback(err, this.data.contact);
+	},
+	{db: data.db});
+};
+
 
 // create default group name
 var getDefaultGroupName = function(members) {

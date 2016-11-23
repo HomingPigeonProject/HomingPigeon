@@ -1,54 +1,43 @@
 // grab the room from the URL
 var room = location.search && location.search.split('?')[1];
 
-// create our webrtc connection
+// creates our webrtc connection
 var webrtc = new SimpleWebRTC({
-    // the id/element dom element that will hold "our" video
     localVideoEl: 'localVideo',
-    // the id/element dom element that will hold remote videos
     remoteVideosEl: '',
-    // immediately ask for camera access
     autoRequestMedia: true,
     debug: false,
     detectSpeakingEvents: true,
-
     enableDataChannels: true,
-
-
     url: "https://vps332892.ovh.net:8888/"
-
-    /* TODO
-    url: ,
-    socketio: ,
-    (connection): , ?
-    ...
-    */
 });
 
 
 if (room) {
-    // create the room
-    setRoom(room);
-    console.log("The room is : ", room)
+  // create the room
+  setRoom(room);
+  console.log("The room is : ", room)
 } else {
-    var f = document.getElementById("createRoom");
-    var sessionInput = document.getElementById("sessionInput");
+  /*
+  var f = document.getElementById("createRoom");
+  var sessionInput = document.getElementById("sessionInput");
 
-    $(f).submit(function () {
-        var val = $('#createRoomInput').val().toLowerCase().replace(/\s/g, '-').replace(/[^A-Za-z0-9_\-]/g, '');
-        webrtc.createRoom(val, function (err, name) {
-            console.log(' create room cb', arguments);
+  $(f).submit(function () {
+      var val = $('#createRoomInput').val().toLowerCase().replace(/\s/g, '-').replace(/[^A-Za-z0-9_\-]/g, '');
+      webrtc.createRoom(val, function (err, name) {
+          console.log('create room cb', arguments);
 
-            var newUrl = location.pathname + '?' + name;
-            if (!err) {
-                history.replaceState({foo: 'bar'}, null, newUrl);
-                setRoom(name);
-            } else {
-                console.log(err);
-            }
-        });
-        return false;
-    });
+          var newUrl = location.pathname + '?' + name;
+          if (!err) {
+              history.replaceState({foo: 'bar'}, null, newUrl);
+              setRoom(name);
+          } else {
+              console.log(err);
+          }
+      });
+      return false;
+  });
+  */
 }
 
 
@@ -104,21 +93,25 @@ SimpleWebRTC.prototype.sendMessage= function(msg, event , peer, opts){
   });
 };
 
-
 function sendMessage(msg) {
-  var date =  new Date();
 
-  //var dateString = date.getFullYear() + "/" + date.getMonth() + "/" + date.getDay() + " " + date.getHours() + ":" +date.getMinutes() + ":" + date.getSeconds() + " " +date.getTimezoneOffset();
-  var dateString = date.toLocaleString();
-  var author = username;
-  var importance = document.getElementById("importance-list").selectedIndex;
+  // check if the field is not empty
+  if ($('.messageInput').val() != "") {
+    var date =  new Date();
+
+    //var dateString = date.getFullYear() + "/" + date.getMonth() + "/" + date.getDay() + " " + date.getHours() + ":" +date.getMinutes() + ":" + date.getSeconds() + " " +date.getTimezoneOffset();
+    var dateString = date.toLocaleString();
+    var author = username;
+    var importance = document.getElementById("importance-list").selectedIndex;
 
 
-  // MESSAGE PROTOCOL
-  var toSend = dateString + "-" + author + "-" + importance + "-" + msg;
+    // MESSAGE PROTOCOL
+    var toSend = dateString + "-" + author + "-" + importance + "-" + msg;
 
-  webrtc.sendMessage(toSend);
-  displayMessage(msg, dateString, author, importance, 1);
+    webrtc.sendMessage(toSend);
+    displayMessage(msg, dateString, author, importance, 1);
+    $('.messageInput').val(''); //reset the messageInput
+  }
 }
 
 function receiveMessage(data) {
@@ -137,7 +130,6 @@ function receiveMessage(data) {
 function displayMessage(msg, date, author, importance, sender) {
     var ul = document.getElementById("chat-list");
     var li = document.createElement("li");
-
     var span = document.createElement("span");
 
     if (sender == 0) {
@@ -151,7 +143,7 @@ function displayMessage(msg, date, author, importance, sender) {
     }
 
         var img = document.createElement("img");
-        img.src = "http://placehold.it/50/FA6F57/fff";
+        img.src = "https://placehold.it/50/FA6F57/fff";
         img.alt = "User Avatar";
         img.className = "img-circle";
         span.appendChild(img);
@@ -219,6 +211,12 @@ document.getElementById("btn-chat").addEventListener("click", function() {
   sendMessage(msg);
 }, false);
 
+$(document).keypress(function(e) {
+  if (e.which == 13) {
+    var msg = document.getElementById("btn-input").value;
+    sendMessage(msg);
+  }
+});
 
 document.getElementById("imp-dl-btn").addEventListener("click", function() {
   var level = document.getElementById("importance-choice-dl").selectedIndex;
@@ -264,6 +262,27 @@ document.getElementById("imp-dl-btn").addEventListener("click", function() {
 
 }, false);
 
+/* ------------------- */
+/*    WebRTC Handlers  */
+/* ------------------- */
+
+function setRoom(name) {
+  var parent = document.getElementById("main");
+
+  /*
+
+  var child = document.getElementById("createRoom");
+  parent.removeChild(child);
+
+  child = document.getElementById("title");
+  parent.removeChild(child);
+
+  */
+
+  //$('#subTitle').text('Link to join: ' + location.href);
+  $('body').addClass('active');
+}
+
 // when it's ready, join if we got a room from the URL
 webrtc.on('readyToCall', function () {
     // you can name it anything
@@ -278,7 +297,6 @@ webrtc.on('readyToCall', function () {
 webrtc.on('channelMessage', function (peer, label, data) {
   // Only handle messages from your dataChannel
   if(label == 'messagechannel') {
-    console.log(data);
     receiveMessage(data);
   }
 });
@@ -324,27 +342,11 @@ webrtc.on('videoRemoved', function (video, peer) {
     }
 });
 
-
 webrtc.on('volumeChange', function (volume, treshold) {
     //console.log('own volume', volume);
     // TODO
     //showVolume(document.getElementById('localVolume'), volume);
 });
-
-function setRoom(name) {
-  var parent = document.getElementById("body");
-
-  var child = document.getElementById("createRoom");
-  parent.removeChild(child);
-
-  child = document.getElementById("title");
-  parent.removeChild(child);
-
-  //$('#subTitle').text('Link to join: ' + location.href);
-  $('body').addClass('active');
-}
-
-
 
 // File transfer
 webrtc.on('createdPeer', function (peer) {
@@ -424,7 +426,6 @@ webrtc.on('createdPeer', function (peer) {
         container.appendChild(connstate);
         peer.pc.on('iceConnectionStateChange', function (event) {
             var state = peer.pc.iceConnectionState;
-            console.log('state', state);
             container.className = 'peerContainer p2p' + state.substr(0, 1).toUpperCase()
                 + state.substr(1);
             switch (state) {

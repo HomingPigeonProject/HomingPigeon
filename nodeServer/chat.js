@@ -10,11 +10,10 @@
 /* User events 
  * name
  * newMessage
- * memberJoin
- * memberLeave
- * memberInvited
- * memberExit
+ * membersJoin
+ * membersLeave
  * messageAck
+ * messageAckUndo
  */
 
 var init = function(user) {
@@ -38,23 +37,6 @@ var chatRoomProto = {
 	// returns list of user connections
 	//console.log(server.io.sockets.adapter.rooms);
 	//var room = server.io.sockets.adapter.rooms[this.getRoomName()];
-	
-	// broadcast message to all other members
-	// input: data.user, data.content, data.importance, data.location
-	sendMessage: function(data, callback) {
-		var user = data.user;
-		var content = data.content || '';
-		var importance = data.importance || 0;
-		var location = data.location;
-		
-		var message = {groupId: this.groupId, userId: user.userId,
-				content: content, importance: importance, location: location};
-		
-		// broadcast message to all other users in chat
-		this.broadcast(user, 'newMessage', message);
-		
-		callback(null);
-	},
 	
 	// user broadcasts message to other users
 	// assumed the user is member of this group
@@ -81,14 +63,67 @@ var chatRoomProto = {
 		}
 	},
 	
-	// send ack to every online users
-	sendAck: function(data, callback) {
-		var ackFrom = data.ackFrom;
-		var ackTo = data.ackTo;
+	// broadcast message to all other members
+	// input: data.user, data.content, data.importance, data.location
+	sendMessage: function(data, callback) {
+		var user = data.user;
+		var content = data.content || '';
+		var importance = data.importance || 0;
+		var location = data.location;
+		var date = data.date;
 		
-		this.broadcastAll('messageAck', {ackFrom: ackFrom, ackTo: ackTo});
+		var message = {groupId: this.groupId, userId: user.userId, content: content, 
+				importance: importance, location: location, date: date};
+		
+		// broadcast message to all other users in chat
+		this.broadcast(user, 'newMessage', message);
 		
 		callback(null);
+	},
+	
+	// send ack to all user except users
+	sendAck: function(data, callback) {
+		var users = data.users;
+		var user = data.user;
+		var ackStart = data.ackStart || null;
+		var ackEnd = data.ackEnd || null;
+		
+		var message = {groupId: this.groupId, userId: user.userId,
+				ackStart: ackStart, ackEnd: ackEnd};
+		
+		// broadcast
+		this.broadcastFilter(function(user) {
+			if (users.indexOf(user) >= 0)
+				return true;
+			
+			return false;
+		}, 'messageAck', message);
+		
+		callback(null);
+	},
+	
+	// send undo ack to all users
+	// all sender user sessions must have left chat room
+	undoAcks: function(data, callback) {
+		var user = data.user;
+		var acks = data.acks;
+		var chatRoom = this;
+		var i = 0;
+		
+		if (acks.length == 0)
+			return callback(null);
+		
+		acks.forEach(function(ack) {
+			var message = {groupId: this.groupId, userId: user.userId,
+					ackStart: ack.ackStart, ackEnd: ack.ackEnd};
+			
+			// broadcast message to all users
+			chatRoom.broadcastAll('messageAckUndo', message);
+			
+			i++;
+			if(i == acks.length)
+				callback(null);
+		});
 	},
 	
 	printMembers: function() {
@@ -101,38 +136,43 @@ var chatRoomProto = {
 	},
 	
 	// input: data.users
+	// output: errSessions(if error, is list of sessions failed, otherwise null)
 	join: function(data, callback) {
-		var users = data.users;
+		var sessions = data.users;
 		var chatRoom = this;
 		var onlineMembers = this.onlineMembers;
+		var errSessions = [];
 		
 		var joinIter = function(i) {
-			if (i == users.length) {
+			if (i == sessions.length) {
 				// notify users
 				chatRoom.broadcastFilter(function(user) {
-					if (users.indexOf(user) >= 0)
+					if (sessions.indexOf(user) >= 0)
 						return true;
 					
 					return false;
 				},
 				'membersJoin',
-				{groupId: chatRoom.groupId, members: lib.filterUsersData(users)});
+				{groupId: chatRoom.groupId, members: lib.filterUsersData(sessions)});
 				
 				chatRoom.printMembers();
 				
-				return callback(null);
+				if (errSessions.length == 0)
+					return callback(null, null);
+				else
+					return callback(null, errSessions);
 			}
 			
-			var user = users[i];
+			var user = sessions[i];
 			
 			if (onlineMembers.indexOf(user) >= 0)
 				return joinIter(i + 1);
 			
 			user.join(chatRoom.getRoomName(), function(err) {
-				// ignore errors
-				if (err)
-					joinIter(i + 1);
-				else {
+				if (err) {
+					errSessions.push(user);
+				} else {
+					errSessions.push(user);
 					onlineMembers.push(user);
 					user.chatRooms.push(chatRoom);
 					
@@ -145,31 +185,36 @@ var chatRoomProto = {
 	},
 	
 	// input: data.users
+	// output: errSessions(if error, is list of sessions failed, otherwise null)
 	leave: function(data, callback) {
-		var users = data.users;
+		var sessions = data.users;
 		var chatRoom = this;
 		var onlineMembers = this.onlineMembers;
+		var errSessions = [];
 		
 		var leaveIter = function(i) {
-			if (i == users.length) {
+			if (i == sessions.length) {
 				// notify users
 				chatRoom.broadcastAll('membersLeave',
-						{groupId: chatRoom.groupId, members: lib.filterUsersData(users)});
+						{groupId: chatRoom.groupId, members: lib.filterUsersData(sessions)});
 				
 				chatRoom.printMembers();
 				
-				return callback(null);
+				if (errSessions.length == 0)
+					return callback(null, null);
+				else
+					return callback(null, errSessions);
 			}
 			
-			var user = users[i];
+			var user = sessions[i];
 			
 			if (onlineMembers.indexOf(user) < 0)
 				return leaveIter(i + 1);
 			
 			user.leave(chatRoom.getRoomName(), function(err) {
-				if (err)
-					leaveIter(i + 1);
-				else {
+				if (err) {
+					errSessions.push(user);
+				} else {
 					var memberIndex = onlineMembers.indexOf(user);
 					var chatRoomIndex = user.chatRooms.indexOf(chatRoom);
 					
@@ -182,68 +227,6 @@ var chatRoomProto = {
 		};
 		
 		leaveIter(0);
-	},
-	
-	// join chat and notify other members
-	// input: data.users
-	joinInvited: function(data, callback) {
-		var users = data.users;
-		var chatRoom = this;
-		var members = this.onlineMembers;
-		var sessions = session.getUsersSessions(users, true);
-		
-		var ackStart = data.ackStart;
-		
-		// TODO: include ack start
-		var sendMsg = {groupId: chatRoom.groupId, members: lib.filterUsersData(users)}
-		
-		async.waterfall([
-			function(callback) {
-				chatRoom.join(data, callback);
-			}
-		],
-		function(err) {
-			chatRoom.broadcastFilter(function(user) {
-				// don't send to invited users
-				if (users.indexOf(user) >= 0)
-					return true;
-				
-				// don't send to other sessions of invited users
-				if (sessions.indexOf(user) >= 0)
-					return true;
-				
-				return false;
-			},
-			'membersInvited',
-			sendMsg);
-			
-			callback(null);
-		});
-	},
-	
-	// user exits for every session and notify other members
-	// input: data.users
-	exit: function(data, callback) {
-		var users = data.users;
-		var chatRoom = this;
-		var sessions = session.getUsersSessions(users, true);
-		
-		var ackStart = data.ackStart;
-		var ackEnd = data.ackEnd;
-		
-		// TODO: include user ack information(start, end)
-		var sendMsg = {groupId: chatRoom.groupId, members: lib.filterUsersData(users)};
-		
-		async.waterfall([
-			function(callback) {
-				chatRoom.leave(data, callback);
-			}
-		],
-		function(err) {
-			chatRoom.broadcastAll('membersExit', sendMsg);
-			
-			callback(null);
-		});
 	},
 };
 
