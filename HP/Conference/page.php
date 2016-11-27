@@ -202,11 +202,53 @@
       <!---End of download summary option -->
 
       <div id="poll-div">
-         <button id="poll-create-button">Click me</button> 
-        <h3>Polls</h3>
+
+        <button id="poll-create-strawpoll" onclick="window.open('http://www.strawpoll.me/')">Create a strawpoll</button>
+
+        <form>
+          <input type="text" name="strawpollURL" placeholder="strawpoll id"></input>
+        </form>
+        <button id="link-poll">Link poll</button>
+
+        <br/>
+
+        <div id="strawpolls">
+
+        </div>
+
+        <iframe src="https://www.strawpoll.me/embed_1/11743469" style="width:680px;height:342px;border:0;">Loading poll...</iframe>
+
+
+
+    <!--
+
+    <iframe src="https://www.strawpoll.me/embed_1/11743469" style="width:680px;height:342px;border:0;">Loading poll...</iframe>
+    <iframe src="https://www.strawpoll.me/embed_1/11743492" style="width:680px;height:300px;border:0;">Loading poll...</iframe>
+
+
+
+
+         <button id="poll-create-start-button">Create a poll</button>
+
         <div id="poll-list-div">
 
         </div>
+
+        <div id="poll-creation-div">
+
+          <button id="poll-create-add-answer">Add answer</button>
+          <button id="poll-create-remove-answer">Remove answer</button>
+
+
+          <form id="poll-creation-form">
+            Question : <br/>
+            <input type="text" name="question"><br/>
+          </form>
+          <button id="poll-create-button">Create</button>
+        </div>
+
+    -->
+
       </div>
 
     </div>
