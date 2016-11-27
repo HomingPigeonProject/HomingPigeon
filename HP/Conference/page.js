@@ -1,3 +1,6 @@
+var concat = require('concat-stream');
+var strawpoll = require('strawpoll');
+
 // grab the room from the URL
 var room = location.search && location.search.split('?')[1];
 
@@ -136,6 +139,8 @@ function displayMessage(msg, date, author, importance, sender) {
       // not the sender : left
       span.className = "chat-img pull-left";
       li.className = "left clearfix";
+      // sound notification
+      notifySound();
     } else {
       // it is the sender's message : right
       span.className = "chat-img pull-right";
@@ -499,3 +504,38 @@ webrtc.on('createdPeer', function (peer) {
     });
 
 });
+
+
+
+
+function notifyMessage(message) {
+	message = message;
+
+  // Let's check if the browser supports notifications
+  if (!("Notification" in window)) {
+    alert("This browser does not support desktop notification");
+  }
+
+  // Let's check whether notification permissions have already been granted
+  else if (Notification.permission === "granted") {
+    // If it's okay let's create a notification
+    var notification = new Notification(message);
+  }
+
+  // Otherwise, we need to ask the user for permission
+  else if (Notification.permission !== 'denied') {
+    Notification.requestPermission(function (permission) {
+      // If the user accepts, let's create a notification
+      if (permission === "granted") {
+        var notification = new Notification(message);
+      }
+    });
+  }
+}
+
+// Notifications
+var audio = new Audio('notification.ogg');
+
+function notifySound() {
+	audio.play();
+}
