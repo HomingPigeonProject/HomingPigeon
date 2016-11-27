@@ -119,7 +119,7 @@ ALTER TABLE Contacts ADD CONSTRAINT Contacts_Accounts2 FOREIGN KEY (accountId2)
 ALTER TABLE Groups ADD INDEX Groups_ContactId_Id (contactId, id);
 
 ALTER TABLE Groups ADD CONSTRAINT Groups_ContactId FOREIGN KEY (contactId)
-    REFERENCES Contacts (id) ON UPDATE SET NULL ON DELETE SET NULL;
+    REFERENCES Contacts (id) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 -- GroupMembers
