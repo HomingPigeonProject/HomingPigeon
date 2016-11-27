@@ -11,6 +11,15 @@ var chatRoom = {
 	members: {},
 };
 
+
+
+var audio = new Audio('notification.ogg');
+
+function notifySound() {
+	audio.play();
+
+}
+
 /* ------------------------	*/
 /*			Event Listeners			*/
 /* ------------------------	*/
@@ -48,11 +57,11 @@ window.addEventListener('load', function() {
 			logined = true;
 
 			// HTML forms
-			$('#contactAddButton').click(function() {
+			$('#contactAddButton').unbind("click").bind("click", function() {
 				server.emit('addContact', { email: $('#contactInput').val() });
 				server.emit('getPendingContactList');
 			});
-			$('#createGroupButton').click(function () {
+			$('#createGroupButton').unbind("click").bind("click", function () {
 				server.emit('addGroup', {name: $('#createGroupNameInput').val(), members: new Array(me['email'])});
 				server.emit('getGroupList');
 			});
@@ -98,6 +107,7 @@ window.addEventListener('load', function() {
 		}
 	});
 	server.on('newContact', function(data) {
+		server.emit('getGroupList');
 		server.emit('getContactList');
 		server.emit('getPendingContactList');
 	});
@@ -152,28 +162,23 @@ window.addEventListener('load', function() {
 		// if message was sent for the chat
 		if (chatRoom.groupId == data.groupId) {
 			//console.log(chatRoom.members);
-			if (data.userId == me.userId)
+			if (data.userId == me.userId) {
 				addMyMessage(data.content, chatRoom.members[data.userId].nickname, new Date());
-			else
+			}	else {
 				addMessage(data.content, chatRoom.members[data.userId].nickname, new Date());
+			}
 		} else {
-			// else, it is a notification
+
 			var str = data.content;
 			if (chatRoom.members[data.userId] != undefined) {
 				str = chatRoom.members[data.userId].nickname + " \n" + str;
 			}
 			notifyMessage(str);
+			
+			// else, it is a notification
 			console.log('newMessage');
 			console.log(data);
 		}
-	});
-	server.on('membersJoin', function(data) {
-		console.log('membersJoin');
-		console.log(data);
-	});
-	server.on('membersLeave', function(data) {
-		console.log('membersLeave');
-		console.log(data);
 	});
 	server.on('membersInvited', function(data) {
 		console.log('membersInvited');
@@ -189,6 +194,7 @@ window.addEventListener('load', function() {
 	});
 	server.on('joinContactChat', function(data) {
 		if (data.status == 'success') {
+			groups.push(data);
 			console.log('contact chat created');
 			resetChatBox();
 			var groupId = data.groupId;
@@ -272,6 +278,7 @@ function printContactList(contacts, parentDiv, pending) {
 
 			var contactChatButton = document.createElement("button");
 			contactChatButton.className = "contactChatButton";
+			contactChatButton.onclick = "notifySound()";
 			contactChatButton.innerHTML = "join chat";
 			contactChatButton.id = contact['email'];
 			contactChatButton['data-groupId'] = contact['groupId'];
@@ -286,27 +293,27 @@ function printContactList(contacts, parentDiv, pending) {
 		parentDiv.appendChild(div);
 	}
 
-	$('.acceptContactButton').click(function() {
+	$('.acceptContactButton').unbind("click").bind("click", function() {
 		server.emit('acceptContact', {email: this.id});
 		server.emit('getPendingContactList'); // reload the pending contact list to remove
 		server.emit('getContactList'); // reload the contact list to include the new contact
 	});
-	$('.denyContactButton').click(function() {
+	$('.denyContactButton').unbind("click").bind("click", function() {
 		server.emit('denyContact', {email: this.id});
 		server.emit('getPendingContactList');
 	});
-	$('.removeContactButton').click(function(){
+	$('.removeContactButton').unbind("click").bind("click", function() {
 		server.emit('removeContact', {email: this.id});
 		server.emit('getContactList');
 	});
-	$('.contactChatButton').click(function() {
+	$('.contactChatButton').unbind("click").bind("click", function() {
 		resetChatBox();
 		var contactEmail = this.id;
 		var groupId = this['data-groupId'];
 		var nickName = this['data-nickname'];
 		if (!groupId) {
 			console.log("join contact chat");
-			server.emit('joinContactChat', { email: contactEmail});
+			server.emit('joinContactChat', {email: contactEmail});
 		} else {
 			setGroup(groupId);
 			server.emit('readMessage', {groupId: groupId});
@@ -383,7 +390,7 @@ function printGroupList(groups, parentDiv, pending) {
 		}
 
 	}
-	$('.groupChatButton').click(function() {
+	$('.groupChatButton').unbind("click").bind("click", function() {
 		resetChatBox();
 		var groupId = this.id;
 		var groupName = this["data-groupName"];
@@ -399,11 +406,11 @@ function printGroupList(groups, parentDiv, pending) {
 		              "</button>" +
 		            "</div>";
 	});
-	$('.exitGroupButton').click(function(){
+	$('.exitGroupButton').unbind("click").bind("click", function(){
 		server.emit('exitGroup', {groupId: this.id});
 		server.emit('getGroupList');
 	});
-	$('.addContactToGroupButton').click(function(){
+	$('.addContactToGroupButton').unbind("click").bind("click", function(){
 		var truc = new Array();
 		truc.push($(this).prev().val()); // the email given in the input field
 		server.emit('inviteGroupMembers', {groupId: this.id, members: truc});
@@ -583,12 +590,4 @@ function notifyMessage(message) {
       }
     });
   }
-}
-
-
-var audio = new Audio('notification.ogg');
-
-function notifySound() {
-	audio.play();
-
 }

@@ -1,6 +1,3 @@
-var concat = require('concat-stream');
-var strawpoll = require('strawpoll');
-
 // grab the room from the URL
 var room = location.search && location.search.split('?')[1];
 
@@ -96,7 +93,7 @@ SimpleWebRTC.prototype.sendMessage= function(msg, event , peer, opts){
   });
 };
 
-function sendMessage(msg) {
+function sendMessage(msg, type) {
 
   // check if the field is not empty
   if ($('.messageInput').val() != "") {
@@ -109,7 +106,7 @@ function sendMessage(msg) {
 
 
     // MESSAGE PROTOCOL
-    var toSend = dateString + "-" + author + "-" + importance + "-" + msg;
+    var toSend = dateString + "-" + author + "-" + importance + "-" + type + "-" + msg;
 
     webrtc.sendMessage(toSend);
     displayMessage(msg, dateString, author, importance, 1);
@@ -125,9 +122,12 @@ function receiveMessage(data) {
   var date = pre[0];
   var author = pre[1];
   var importance = pre[2];
-  var msg = pre.slice(3);
+  var type = pre[3];
+  var msg = pre.slice(4);
 
-  displayMessage(msg, date, author, importance, 0);
+  if (type == "msg") {
+    displayMessage(msg, date, author, importance, 0);
+  }
 }
 
 function displayMessage(msg, date, author, importance, sender) {
@@ -213,13 +213,13 @@ function displayMessage(msg, date, author, importance, sender) {
 
 document.getElementById("btn-chat").addEventListener("click", function() {
   var msg = document.getElementById("btn-input").value;
-  sendMessage(msg);
+  sendMessage(msg, "msg");
 }, false);
 
 $(document).keypress(function(e) {
   if (e.which == 13) {
     var msg = document.getElementById("btn-input").value;
-    sendMessage(msg);
+    sendMessage(msg, "msg");
   }
 });
 
@@ -294,7 +294,7 @@ webrtc.on('readyToCall', function () {
     if (room) webrtc.joinRoom(room);
     setTimeout(function(){
       // TODO : timeout ?
-      sendMessage(username + " just joined the conference");
+      sendMessage(username + " just joined the conference", "msg");
     }, 2000);
 
 });
@@ -539,3 +539,45 @@ var audio = new Audio('notification.ogg');
 function notifySound() {
 	audio.play();
 }
+
+// Polls
+/*
+jQuery('#poll-creation-div').toggle('show');
+
+jQuery(document).ready(function(){
+        jQuery('#poll-create-start-button').on('click', function(event) {
+             jQuery('#poll-creation-div').toggle('show');
+        });
+    });
+
+var answerCount = 0;
+var pollCreationForm = document.getElementById("poll-creation-form");
+var pollAnswersInput = new Array();
+
+document.getElementById("poll-create-add-answer").addEventListener("click", function() {
+  answerCount = answerCount + 1;
+  var newAnswerInput = document.createElement("input");
+  newAnswerInput.type="text";
+  newAnswerInput.name="a"+ answerCount;
+  pollAnswersInput.push(newAnswerInput);
+  pollCreationForm.appendChild(document.createElement('br'));
+  var name = document.createElement("p");
+  name.innerText = "a" + answerCount;
+  pollCreationForm.appendChild(name);
+  pollCreationForm.appendChild(newAnswerInput);
+});
+document.getElementById("poll-create-remove-answer").addEventListener("click", function() {
+  if (answerCount >= 2) {
+    pollCreationForm.removeChild(pollAnswersInput[pollAnswersInput.length -1]);
+    pollCreationForm.removeChild(pollCreationForm.lastChild);
+    pollCreationForm.removeChild(pollCreationForm.lastChild);
+    pollAnswersInput.pop();
+    answerCount = answerCount - 1;
+  }
+});
+
+var pollCreateButton = document.getElementById("poll-create-button");
+pollCreateButton.addEventListener("click", function() {
+
+});
+*/
