@@ -201,7 +201,17 @@
       </div>
       <!---End of download summary option -->
 
+      <div id="poll-div">
+         <button id="poll-create-button">Click me</button> 
+        <h3>Polls</h3>
+        <div id="poll-list-div">
+
+        </div>
+      </div>
+
     </div>
+
+
 
 
     <script type="text/javascript"></script>

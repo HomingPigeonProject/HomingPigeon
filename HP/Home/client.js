@@ -158,7 +158,12 @@ window.addEventListener('load', function() {
 				addMessage(data.content, chatRoom.members[data.userId].nickname, new Date());
 		} else {
 			// else, it is a notification
-			console.log('newMessage!!');
+			var str = data.content;
+			if (chatRoom.members[data.userId] != undefined) {
+				str = chatRoom.members[data.userId].nickname + " \n" + str;
+			}
+			notifyMessage(str);
+			console.log('newMessage');
 			console.log(data);
 		}
 	});
@@ -299,8 +304,6 @@ function printContactList(contacts, parentDiv, pending) {
 		var contactEmail = this.id;
 		var groupId = this['data-groupId'];
 		var nickName = this['data-nickname'];
-		console.log("the group id :");
-		console.log(groupId);
 		if (!groupId) {
 			console.log("join contact chat");
 			server.emit('joinContactChat', { email: contactEmail});
@@ -541,6 +544,7 @@ function addMyMessage(msg, name, date){
 }
 
 function addMessage(msg, name, date){
+	notifySound();
 	$('.chat').append(makeMessage(msg, name, date));/*'<div class="message"></p>' + name + ' : ' + msg +   '</p></div>');*/
 	$('.chatTog').animate({ scrollTop: 50000 }, 1);
 }
@@ -554,4 +558,37 @@ function sendMessage(){
       addMyMessage(content, me.nickname , new Date(), true);
       $('.messageInput').val(''); //reset the messageInput
     }
+}
+
+function notifyMessage(message) {
+	message = message;
+
+  // Let's check if the browser supports notifications
+  if (!("Notification" in window)) {
+    alert("This browser does not support desktop notification");
+  }
+
+  // Let's check whether notification permissions have already been granted
+  else if (Notification.permission === "granted") {
+    // If it's okay let's create a notification
+    var notification = new Notification(message);
+  }
+
+  // Otherwise, we need to ask the user for permission
+  else if (Notification.permission !== 'denied') {
+    Notification.requestPermission(function (permission) {
+      // If the user accepts, let's create a notification
+      if (permission === "granted") {
+        var notification = new Notification(message);
+      }
+    });
+  }
+}
+
+
+var audio = new Audio('notification.ogg');
+
+function notifySound() {
+	audio.play();
+
 }
