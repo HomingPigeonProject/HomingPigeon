@@ -247,7 +247,7 @@ var init = function(user) {
 				var ack, ack2;
 				var newAcks = [];
 				ack = result[0];
-				ack2 = result.length > 1 ? result[result.length - 1] : null;
+				ack2 = result.length > 1 ? result[result.length - 1] : ack;
 
 				// check if already acked
 				if (ack && ack.ackStart <= ackStart &&
@@ -263,7 +263,7 @@ var init = function(user) {
 					} else {
 						newAcks.push({ackStart: ackStart, ackEnd: ack.ackStart - 1});
 					}
-
+					
 					var curAckStart = ack.ackEnd + 1;
 					var curAckEnd;
 
@@ -282,7 +282,7 @@ var init = function(user) {
 
 						curAckStart = ack.ackEnd + 1;
 					}
-
+					
 					if (ack2.ackEnd >= ackEnd) {
 						mergedAckEnd = ack2.ackEnd;
 					} else {
@@ -800,9 +800,9 @@ module.exports = {init: init,
 
 
 //Léo try to communicate with Android
-server.on("askList",function(){
+/*server.on("askList",function(){
 		server.emit("onGetList","blabla");
-});
+});*/
 //end Android communication
 
 var session = require('./session');
