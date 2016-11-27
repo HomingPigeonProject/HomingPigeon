@@ -12,11 +12,14 @@
     <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <link href="bootstrap/css/landing-page.css" rel="stylesheet">
     <link href="bootstrap/font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
-    <link href="http://fonts.googleapis.com/css?family=Lato:300,400,700,300italic,400italic,700italic" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700,300italic,400italic,700italic" rel="stylesheet" type="text/css">
     <link href="bootstrap/dist/css/timeline.css" rel="stylesheet">
     <link href="bootstrap/dist/css/sb-admin-2.css" rel="stylesheet">
     <link href="bootstrap/metisMenu/dist/metisMenu.min.css" rel="stylesheet">
     <link href="bootstrap/morrisjs/morris.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src='https://maps.google.com/maps/api/js?sensor=false&libraries=places&key=AIzaSyA5WMwx4Wc9SvD-MdXgv4k8P71qBzlOQaQ'></script>
+    <script src="locationpicker.jquery.js"></script>
 
 </head>
 <body>
@@ -557,10 +560,6 @@ friend("Park","","Kaist");
 
 
 
-
-
-
-
 <div class="row">
 <div class="col-lg-7">
     <br/><br/>
@@ -578,11 +577,52 @@ friend("Park","","Kaist");
   width="600"
   height="450"
   frameborder="0" style="border:0"
-  src="https://www.google.com/maps/embed/v1/search?key=AIzaSyDvhhb3FV9damxkdZxZ4qXUCjJdpyPDlQc&q=Kaist" allowfullscreen>
+  src="https://www.google.com/maps/embed/v1/search?key=AIzaSyA5WMwx4Wc9SvD-MdXgv4k8P71qBzlOQaQ&q=Kaist" allowfullscreen>
 </iframe>
     </div>
 </div>
-<!-- Modal -->*/ ?>
+</div>*/ ?>
+<div class="col-lg-7">
+  </script>
+<div id="us6-example">
+    <div class="form-horizontal">
+        <div class="form-group">
+            <label class="col-sm-1 control-label"></label>
+            <div class="col-sm-5"><input type="text" class="form-control adress" id="us6-address"/></div>
+        </div>
+        <div id="us6" style="width: 550px; height: 400px;"></div>
+        <div class="clearfix">&nbsp;</div>
+        <div class="m-t-small">
+            <label class="p-r-small col-sm-1 control-label"></label>
+
+            <div class="col-sm-2"><input type="text" class="form-control long" style="width: 110px" id="us6-lat"/>
+            </div>
+            <label class="p-r-small col-sm-1 control-label"></label>
+
+            <div class="col-sm-2"><input type="text" class="form-control lat" style="width: 110px" id="us6-lon"/>
+            </div>
+        </div>
+        <div class="clearfix"></div>
+        <script>
+            $('#us6').locationpicker({
+                location: {
+                    latitude: 36.36939210000001,
+                    longitude: 127.36402489999999
+                },
+                radius: 0,
+                inputBinding: {
+                    latitudeInput: $('#us6-lat'),
+                    longitudeInput: $('#us6-lon'),
+                    radiusInput: $('#us6-radius'),
+                    locationNameInput: $('#us6-address')
+                },
+                markerInCenter: true,
+                enableAutocomplete: true
+            });
+        </script>
+    </div>
+</div>
+</div><?php/*
                 <div id="myModal" class="modal fade" role="dialog">
                   <div class="modal-dialog">
 
@@ -679,7 +719,7 @@ friend("Park","","Kaist");
 
 
 
-
+*/ ?>
 <?PHP/*
 
 <div class="col-lg-7">
@@ -783,7 +823,7 @@ friend("Park","","Kaist");
     <script src="bootstrap/js/bootstrap.min.js"></script>
     <script src="mainJQuery.js"></script>
     <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
-    <script src="server/script.js"></script> <!-- our script for the server--!>
+    <script src="server/script.js"></script>
 
 
 </body>
