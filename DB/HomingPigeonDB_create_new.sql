@@ -82,6 +82,7 @@ CREATE TABLE Localisations (
 
 CREATE TABLE Events (
     id int NOT NULL AUTO_INCREMENT,
+    name varchar(128) DEFAULT NULL,
     nbParticipants int NOT NULL DEFAULT 0,
     nbParticipantsMax int NOT NULL,
     length int NOT NULL,                       /* ??? */

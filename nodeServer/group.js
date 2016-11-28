@@ -92,7 +92,7 @@ function init(user) {
 					return callback(new Error('no group id'));
 				
 				// members should be array
-				if (isArray(members)) {
+				if (lib.isArray(members)) {
 					addMembers({db: this.db, groupId: groupId, user: user, 
 						members: members, trx: false}, callback);
 				} else {
@@ -498,7 +498,7 @@ var addGroup = function(data, callback) {
 			groupId = result[0].lastInsertId;
 			
 			// members should be array
-			if (isArray(members)) {
+			if (lib.isArray(members)) {
 				// add calling user as a member
 				if (!contains.call(members, user.email))
 					members.unshift(user.email);
@@ -737,13 +737,6 @@ var getDefaultGroupName = function(members) {
 	}
 	
 	return name;
-}
-
-var isArray = function(array) {
-	if (typeof array == 'object' && array.hasOwnProperty('length'))
-		return true;
-	
-	return false;
 }
 
 // refer to http://stackoverflow.com/questions/1181575/determine-whether-an-array-contains-a-value

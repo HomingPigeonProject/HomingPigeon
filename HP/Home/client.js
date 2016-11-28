@@ -174,7 +174,7 @@ window.addEventListener('load', function() {
 				str = chatRoom.members[data.userId].nickname + " \n" + str;
 			}
 			notifyMessage(str);
-			
+
 			// else, it is a notification
 			console.log('newMessage');
 			console.log(data);
@@ -205,7 +205,19 @@ window.addEventListener('load', function() {
 			console.log('failed to create contact chat');
 		}
 	});
+	server.on('getLocation',function(data){
+		$(".long").val(data.long);
+		$(".latt").val(data.latt);
+	});
 	reset();
+
+
+//clicks on the share position button
+$(".sharePosition").on('click', function(){
+	server.emit('sendPosition',{long: $(".long").val(), latt: $(".latt").val() }); //send share location event
+	server.emit('sendMessage', {groupId: chatRoom.groupId, content: "location shared", importance: 0, location: null} );
+	addMyMessage("location sent", me.nickname , new Date(), true); //send the message
+});
 
 	//click on the send button
 	$("#btn-chat").on('click', function(){

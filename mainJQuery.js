@@ -1,6 +1,6 @@
 //////////////FADE BG/////////////////////
 $(".bStartnow").on('click',function(){
-   $(".intro").fadeOut(800); 
+   $(".intro").fadeOut(800);
 });
 //////////////TOGGLE MAP/////////////////////
 $(".mapToggle").on('click',function(){
@@ -8,7 +8,7 @@ $(".mapToggle").on('click',function(){
 if($(".mapChevron").hasClass("fa-chevron-down")){
    $(".mapChevron").addClass("fa-chevron-right");
    $(".mapChevron").removeClass("fa-chevron-down");
-}   
+}
 else{
     $(".mapChevron").removeClass("fa-chevron-right");
    $(".mapChevron").addClass("fa-chevron-down");
@@ -30,7 +30,7 @@ $(".calendarToggle").on('click',function(){
 if($(".calendarChevron").hasClass("fa-chevron-down")){
    $(".calendarChevron").addClass("fa-chevron-right");
    $(".calendarChevron").removeClass("fa-chevron-down");
-}   
+}
 else{
     $(".calendarChevron").removeClass("fa-chevron-right");
    $(".calendarChevron").addClass("fa-chevron-down");
@@ -47,7 +47,7 @@ $(".questionToggle").on('click',function(){
 if($(".questionChevron").hasClass("fa-chevron-down")){
    $(".questionChevron").addClass("fa-chevron-right");
    $(".questionChevron").removeClass("fa-chevron-down");
-}   
+}
 else{
     $(".questionChevron").removeClass("fa-chevron-right");
    $(".questionChevron").addClass("fa-chevron-down");
@@ -64,19 +64,19 @@ $(".chatToggle").on('click',function(){
 if($(".chatChevron").hasClass("fa-chevron-down")){
    $(".chatChevron").addClass("fa-chevron-right");
    $(".chatChevron").removeClass("fa-chevron-down");
-}   
+}
 else{
     $(".chatChevron").removeClass("fa-chevron-right");
    $(".chatChevron").addClass("fa-chevron-down");
-}   
+}
 });
 //////////////CHAT2 TOGGLE/////////////////////
 $(".chat2Toggle").on('click',function(){
-   $(".chatTog2").toggle(); 
+   $(".chatTog2").toggle();
 if($(".chatChevron2").hasClass("fa-chevron-down")){
    $(".chatChevron2").addClass("fa-chevron-right");
    $(".chatChevron2").removeClass("fa-chevron-down");
-}   
+}
 else{
     $(".chatChevron2").removeClass("fa-chevron-right");
    $(".chatChevron2").addClass("fa-chevron-down");
