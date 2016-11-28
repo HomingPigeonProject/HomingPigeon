@@ -11,15 +11,6 @@ var chatRoom = {
 	members: {},
 };
 
-
-
-var audio = new Audio('notification.ogg');
-
-function notifySound() {
-	audio.play();
-
-}
-
 /* ------------------------	*/
 /*			Event Listeners			*/
 /* ------------------------	*/
@@ -530,7 +521,8 @@ function setGroup(groupId) {
 }
 
 function makeMyMessage(msg, name, date, importance) {
-	var r = '<li class="chatMessage right clearfix">' +
+	var id = date + "-" + name + "-" + importance + "-" + msg;
+	var r = '<li class="chatMessage right clearfix" ' + 'id="' + id +'">' +
 						'<span class="chat-img pull-right">' +
 							'<img src="https://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" />' +
 						'</span>' +
@@ -551,7 +543,8 @@ function makeMyMessage(msg, name, date, importance) {
 }
 
 function makeMessage(msg, name, date, importance) {
-	var r = '<li class="chatMessage left clearfix">' +
+	var id = date + "-" + name + "-" + importance + "-" + msg;
+	var r = '<li class="chatMessage left clearfix" ' + 'id="' + id + '">' +
 						'<span class="chat-img pull-left">' +
 							'<img src="https://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle"/> ' +
 						'</span>' +
@@ -584,7 +577,6 @@ function addMessage(msg, name, date, importance){
 	$('.chatTog').animate({ scrollTop: 50000 }, 1);
 }
 
-//verification if text is not null then send to server and write it locally
 function sendMessage(){
     if ($('.messageInput').val() != "" && logined){
 
@@ -598,6 +590,17 @@ function sendMessage(){
     }
 }
 
+/* ------------------------	*/
+/*			Notifications				*/
+/* ------------------------	*/
+var audio = new Audio('notification.ogg');
+
+// Notification audio
+function notifySound() {
+	audio.play();
+}
+
+// Notification text
 function notifyMessage(message) {
 	message = message;
 
@@ -622,6 +625,67 @@ function notifyMessage(message) {
     });
   }
 }
+
+/* ------------------------	*/
+/*			Downlad Summary			*/
+/* ------------------------	*/
+document.getElementById("imp-dl-btn").addEventListener("click", function() {
+	var level = document.getElementById("importance-choice-dl").selectedIndex;
+	console.log("level : " + level);
+
+	// selecting every message with the same importance or higher
+
+	var chatList = document.getElementById("ul-chatbox-messages");
+	var children = chatList.children;
+	var result = "";
+
+
+	for (var i = 0; i < children.length; i++) {
+		var item = children[i];
+		var data = item.id;
+		console.log("data : " + data);
+
+		var pre = data.split("-");
+		var importance = pre[2];
+		console.log("Importance : " + importance); // undefined
+
+		// selecting enough importance
+		if (importance >= level) {
+			// treatment
+			var date = pre[0];
+			var author = pre[1];
+			var msg = pre.slice(3);
+
+			var string =  'Date: "' + date + '" Author: "' + author + '" Importance: "' + importance + '" Message: "' + msg + '";' + "\r\n";
+      result += string;
+
+		}
+	}
+
+
+
+	var filename = "summary.txt";
+  var pom = document.createElement('a');
+  pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(result));
+  pom.setAttribute('download', filename);
+
+  if (document.createEvent) {
+    var event = document.createEvent('MouseEvents');
+    event.initEvent('click', true, true);
+    pom.dispatchEvent(event);
+  }
+  else {
+    pom.click();
+  }
+
+
+
+});
+
+/* ------------------------	*/
+/*			Location						*/
+/* ------------------------	*/
+
 function addLocation(location){
 	/*$('html, body').animate({
 			scrollTop: $(".shareLocation").offset().top

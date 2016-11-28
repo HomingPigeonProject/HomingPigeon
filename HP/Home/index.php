@@ -156,6 +156,23 @@
              </div>
            </div>
            <!-- End of Text chat -->
+           
+           <!--- Download summary -->
+           <div id="summary-option">
+
+             <form>
+               <select id="importance-choice-dl" size="1">
+                 <option>normal
+                 <option>important
+                 <option>very important
+               </select>
+             </form>
+             <button id="imp-dl-btn" type="submit">Download Summary</button>
+
+           </div>
+           <!---End of download summary option -->
+
+
 
       </div>
     </div>
