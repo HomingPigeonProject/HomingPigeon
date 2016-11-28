@@ -210,21 +210,30 @@ var queries = {
 			"(? <= ackStart <= ? + 1 or ? - 1 <= ackEnd <= ?) " +
 			"ORDER BY ackStart ",
 
-	getEventById: "SELECT * FROM Events WHERE id = ? ",
+	getEventById: "SELECT e.id as eventId, count(ep.accountId) as nbParticipants, " +
+			"e.nbParticipantsMax, e.date, e.description, e.groupId " +
+			"FROM EventParticipants ep RIGHT JOIN " +
+			"Events e ON e.id = ep.eventId " +
+			"WHERE e.id = ?  " +
+			"GROUP BY e.id ",
 
 	getEventListByUser: "SELECT e.id as eventId, count(*) as nbParticipants, " +
 			"e.nbParticipantsMax, e.date, e.description, e.groupId " +
 			"FROM EventParticipants ep RIGHT JOIN " +
 			"(SELECT * " +
 			"FROM Events e INNER JOIN EventParticipants ep ON e.id = ep.eventId " +
-			"WHERE ep.accountId = ?) e ON e.id = ep.eventId " +
-			"",
+			"WHERE ep.accountId = ? " +
+			"LOCK IN SHARE MODE) e ON e.id = ep.eventId " +
+			"GROUP BY e.id " +
+			"ORDER BY e.date desc ",
 
-	getEventParticipants: "SELECT a.id, a.email, a.nickname, a.picture, a.login " +
+	getEventParticipants: "SELECT a.id as userId, a.email, a.nickname, " +
+			"a.lastSeen, a.picture, a.login " +
 			"FROM Accounts a INNER JOIN " +
 			"(SELECT ep.accountId, ep.status " +
 			"FROM Events e INNER JOIN EventParticipants ep ON e.id = ep.eventId " +
-			"WHERE e.id = ?) p ON a.id = p.accountId ",
+			"WHERE e.id = ? " +
+			"LOCK IN SHARE MODE) p ON a.id = p.accountId ",
 
 	getEventParticipantNumber: "SELECT nbParticipants FROM Events WHERE id = ? ",
 
@@ -465,13 +474,13 @@ var dbPrototype = {
 	addEvent: function(data, callback)  {
 		this.conn.query(queries.addEvent,
 				{nbParticipants:0, nbParticipantsMax:data.nbParticipantsMax,
-			length:data.length, date:data.date, description:data.description,
+			length:0, date:data.date, description:data.description,
 			groupId:data.groupId}, callback);
 	},
 	addEventParticipant: function(data, callback)  {
 		this.conn.query(queries.addEventParticipant,
 				{eventId:data.eventId, accountId:data.userId,
-			status:data.status}, callback);
+			status:null}, callback);
 	},
 	removeUser: function(data, callback)  {
 		this.conn.query(queries.removeUser, [data.email], callback);
