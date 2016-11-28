@@ -600,7 +600,7 @@ friend("Park","","Kaist");
             <label class="col-sm-1 control-label"></label>
             <div class="col-sm-9"><input type="text" class="form-control adress" id="us6-address"/>
               <br/>
-              <button class="btn btn-primary">Share actual position</button>
+              <button class="btn btn-primary sharePosition">Share actual position</button>
             </div>
         </div>
         <div id="us6" style="width: 700px; height: 400px;"></div>

@@ -55,7 +55,7 @@
 
       <p>Signed in as <?php echo $_SESSION['usr_name']; ?></p>
       <form action="../logout.php">
-        <input type="submit" value="Log Out" />
+        <input type="submit" class="btn" value="Log Out" />
       </form>
 
     <?php } ?>
@@ -77,12 +77,12 @@
 
         <form>
           <input id="contactInput" type="text" placeholder="contact email"></input>
-          <button id="contactAddButton" type="button">add contact</button>
+          <button id="contactAddButton" class="btn" type="button">add contact</button>
         </form>
 
         <form>
           <input id="createGroupNameInput" type="text" placeholder="group name"></input>
-          <button id="createGroupButton" type="button">create group</button>
+          <button id="createGroupButton" class="btn" type="button">create group</button>
         </form>
       </div>
 

@@ -426,6 +426,11 @@ var init = function(user) {
 			}
 		});
 	});
+	//how to send location when we get it, we send it back to all the chatroom
+	user.on("shareLocation",function(data){
+		chatRoom.emit("getLocation",data);
+	});
+//end shareLocation
 };
 
 // init user when logined
