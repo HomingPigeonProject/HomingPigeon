@@ -228,41 +228,6 @@
 
     </div>
 
-
-    <!--
-
-    <iframe src="https://www.strawpoll.me/embed_1/11743469" style="width:680px;height:342px;border:0;">Loading poll...</iframe>
-    <iframe src="https://www.strawpoll.me/embed_1/11743492" style="width:680px;height:300px;border:0;">Loading poll...</iframe>
-
-
-
-
-         <button id="poll-create-start-button">Create a poll</button>
-
-        <div id="poll-list-div">
-
-        </div>
-
-        <div id="poll-creation-div">
-
-          <button id="poll-create-add-answer">Add answer</button>
-          <button id="poll-create-remove-answer">Remove answer</button>
-
-
-          <form id="poll-creation-form">
-            Question : <br/>
-            <input type="text" name="question"><br/>
-          </form>
-          <button id="poll-create-button">Create</button>
-        </div>
-
-    -->
-
-
-
-
-
-
     <script type="text/javascript"></script>
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
     <script src="latest-v2.js"></script>
