@@ -163,9 +163,13 @@ window.addEventListener('load', function() {
 		if (chatRoom.groupId == data.groupId) {
 			//console.log(chatRoom.members);
 			if (data.userId == me.userId) {
-				addMyMessage(data.content, chatRoom.members[data.userId].nickname, new Date());
+				addMyMessage(data.content, chatRoom.members[data.userId].nickname, new Date(), 0); // TODO
 			}	else {
-				addMessage(data.content, chatRoom.members[data.userId].nickname, new Date());
+				if (data.location =! null){
+					addLocation(data.location);
+					console.log("diplay the location");
+				}
+				addMessage(data.content, chatRoom.members[data.userId].nickname, new Date(), data.importance);
 			}
 		} else {
 
@@ -206,17 +210,29 @@ window.addEventListener('load', function() {
 		}
 	});
 	server.on('getLocation',function(data){
-		$(".long").val(data.long);
+		            $('html, body').animate({
+                    scrollTop: $(".shareLocation").offset().top
+                }, 2000);
+    $(".long").val(data.long);
 		$(".latt").val(data.latt);
+		console.log("we get those long and latt");
+		console.log(data.long);
+		console.log(data.latt);
 	});
 	reset();
 
 
 //clicks on the share position button
-$(".sharePosition").on('click', function(){
-	server.emit('sendPosition',{long: $(".long").val(), latt: $(".latt").val() }); //send share location event
-	server.emit('sendMessage', {groupId: chatRoom.groupId, content: "location shared", importance: 0, location: null} );
-	addMyMessage("location sent", me.nickname , new Date(), true); //send the message
+$(".shareLocation").on('click', function(){
+	$('html, body').animate({
+			scrollTop: $(".chat").offset().top
+	}, 200);
+	var long1 = $(".long").val().toString();
+	var latt1 = $(".latt").val().toString();
+	//server.emit('shareLocation',{long: long1, latt: latt1 }); //send share location event
+	console.log(""+long1+latt1+"");
+	server.emit('sendMessage', {groupId: chatRoom.groupId, content: "location shared", importance: 0, location: ""+long1+"+"+latt1+""} );
+	addMyMessage("location sent", me.nickname , new Date(), 0); //send the message
 });
 
 	//click on the send button
@@ -460,16 +476,16 @@ function addOldMessages(messages) {
 				j++;
 			else if (chatId < newId) {
 				if (newChat.userId == me.userId)
-					$(chat).append(makeMyMessage(content, me.nickname, date));
+					$(chat).append(makeMyMessage(content, me.nickname, date, newChat.importance));
 				else
-					$(chat).append(makeMessage(content, name, date));
+					$(chat).append(makeMessage(content, name, date, newChat.importance));
 			} else
 				continue;
 
 			if (newChat.userId == me.userId)
-				$(chat).append(makeMyMessage(content, me.nickname, date));
+				$(chat).append(makeMyMessage(content, me.nickname, date, newChat.importance));
 			else
-				$(chat).append(makeMessage(content, name, date));
+				$(chat).append(makeMessage(content, name, date, newChat.importance));
 
 		} while (chatId < newId);
 	}
@@ -483,9 +499,9 @@ function addOldMessages(messages) {
 		var name = chatRoom.members[newMessage.userId].nickname;
 
 		if (newMessage.userId == me.userId)
-			chat.prepend(makeMyMessage(content, me.nickname, date));
+			chat.prepend(makeMyMessage(content, me.nickname, date, newMessage.importance));
 		else
-			chat.prepend(makeMessage(content, name, date));
+			chat.prepend(makeMessage(content, name, date, newMessage.importance));
 
 		$('.chatTog').animate({ scrollTop: 50000 }, 1);
 	}
@@ -513,7 +529,7 @@ function setGroup(groupId) {
 	}
 }
 
-function makeMyMessage(msg, name, date) {
+function makeMyMessage(msg, name, date, importance) {
 	var r = '<li class="chatMessage right clearfix">' +
 						'<span class="chat-img pull-right">' +
 							'<img src="https://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" />' +
@@ -525,7 +541,7 @@ function makeMyMessage(msg, name, date) {
 								'</strong>' +
 								'<small class="text-muted">' +
 									'<i class="fa fa-clock-o fa-fw"></i> ' +
-									date.toLocaleString().toString() +
+									date.toLocaleString().toString() + " " + importance.toString() +
 								'</small>' +
 							'</div>' +
 							'<p>'+msg+'</p>' +
@@ -534,7 +550,7 @@ function makeMyMessage(msg, name, date) {
 	return r;
 }
 
-function makeMessage(msg, name, date) {
+function makeMessage(msg, name, date, importance) {
 	var r = '<li class="chatMessage left clearfix">' +
 						'<span class="chat-img pull-left">' +
 							'<img src="https://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle"/> ' +
@@ -546,7 +562,7 @@ function makeMessage(msg, name, date) {
 								'</strong>' +
 								'<small class="pull-right text-muted">' +
 									'<i class="fa fa-clock-o fa-fw">' + '</i>' +
-									date.toLocaleString().toString() +
+									date.toLocaleString().toString() + " " + importance.toString() +
 								'</small>' +
 							'</div>' +
 							'<p>' + msg + '</p>' +
@@ -557,24 +573,27 @@ function makeMessage(msg, name, date) {
 	return r;
 }
 
-function addMyMessage(msg, name, date){
-	$('.chat').append(makeMyMessage(msg, name, date));/*'<div class="message"></p>' + name + ' : ' + msg +   '</p></div>');*/
+function addMyMessage(msg, name, date, importance){
+	$('.chat').append(makeMyMessage(msg, name, date, importance));/*'<div class="message"></p>' + name + ' : ' + msg +   '</p></div>');*/
 	$('.chatTog').animate({ scrollTop: 50000 }, 1);
 }
 
-function addMessage(msg, name, date){
+function addMessage(msg, name, date, importance){
 	notifySound();
-	$('.chat').append(makeMessage(msg, name, date));/*'<div class="message"></p>' + name + ' : ' + msg +   '</p></div>');*/
+	$('.chat').append(makeMessage(msg, name, date, importance));/*'<div class="message"></p>' + name + ' : ' + msg +   '</p></div>');*/
 	$('.chatTog').animate({ scrollTop: 50000 }, 1);
 }
 
 //verification if text is not null then send to server and write it locally
 function sendMessage(){
     if ($('.messageInput').val() != "" && logined){
-    	var content = $('.messageInput').val();
-      server.emit('sendMessage', {groupId: chatRoom.groupId, content: content, importance: 0, location: null} );
 
-      addMyMessage(content, me.nickname , new Date(), true);
+			var importance = document.getElementById("importance-list").selectedIndex;
+
+    	var content = $('.messageInput').val();
+      server.emit('sendMessage', {groupId: chatRoom.groupId, content: content, importance: importance, location: null} );
+
+      addMyMessage(content, me.nickname , new Date(), importance);
       $('.messageInput').val(''); //reset the messageInput
     }
 }
@@ -602,4 +621,12 @@ function notifyMessage(message) {
       }
     });
   }
+}
+function addLocation(location){
+	/*$('html, body').animate({
+			scrollTop: $(".shareLocation").offset().top
+	}, 2000);*/
+	//location.match(/.{1,17}/g);
+//$(".long").val(locationString[0]);
+//$(".latt").val(locationString[1]);
 }

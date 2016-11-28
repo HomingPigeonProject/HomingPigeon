@@ -20,9 +20,8 @@
   <link href="../../bootstrap/metisMenu/dist/metisMenu.min.css" rel="stylesheet">
   <link href="../../bootstrap/morrisjs/morris.css" rel="stylesheet">
   <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
-  <script type="text/javascript" src='https://maps.google.com/maps/api/js?sensor=false&libraries=places&key=AIzaSyA5WMwx4Wc9SvD-MdXgv4k8P71qBzlOQaQ'></script>
+  <script type="text/javascript" src='https://maps.google.com/maps/api/js?libraries=places&key=AIzaSyA5WMwx4Wc9SvD-MdXgv4k8P71qBzlOQaQ'></script>
   <script src="../../locationpicker.jquery.js"></script>
-
   <link rel="stylesheet" type="text/css" href="style.css">
 
   <title>Home</title>
@@ -119,10 +118,12 @@
   </div>
 
   <div id="right">
+
+    <!-- Text chat -->
     <div id='chat'>
 
     <div class="col-lg-8">
-                <br/><br/><br/><br/>
+      <br/><br/><br/><br/>
       <div class="chat-panel panel panel-default">
         <div id="panel-heading" class="panel-heading">
             <i class="fa fa-comments fa-fw"></i> Chat
@@ -143,30 +144,43 @@
                <span class="input-group-btn">
                  <button class="btn btn-warning btn-sm" id="btn-chat">Send</button>
                </span>
+
+               <form>
+                 <select id="importance-list" size="1">
+                   <option>normal
+                   <option>important
+                   <option>very important
+                 </select>
+               </form>
+
              </div>
            </div>
+           <!-- End of Text chat -->
+
       </div>
     </div>
+  </div>
 
-    <div class="col-lg-7">
-      </script>
-      <br/><br/>
-      <div class="chat-panel panel panel-default">
-          <div class="panel-heading mapdiv">
-              <i class="fa fa-map fa-fw"></i> Map
-              <div class="btn-group pull-right">
-                  <button type="button" class="btn btn-default btn-xs mapToggle">
-                      <i class="fa fa-chevron-down mapChevron"></i>
-                  </button>
-              </div>
-          </div>
-    <div id="us6-example">
+<div>
+  <div class="col-lg-7"  width="700" height="400">
+    </script>
+    <br/><br/>
+    <div class="chat-panel panel panel-default">
+        <div class="panel-heading mapdiv">
+            <i class="fa fa-map fa-fw"></i> Map
+            <div class="btn-group pull-right">
+                <button type="button" class="btn btn-default btn-xs mapToggle">
+                    <i class="fa fa-chevron-down mapChevron"></i>
+                </button>
+            </div>
+        </div>
+      <div id="us6-example">
         <div class="form-horizontal map">
             <div class="form-group">
                 <label class="col-sm-1 control-label"></label>
                 <div class="col-sm-9"><input type="text" class="form-control adress" id="us6-address"/>
                   <br/>
-                  <button class="btn btn-primary">Share actual position</button>
+                  <button class="btn btn-primary shareLocation">Share actual position</button>
                 </div>
             </div>
             <div id="us6" style="width: 700px; height: 400px;"></div>
@@ -177,7 +191,7 @@
                 </div>
                 <label class="p-r-small col-sm-1 control-label"></label>
 
-                <div class="col-sm-2"><input type="text" class="form-control lat" style="width: 110px" id="us6-lon"/>
+                <div class="col-sm-2"><input type="text" class="form-control latt" style="width: 110px" id="us6-lon"/>
                 </div>
             </div>
             <div class="clearfix"></div>
@@ -199,12 +213,11 @@
                 });
             </script>
         </div>
-    </div>
-    </div>
-
-
-    </div>
+      </div>
   </div>
+</div>
+</div>
+
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
     <script src="../../bootstrap/js/jquery.js"></script>
     <script src='../../js/socket.io.js'></script>
