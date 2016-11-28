@@ -8,8 +8,8 @@ var async = require('async');
 var pool = mysql.createPool({
     host : 'localhost',
     port : 3306,
-    user : 'user',
-    password : 'HomingPigeon0!',
+    user : 'root',
+    password : 'team3',
     database:'HomingPigeon',
     connectionLimit:64,
     waitForConnections:true,
@@ -109,7 +109,7 @@ var queries = {
 			"Groups g ON gm.groupId = g.id " +
 			"WHERE g.id = ? " +
 			"LOCK IN SHARE MODE) g ON g.id = m.groupId ",
-			
+
 	getGroupOfUserById: "SELECT g.id as groupId, g.name, g.contactId, g.alias, " +
 			"g.nbMembers, max(m.date) as lastMessageDate, " +
 			"max(m.messageId) as lastMessageId " +
@@ -198,12 +198,12 @@ var queries = {
 			"WHERE groupId = ? and messageId >= ? " +
 			"ORDER BY messageId desc " +
 			"LIMIT ? ",
-			
+
 	getAcksOfGroupByUser: "SELECT ackStart, ackEnd " +
 			"FROM MessageAcks " +
 			"WHERE groupId = ? and accountId = ? " +
 			"ORDER BY ackStart ",
-			
+
 	getConflictingAcks: "SELECT * " +
 			"FROM MessageAcks " +
 			"WHERE groupId = ? and accountId = ? and " +
@@ -239,7 +239,7 @@ var queries = {
 	addGroupMember: "INSERT INTO GroupMembers SET ?",
 
 	addMessage: "INSERT INTO Messages SET ?",
-	
+
 	addMessageAck: "INSERT INTO MessageAcks SET ?",
 
 	addEvent: "INSERT INTO Events SET ?",
@@ -257,17 +257,17 @@ var queries = {
 			"or (accountId2 = ? and accountId = ? and accepted = 0)",
 
 	removeGroup: "DELETE FROM Groups WHERE id = ? ",
-	
+
 	removeGroupIfNoMember: "DELETE FROM Groups WHERE id = ? and not " +
 			"(SELECT count(*) " +
 			"FROM GroupMembers " +
 			"WHERE groupId = ?) ",
 
 	removeGroupMember: "DELETE FROM GroupMembers WHERE groupId = ? and accountId = ? ",
-	
+
 	removeAcksOfGroupByUser: "DELETE FROM MessageAcks " +
 			"WHERE groupId = ? and accountId = ? ",
-	
+
 	removeConflictingAcks: "DELETE FROM MessageAcks " +
 			"WHERE groupId = ? and accountId = ? and " +
 			"(? <= ackStart <= ? + 1 or ? - 1 <= ackEnd <= ?) ",
@@ -284,7 +284,7 @@ var queries = {
 
 	updateContactGroupChat: "UPDATE Groups SET contactId = ? " +
 			"WHERE id = ? ",
-			
+
 	updateMessageNbread: "UPDATE Messages SET nbread = nbread + (?) " +
 			"WHERE groupId = ? and ? <= messageId <= ? and accountId != ? ",
 
@@ -411,7 +411,7 @@ var dbPrototype = {
 	},
 	getConflictingAcks: function (data, callback) {
 		this.conn.query(selectLock(queries.getConflictingAcks, data),
-				[data.groupId, data.userId, 
+				[data.groupId, data.userId,
 					data.ackStart, data.ackEnd, data.ackStart, data.ackEnd], callback);
 	},
 	getEventById: function (data, callback) {
@@ -459,7 +459,7 @@ var dbPrototype = {
 	},
 	addMessageAck: function(data, callback)  {
 		this.conn.query(queries.addMessageAck,
-				{groupId:data.groupId, accountId:data.userId, 
+				{groupId:data.groupId, accountId:data.userId,
 			ackStart:data.ackStart, ackEnd:data.ackEnd}, callback);
 	},
 	addEvent: function(data, callback)  {
@@ -502,7 +502,7 @@ var dbPrototype = {
 	},
 	removeConflictingAcks: function(data, callback)  {
 		this.conn.query(queries.removeConflictingAcks,
-				[data.groupId, data.userId, 
+				[data.groupId, data.userId,
 					data.ackStart, data.ackEnd, data.ackStart, data.ackEnd], callback);
 	},
 	removeEvent: function(data, callback)  {
