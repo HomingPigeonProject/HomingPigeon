@@ -93,10 +93,11 @@ SimpleWebRTC.prototype.sendMessage= function(msg, event , peer, opts){
   });
 };
 
+
 function sendMessage(msg, type) {
 
   // check if the field is not empty
-  if ($('.messageInput').val() != "") {
+  if (msg != "") {
     var date =  new Date();
 
     //var dateString = date.getFullYear() + "/" + date.getMonth() + "/" + date.getDay() + " " + date.getHours() + ":" +date.getMinutes() + ":" + date.getSeconds() + " " +date.getTimezoneOffset();
@@ -108,8 +109,14 @@ function sendMessage(msg, type) {
     // MESSAGE PROTOCOL
     var toSend = dateString + "-" + author + "-" + importance + "-" + type + "-" + msg;
 
+
+
     webrtc.sendMessage(toSend);
-    displayMessage(msg, dateString, author, importance, 1);
+    if (type == "poll") {
+      console.log("send poll");
+    } else {
+      displayMessage(msg, dateString, author, importance, 1);
+    }
     $('.messageInput').val(''); //reset the messageInput
   }
 }
@@ -127,6 +134,9 @@ function receiveMessage(data) {
 
   if (type == "msg") {
     displayMessage(msg, date, author, importance, 0);
+  } else if (type == "poll") {
+    console.log("received poll");
+    setPoll(msg);
   }
 }
 
@@ -541,43 +551,24 @@ function notifySound() {
 }
 
 // Polls
-/*
-jQuery('#poll-creation-div').toggle('show');
 
-jQuery(document).ready(function(){
-        jQuery('#poll-create-start-button').on('click', function(event) {
-             jQuery('#poll-creation-div').toggle('show');
-        });
-    });
+function isInt(value) {
+  return !isNaN(value) && (function(x) { return (x | 0) === x; })(parseFloat(value))
+}
 
-var answerCount = 0;
-var pollCreationForm = document.getElementById("poll-creation-form");
-var pollAnswersInput = new Array();
+function setPoll(src) {
+  console.log("strawpoll: " + src);
+  var strawpoll1 = document.getElementById("strawpoll1");
+  strawpoll1.src = src;
+}
 
-document.getElementById("poll-create-add-answer").addEventListener("click", function() {
-  answerCount = answerCount + 1;
-  var newAnswerInput = document.createElement("input");
-  newAnswerInput.type="text";
-  newAnswerInput.name="a"+ answerCount;
-  pollAnswersInput.push(newAnswerInput);
-  pollCreationForm.appendChild(document.createElement('br'));
-  var name = document.createElement("p");
-  name.innerText = "a" + answerCount;
-  pollCreationForm.appendChild(name);
-  pollCreationForm.appendChild(newAnswerInput);
-});
-document.getElementById("poll-create-remove-answer").addEventListener("click", function() {
-  if (answerCount >= 2) {
-    pollCreationForm.removeChild(pollAnswersInput[pollAnswersInput.length -1]);
-    pollCreationForm.removeChild(pollCreationForm.lastChild);
-    pollCreationForm.removeChild(pollCreationForm.lastChild);
-    pollAnswersInput.pop();
-    answerCount = answerCount - 1;
+
+var linkPollButton = document.getElementById("link-poll-button");
+linkPollButton.addEventListener("click", function() {
+  var strawpollIdInput = document.getElementById("strawpoll-id-input").value;
+  if (isInt(strawpollIdInput)) {
+    var src = "https://www.strawpoll.me/embed_1/" + parseInt(strawpollIdInput).toString();
+    sendMessage(src, "poll");
+    setPoll(src);
   }
 });
-
-var pollCreateButton = document.getElementById("poll-create-button");
-pollCreateButton.addEventListener("click", function() {
-
-});
-*/

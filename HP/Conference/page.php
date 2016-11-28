@@ -200,24 +200,33 @@
 
       </div>
       <!---End of download summary option -->
+      <br/>
+
+      <br/>
+
+      <br/>
+
 
       <div id="poll-div">
 
         <button id="poll-create-strawpoll" onclick="window.open('http://www.strawpoll.me/')">Create a strawpoll</button>
 
-        <form>
-          <input type="text" name="strawpollURL" placeholder="strawpoll id"></input>
-        </form>
-        <button id="link-poll">Link poll</button>
+        <br/>
+        <input id="strawpoll-id-input" type="text" name="strawpollURL" placeholder="strawpoll id"></input>
+
+        <button id="link-poll-button">Link poll</button>
 
         <br/>
 
         <div id="strawpolls">
-
+          <iframe id="strawpoll1" style="width:680px;height:342px;border:0;">Loading poll...</iframe>
         </div>
 
-        <iframe src="https://www.strawpoll.me/embed_1/11743469" style="width:680px;height:342px;border:0;">Loading poll...</iframe>
 
+
+      </div>
+
+    </div>
 
 
     <!--
@@ -249,9 +258,7 @@
 
     -->
 
-      </div>
 
-    </div>
 
 
 
