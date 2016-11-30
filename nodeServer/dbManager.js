@@ -8,8 +8,8 @@ var async = require('async');
 var pool = mysql.createPool({
     host : 'localhost',
     port : 3306,
-    user : 'root',
-    password : 'team3',
+    user : 'user',
+    password : 'HomingPigeon0!',
     database:'HomingPigeon',
     connectionLimit:64,
     waitForConnections:true,
@@ -94,7 +94,6 @@ var queries = {
 			"(SELECT accountId as requestUserId, accountId2 as acceptUserId " +
 			"FROM Contacts  " +
 			"WHERE accountId = ? and accountId2 = ? and accepted = 0)) result ",
-
 
 	getContactByGroup: "SELECT c.accountId as userId, c.accountId2 as userId2, " +
 			"c.id as contactId, c.accepted, g.id as groupId " +
@@ -182,20 +181,37 @@ var queries = {
 			"WHERE g.id = ? " +
 			"LOCK IN SHARE MODE) m ON a.id = m.accountId ",
 
-	getGroupMemberNumber: "SELECT count(*) " +
-			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
-			"WHERE g.groupId = ? ",
+	getGroupMemberNumber: "SELECT count(accountId) as nbMembers" +
+			"FROM GroupMembers " +
+			"WHERE groupId = ? ",
 
-	getRecentMessages: "SELECT messageId, accountId as userId, groupId, " +
+	getLastMessageIdByGroupId: "SELECT max(messageId) as messageId " +
+			"FROM Messages WHERE GroupId = ? ",
+	
+	getLastMessage: "SELECT messageId, accountId as userId, groupId, " +
 			"content, date, importance, location, nbread, leftGroup " +
 			"FROM Messages " +
 			"WHERE groupId = ? " +
-			"ORDER BY id desc " +
+			"ORDER BY messageId desc " +
+			"LIMIT 1 ",
+			
+	getRecentMessages: "SELECT messageId, accountId as userId, groupId, " +
+			"content, date, importance, location, nbread, leftGroup " +
+			"FROM Messages " +
+			"WHERE groupId = ? and messageId >= " +
+			"(SELECT ackStart " +
+			"FROM GroupMembers " +
+			"WHERE groupId = ? and accountId = ?) " +
+			"ORDER BY messageId desc " +
 			"LIMIT ? ",
 
 	getMessagesFromId: "SELECT * " +
 			"FROM Messages " +
-			"WHERE groupId = ? and messageId >= ? " +
+			"WHERE groupId = ? and messageId <= ? " +
+			"and messageId >= " +
+			"(SELECT ackStart " +
+			"FROM GroupMembers " +
+			"WHERE groupId = ? and accountId = ?) " +
 			"ORDER BY messageId desc " +
 			"LIMIT ? ",
 
@@ -245,9 +261,13 @@ var queries = {
 
 	addGroup: "INSERT INTO Groups SET ?",
 
-	addGroupMember: "INSERT INTO GroupMembers SET ?",
+	addGroupMember: "INSERT INTO GroupMembers(groupId, accountId, ackStart) " +
+			"VALUES (?, IFNULL((SELECT max(messageId) + 1 FROM Messages WHERE groupId = ?), 1))",
 
-	addMessage: "INSERT INTO Messages SET ?",
+	addMessage: "INSERT INTO Messages(groupId, accountId, importance, " +
+			"content, location, date, nbread) " +
+			"VALUES(?, ?, ?, ?, ?, ?, " +
+			"(SELECT count(accountId) - 1 FROM GroupMembers WHERE groupId = ?)) ",
 
 	addMessageAck: "INSERT INTO MessageAcks SET ?",
 
@@ -295,7 +315,9 @@ var queries = {
 			"WHERE id = ? ",
 
 	updateMessageNbread: "UPDATE Messages SET nbread = nbread + (?) " +
-			"WHERE groupId = ? and ? <= messageId <= ? and accountId != ? ",
+			"WHERE groupId = ? and GREATEST(" +
+			"(SELECT ackStart FROM GroupMembers WHERE groupId = ? and accountId = ?), " +
+			"?) <= messageId and messageId <= ? and accountId != ? ",
 
 	lastInsertId: "SELECT LAST_INSERT_ID() as lastInsertId"
 };
@@ -406,13 +428,22 @@ var dbPrototype = {
 		this.conn.query(selectLock(queries.getGroupMemberNumber, data),
 				[data.groupId], callback);
 	},
+	getLastMessageIdByGroupId: function (data, callback) {
+		this.conn.query(selectLock(queries.getLastMessageIdByGroupId, data),
+				[data.groupId], callback);
+	},
+	getLastMessage: function (data, callback) {
+		this.conn.query(selectLock(queries.getLastMessage, data),
+				[data.groupId], callback);
+	},
 	getRecentMessages: function (data, callback) {
 		this.conn.query(selectLock(queries.getRecentMessages, data),
-				[data.groupId, data.nbMessages], callback);
+				[data.groupId, data.groupId, data.userId, data.nbMessages], callback);
 	},
 	getMessagesFromId: function (data, callback) {
 		this.conn.query(selectLock(queries.getMessagesFromId, data),
-				[data.groupId, data.startFrom, data.nbMessages], callback);
+				[data.groupId, data.startFrom, data.groupId, data.userId, 
+					data.nbMessages], callback);
 	},
 	getAcksOfGroupByUser: function (data, callback) {
 		this.conn.query(selectLock(queries.getAcksOfGroupByUser, data),
@@ -457,14 +488,12 @@ var dbPrototype = {
 	},
 	addGroupMember: function(data, callback)  {
 		this.conn.query(queries.addGroupMember,
-				{groupId:data.groupId, accountId:data.userId,
-			ackStart:data.ackStart}, callback);
+				[[data.groupId, data.userId], data.groupId], callback);
 	},
 	addMessage: function(data, callback)  {
 		this.conn.query(queries.addMessage,
-				{groupId:data.groupId, accountId:data.userId, nbread: data.nbread,
-			importance:data.importance, content:data.content,
-			location:data.location, date:data.date}, callback);
+				[data.groupId, data.userId, data.importance, 
+					data.content, data.location, data.date, data.groupId], callback);
 	},
 	addMessageAck: function(data, callback)  {
 		this.conn.query(queries.addMessageAck,
@@ -535,11 +564,13 @@ var dbPrototype = {
 	},
 	incrementMessageNbread: function(data, callback) {
 		this.conn.query(queries.updateMessageNbread,
-				[1, data.groupId, data.ackStart, data.ackEnd, data.userId], callback);
+				[1, data.groupId, data.groupId, data.userId, 
+					data.ackStart, data.ackEnd, data.userId], callback);
 	},
 	decrementMessageNbread: function(data, callback) {
 		this.conn.query(queries.updateMessageNbread,
-				[-1, data.groupId, data.ackStart, data.ackEnd, data.userId], callback);
+				[-1, data.groupId, data.groupId, data.userId, 
+					data.ackStart, data.ackEnd, data.userId], callback);
 	},
 	lastInsertId: function(callback)  {
 		this.conn.query(queries.lastInsertId, callback);

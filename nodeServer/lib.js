@@ -34,6 +34,13 @@ var filterGroupData = function(group) {
 		members: group.members, contactId: group.contactId || null};
 };
 
+var filterMessageData = function(message) {
+	return {groupId: message.groupId, messageId: message.messageId,
+		userId: message.userId, nbread: message.nbread, 
+		date: message.date, importance: message.importance,
+		content: message.content, location: message.location};
+};
+
 var isArray = function(array) {
 	if (array && typeof array == 'object' && array.hasOwnProperty('length'))
 		return true;
@@ -60,6 +67,7 @@ var containsUser = function(user, array) {
 module.exports = {filterUserData: filterUserData,
 		filterUsersData: filterUsersData,
 		filterGroupData: filterGroupData,
+		filterMessageData: filterMessageData,
 		isArray: isArray,
 		isDate: isDate,
 		containsUser: containsUser};

@@ -208,18 +208,19 @@ window.addEventListener('load', function() {
 		console.log('ack');
 		console.log(data);
 	});
-	server.on('messageAckUndo', function(data) {
-		console.log('undo ack');
-		console.log(data);
-	});
 	server.on('newMessage', function(data) {
 		// if message was sent for the chat
 		if (chatRoom.groupId == data.groupId) {
 			//console.log(chatRoom.members);
 			if (data.userId == me.userId)
-				addMyMessage(data.content, chatRoom.members[data.userId].nickname, data.date.toString());
-			else
-				addMessage(data.content, chatRoom.members[data.userId].nickname, data.date.toString());
+				addMyMessage(data.content, chatRoom.members[data.userId].nickname, data.date.toString(),
+						data.importance, data.nbread);
+			else {
+				addMessage(data.content, chatRoom.members[data.userId].nickname, data.date.toString(),
+						data.importance, data.nbread);
+				server.emit('ackMessage', {groupId: data.groupId,
+					ackStart: data.messageId, ackEnd: data.messageId});
+			}
 		} else {
 			var str = data.content;
 			if (chatRoom.members[data.userId] != undefined) {
@@ -232,21 +233,20 @@ window.addEventListener('load', function() {
 			console.log(data);
 		}
 	});
-	server.on('membersJoin', function(data) {
-		//console.log('membersJoin');
-		//console.log(data);
-	});
-	server.on('membersLeave', function(data) {
-		//console.log('membersLeave');
-		//console.log(data);
-	});
 	server.on('membersInvited', function(data) {
 		console.log('membersInvited');
 		console.log(data);
+		var group = getGroup(data.groupId);
+		
+		data.members.forEach(function(member) {
+			addMember(group, member);
+		});
 	});
 	server.on('membersExit', function(data) {
 		console.log('membersExit');
 		console.log(data);
+		var group = getGroup(data.groupId);
+		
 	});
 	server.on('exitGroup', function(data) {
 		if (data.status == 'success') {
@@ -388,20 +388,22 @@ function reset() {
 
 function addOldMessages(messages) {
 	var chats = $('.chat > .chatMessage');
-	var j = 0;
+	var j = messages.length - 1;
 
-	for (; j < messages.length; j++) {
+	for (; j >= 0; j--) {
 		var chat = $('.chat');
 		var newMessage = messages[j];
 
 		var content = newMessage.content;
 		var date = newMessage.date;
 		var name = chatRoom.members[newMessage.userId].nickname;
-
+		var importance = newMessage.importance;
+		var nbread = newMessage.importance;
+		
 		if (newMessage.userId == me.userId)
-			chat.prepend(makeMyMessage(content, me.nickname, date));
+			addMyMessage(content, me.nickname, date, importance, nbread);
 		else
-			chat.prepend(makeMessage(content, name, date));
+			addMessage(content, name, date, importance, nbread);
 
 		$('.chatTog').animate({ scrollTop: 50000 }, 1);
 	}
@@ -429,21 +431,75 @@ function setGroup(groupId) {
 	}
 }
 
-function makeMyMessage(msg, name, date) {
-	return '<li class="chatMessage right clearfix"><span class="chat-img pull-right"><img src="http://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" /></span><div class="chat-body clearfix"><div class="header"><strong class="pull-right primary-font">'+name+'</strong><small class="text-muted"><i class="fa fa-clock-o fa-fw"></i> '+date+'</small></div><p>'+msg+'</p></div></li>';
+function getGroup(groupId) {
+	for (var i in groups)
+		if (groups[i].groupId == groupId) {
+			return groups[i];
+		}
+	
+	return null;
 }
 
-function makeMessage(msg, name, date) {
-	return '<li class="chatMessage left clearfix"><span class="chat-img pull-left"><img src="http://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" /></span><div class="chat-body clearfix"><div class="header"><strong class="primary-font">'+name+'</strong><small class="pull-right text-muted"><i class="fa fa-clock-o fa-fw"></i>'+date+'</small></div><p>'+msg+'</p></div></li>';
+// add member to group
+function addMember(group, member) {
+	group.members.push(member);
+	if (chatRoom.groupId == group.groupId)
+		chatRoom.members[member.userId] = member;
 }
 
-function addMyMessage(msg, name, date){
-	$('.chat').append(makeMyMessage(msg, name, date));/*'<div class="message"></p>' + name + ' : ' + msg +   '</p></div>');*/
+function makeMyMessage(msg, name, date, importance, nread) {
+	var id = date + "-" + name + "-" + importance + "-" + msg;
+	var r = '<li class="chatMessage right clearfix" ' + 'id="' + id +'">' +
+						'<span class="chat-img pull-right">' +
+							'<img src="https://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" />' +
+						'</span>' +
+						'<div class="chat-body clearfix">' +
+							'<div class="header">' +
+								'<strong class="pull-right primary-font">' +
+									name +
+								'</strong>' +
+								'<small class="text-muted">' +
+									'<i class="fa fa-clock-o fa-fw"></i> ' +
+									date.toLocaleString().toString() + " " + importance.toString() +
+								'</small>' +
+							'</div>' +
+							'<p>'+msg+'</p>' +
+						'</div>' +
+					'</li>';
+	return r;
+}
+
+function makeMessage(msg, name, date, importance, nread) {
+	var id = date + "-" + name + "-" + importance + "-" + msg;
+	var r = '<li class="chatMessage left clearfix" ' + 'id="' + id + '">' +
+						'<span class="chat-img pull-left">' +
+							'<img src="https://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle"/> ' +
+						'</span>' +
+						'<div class="chat-body clearfix">' +
+							'<div class="header">' +
+								'<strong class="primary-font">' +
+									name +
+								'</strong>' +
+								'<small class="pull-right text-muted">' +
+									'<i class="fa fa-clock-o fa-fw">' + '</i>' +
+									date.toLocaleString().toString() + " " + importance.toString() +
+								'</small>' +
+							'</div>' +
+							'<p>' + msg + '</p>' +
+						'</div>' +
+					'</li>';
+
+
+	return r;
+}
+
+function addMyMessage(msg, name, date, importance, nread){
+	$('.chat').append(makeMyMessage(msg, name, date, importance, nread));
 	$('.chatTog').animate({ scrollTop: 50000 }, 1);
 }
 
-function addMessage(msg, name, date){
-	$('.chat').append(makeMessage(msg, name, date));/*'<div class="message"></p>' + name + ' : ' + msg +   '</p></div>');*/
+function addMessage(msg, name, date, importance, nread){
+	$('.chat').append(makeMessage(msg, name, date, importance, nread));
 	$('.chatTog').animate({ scrollTop: 50000 }, 1);
 }
 
@@ -451,10 +507,10 @@ function addMessage(msg, name, date){
 function sentMessage(){
     if ($('.messageInput').val() != "" && logined){
     	var content = $('.messageInput').val();
-      server.emit('sendMessage', {groupId: chatRoom.groupId, content: content, importance: 0, location: null} );
+      server.emit('sendMessage', {groupId: chatRoom.groupId, content: content, importance: 0, location: 'test'} );
 
-      addMyMessage(content, me.nickname , new Date().toString(), true);
-      $('.messageInput').val(''); //reset the messageInput
+      addMyMessage(content, me.nickname , new Date().toString(), 0, chatRoom.members.length - 1);
+      $('.messageInput').val('');
     }
 }
 

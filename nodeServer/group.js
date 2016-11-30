@@ -4,6 +4,8 @@
  */
 
 function init(user) {
+	// make sure client update group list on addGroup, joinContactChat, getGroupList
+	
 	/* User operations
 	 * name               arguments
 	 * getGroupList       
@@ -232,21 +234,9 @@ function init(user) {
 				this.db.getGroupMembers({groupId: groupId, lock: true}, callback);
 			},
 			function(result, fields, callback) {
-				this.data.totalMembers = result;
-				
-				//TODO: When user exits, dec nbread of all messages the user sent
-				//      when user invited, inc nbread of all messages the user sent
-				//      or don't do this and let this to be handled in client
-				//NOTE: What client has to do, 
-				//      When ack comes, increment nbread of messages in interval other than messages of sent user
-				//      When undo comes, decrement nbread of messages in interval other than messages of sent user
-				//      When user of message is not in group, ignore 1 nbread because it is by missing user 
-				//undoAcks({groupId: groupId, user: user}, callback);
-				callback(null);
-			},
-			function(callback) {
-				var totalMembers = this.data.totalMembers;
+				var totalMembers = result;
 				var contact = this.data.contact;
+				this.data.totalMembers = totalMembers;
 				
 				if (contact) {
 					// notify contact and the user
@@ -626,9 +616,7 @@ var addMembers = function(data, userCallback) {
 						if (result.length > 0)
 							return addMembersIter(i + 1, bigCallback);
 						
-						// TODO : ackStart in groupMembers table is deprecated
-						this.db.addGroupMember({groupId: groupId, userId: peer.id,
-							ackStart: 0}, callback);
+						this.db.addGroupMember({groupId: groupId, userId: peer.id}, callback);
 					},
 					function(result, fields, callback) {
 						if (result.affectedRows < 1)
