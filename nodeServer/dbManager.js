@@ -181,19 +181,17 @@ var queries = {
 			"WHERE g.id = ? " +
 			"LOCK IN SHARE MODE) m ON a.id = m.accountId ",
 
-	getGroupMemberNumber: "SELECT count(accountId) as nbMembers" +
+	getGroupMemberNumber: "SELECT count(accountId) as nbMembers " +
 			"FROM GroupMembers " +
 			"WHERE groupId = ? ",
 
 	getLastMessageIdByGroupId: "SELECT max(messageId) as messageId " +
 			"FROM Messages WHERE GroupId = ? ",
 	
-	getLastMessage: "SELECT messageId, accountId as userId, groupId, " +
+	getLastInsertMessage: "SELECT messageId, accountId as userId, groupId, " +
 			"content, date, importance, location, nbread, leftGroup " +
 			"FROM Messages " +
-			"WHERE groupId = ? " +
-			"ORDER BY messageId desc " +
-			"LIMIT 1 ",
+			"WHERE id = (SELECT last_insert_id()) ",
 			
 	getRecentMessages: "SELECT messageId, accountId as userId, groupId, " +
 			"content, date, importance, location, nbread, leftGroup " +
@@ -264,10 +262,9 @@ var queries = {
 	addGroupMember: "INSERT INTO GroupMembers(groupId, accountId, ackStart) " +
 			"VALUES (?, IFNULL((SELECT max(messageId) + 1 FROM Messages WHERE groupId = ?), 1))",
 
-	addMessage: "INSERT INTO Messages(groupId, accountId, importance, " +
+	addMessage: "INSERT INTO Messages(groupId, messageId, accountId, importance, " +
 			"content, location, date, nbread) " +
-			"VALUES(?, ?, ?, ?, ?, ?, " +
-			"(SELECT count(accountId) - 1 FROM GroupMembers WHERE groupId = ?)) ",
+			"VALUES(?, ?, ?, ?, ?, ?, ?, ?) ",
 
 	addMessageAck: "INSERT INTO MessageAcks SET ?",
 
@@ -432,9 +429,8 @@ var dbPrototype = {
 		this.conn.query(selectLock(queries.getLastMessageIdByGroupId, data),
 				[data.groupId], callback);
 	},
-	getLastMessage: function (data, callback) {
-		this.conn.query(selectLock(queries.getLastMessage, data),
-				[data.groupId], callback);
+	getLastInsertMessage: function (data, callback) {
+		this.conn.query(selectLock(queries.getLastInsertMessage, data), callback);
 	},
 	getRecentMessages: function (data, callback) {
 		this.conn.query(selectLock(queries.getRecentMessages, data),
@@ -492,8 +488,8 @@ var dbPrototype = {
 	},
 	addMessage: function(data, callback)  {
 		this.conn.query(queries.addMessage,
-				[data.groupId, data.userId, data.importance, 
-					data.content, data.location, data.date, data.groupId], callback);
+				[data.groupId, data.messageId, data.userId, data.importance, 
+					data.content, data.location, data.date, data.nbread], callback);
 	},
 	addMessageAck: function(data, callback)  {
 		this.conn.query(queries.addMessageAck,

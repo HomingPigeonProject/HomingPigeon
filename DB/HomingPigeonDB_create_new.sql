@@ -137,21 +137,15 @@ ALTER TABLE Messages ADD INDEX Messages_GroupId_Id (groupId, id);
 ALTER TABLE Messages ADD INDEX Messages_GroupId_Timestamp (groupId, date);
 ALTER TABLE Messages ADD INDEX Messages_GroupId_MessageId (groupId, messageId);
 
-ALTER TABLE Messages ADD CONSTRAINT Messages_Accounts FOREIGN KEY (accountId) 
-    REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
-
-ALTER TABLE Messages ADD CONSTRAINT Messages_GroupId FOREIGN KEY (groupId)
-    REFERENCES Groups (id) ON UPDATE CASCADE ON DELETE CASCADE;
+ALTER TABLE Messages ADD CONSTRAINT Messages_GroupId_Accounts FOREIGN KEY (groupId, accountId) 
+    REFERENCES GroupMembers (groupId, accountId) ON UPDATE CASCADE ON DELETE CASCADE;
     
 -- MessageAcks
 ALTER TABLE MessageAcks ADD INDEX MessageAcks_AckStart (ackStart, ackEnd);
 ALTER TABLE MessageAcks ADD INDEX MessageAcks_AckEnd (ackEnd, ackStart);
 
-ALTER TABLE MessageAcks ADD CONSTRAINT MessageAcks_Accounts FOREIGN KEY (accountId) 
-    REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
-    
-ALTER TABLE MessageAcks ADD CONSTRAINT MessageAcks_GroupId FOREIGN KEY(groupId)
-    REFERENCES Groups (id) ON UPDATE CASCADE ON DELETE CASCADE;
+ALTER TABLE MessageAcks ADD CONSTRAINT MessageAcks_GroupId_Accounts FOREIGN KEY (groupId, accountId) 
+    REFERENCES GroupMembers (groupId, accountId) ON UPDATE CASCADE ON DELETE CASCADE;
     
 -- Localisations
 ALTER TABLE Localisations ADD CONSTRAINT Localisations_EventId FOREIGN KEY (eventId)
@@ -170,13 +164,14 @@ ALTER TABLE Contacts ADD status TINYINT DEFAULT 0;
 ALTER TABLE GroupMembers ADD status TINYINT DEFAULT 0;
 
 -- Message trigger
+/*
 delimiter #
 
 create trigger Group_Message_Id before insert on Messages
 for each row
 begin
 declare mId int unsigned default 0;
-select if(max(messageId), max(messageId) + 1, 0) into mId from Messages where groupId = new.groupId;
+select if(max(messageId), max(messageId) + 1, 0) into mId from Messages where groupId = new.groupId lock in share mode;
   if not (mId > 0) then
     set mId = 1;
   end if;
@@ -184,3 +179,4 @@ select if(max(messageId), max(messageId) + 1, 0) into mId from Messages where gr
 end#
 
 delimiter ;
+*/

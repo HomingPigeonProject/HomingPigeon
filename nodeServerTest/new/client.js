@@ -35,6 +35,7 @@ window.addEventListener('load', function() {
 	server.on('disconnect', function() {
 		console.log('diconnected from server');
 		logined = false;
+		location.reload();
 	});
 	server.on('error', function() {
 		console.log('connection error');
@@ -143,8 +144,7 @@ window.addEventListener('load', function() {
 		}
 	});
 	server.on('readMessage', function(data) {
-		console.log('readMessage');
-		console.log(data);
+		console.log('readMessage', data);
 		if (data.status == 'success') {
 			addOldMessages(data.messages);
 		}
@@ -160,30 +160,33 @@ window.addEventListener('load', function() {
 		}
 	});
 	server.on('messageAck', function(data) {
-		console.log('ack');
-		console.log(data);
+		console.log('ack', data);
 		if (data.groupId == chatRoom.groupId) {
 			var ackStart = data.ackStart;
 			var ackEnd = data.ackEnd;
 			var messages = $('.chat > .chatMessage');
 			
 			var lastId = chatRoom.messageId;
-			for (var i = messages.length - 1; i >= 0; i--) {
+			//console.log('last id ' + lastId);
+			var i = messages.length - chatRoom.nbNotSent - 1;
+			for (; i >= 0; i--) {
 				var message = messages[i];
 				var userId = message.getAttribute('data-userId');
 				
-				if (lastId >= ackStart && lastId <= ackEnd) {
-					console.log('my id ' + me.userId + ' ack ' + data.userId + ' m ' + userId);
-					// decrement nbread when user id of message and user id of ack send is distinct
-					if (data.userId != userId) {
-						var nb = $(message).find('.nbread')[0];
-						var nbread = parseInt(nb.innerHTML);
-						
-						nb.innerHTML = --nbread;
-						
-						// if all member read, don't display nbread
-						if (nbread <= 0) {
-							nb.style.display = 'none';
+				if (lastId >= ackStart) {
+					//console.log('look' + (i + 1));
+					if (lastId <= ackEnd) {
+						// decrement nbread when user id of message and user id of ack send is distinct
+						if (data.userId != userId) {
+							var nb = $(message).find('.nbread')[0];
+							var nbread = parseInt(nb.innerHTML);
+							
+							nb.innerHTML = --nbread;
+							
+							// if all member read, don't display nbread
+							if (nbread <= 0) {
+								nb.style.display = 'none';
+							}
 						}
 					}
 				} else {
@@ -194,25 +197,24 @@ window.addEventListener('load', function() {
 		}
 	});
 	server.on('sendMessage', function(data) {
-		console.log('sendMessage');
-		console.log(data);
+		console.log('sendMessage', data);
 		if (data.status == 'success') {
 			// my message send, add message id
 			chatRoom.messageId++;
+			chatRoom.nbNotSent--;
 		}
 	});
 	server.on('newMessage', function(data) {
-		console.log('newMessage');
-		console.log(data);
+		console.log('newMessage', data);
 		// if message was sent for the chat
 		if (chatRoom.groupId == data.groupId) {
-			//console.log(chatRoom.members);
+			
+			chatRoom.messageId++;
+			
 			if (data.userId == me.userId) {
 				addMyMessage(data.content, chatRoom.members[data.userId].nickname, new Date(), 0, data.userId, data.nbread); // TODO
 			}	else {
 				addMessage(data.content, chatRoom.members[data.userId].nickname, new Date(), data.importance, data.userId, data.nbread);
-				
-				chatRoom.messageId++;
 				
 				// send ack to server
 				server.emit('ackMessage', {groupId: data.groupId,
@@ -235,8 +237,7 @@ window.addEventListener('load', function() {
 		}
 	});
 	server.on('membersInvited', function(data) {
-		console.log('membersInvited');
-		console.log(data);
+		console.log('membersInvited', data);
 		var group = getGroup(data.groupId);
 		
 		data.members.forEach(function(member) {
@@ -244,12 +245,10 @@ window.addEventListener('load', function() {
 		});
 	});
 	server.on('membersExit', function(data) {
-		console.log('membersExit');
-		console.log(data);
+		console.log('membersExit', data);
 	});
 	server.on('contactChatRemoved', function(data) {
-		console.log('contact chat removed');
-		console.log(data);
+		console.log('contact chat removed', data);
 	});
 	server.on('joinContactChat', function(data) {
 		if (data.status == 'success') {
@@ -559,6 +558,7 @@ function setGroup(groupId) {
 			chatRoom.groupId = groupId;
 			chatRoom.members = {};
 			chatRoom.nbMember = 0;
+			chatRoom.nbNotSent = 0;
 
 			for (var j = 0; j < members.length; j++) {
 				var member = members[j];
@@ -637,7 +637,9 @@ function sendMessage(){
     if ($('.messageInput').val() != "" && logined){
 		var importance = document.getElementById("importance-list").selectedIndex;
     	var content = $('.messageInput').val();
-	    server.emit('sendMessage', {groupId: chatRoom.groupId, content: content, importance: importance, location: null, sendId:11} );
+	    server.emit('sendMessage', {groupId: chatRoom.groupId, content: content, importance: importance, location: null, sendId:11});
+	    
+	    chatRoom.nbNotSent++;
 
 	    addMyMessage(content, me.nickname , new Date(), importance, me.userId, chatRoom.nbMember - 1);
 	    $('.messageInput').val(''); //reset the messageInput

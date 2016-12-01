@@ -177,17 +177,40 @@ var init = function(user) {
 
 		dbManager.trxPattern([
 			function(callback) {
+				// get group member count
+				this.db.getGroupMemberNumber({groupId: groupId, update: true}, callback)
+			},
+			function(result, fields, callback) {
+				if (result.length == 0)
+					return callback(new Error('failed to get group member count'));
+				
+				this.data.nbMembers = result[0].nbMembers;
+				
 				// check if the user is member of the group
 				this.db.getGroupMemberByUser({groupId: groupId, userId: user.userId,
-					lock: true}, callback);
+					update: true}, callback);
 			},
 			function(result, fields, callback) {
 				if (result.length == 0)
 					return callback(new Error('You are not member of the group'));
 				
+				this.db.getLastMessageIdByGroupId({groupId: groupId, update: true}, callback);
+			},
+			function(result, fields, callback) {
+				if (result.length == 0)
+					return callback(new Error('Failed to get message id'));
+				
+				var nbMembers = this.data.nbMembers;
+				var messageId = parseInt(result[0].messageId) + 1 || 1;
+				
+				console.log(messageId);
+				
 				var data = {groupId: groupId, userId: user.userId, content: content,
-						importance: importance, location: location, date: date};
-
+						importance: importance, location: location, date: date, 
+						nbread: nbMembers - 1, messageId: messageId};
+				
+				this.data.message = lib.filterMessageData(data);
+				
 				// save message in database
 				this.db.addMessage(data, callback);
 			},
@@ -195,22 +218,15 @@ var init = function(user) {
 				if (result.affectedRows == 0)
 					return callback(new Error('Failed to save in database'));
 				
-				// get message
-				this.db.getLastMessage({groupId: groupId, lock: true}, callback);
-			},
-			function(result, fields, callback) {
-				if (result.length != 1)
-					return callback('message get failed');
-				
 				// get active chat
 				var chatRoom = allChatRoom.get(groupId);
 
 				if (!chatRoom)
 					return callback(null);
 				
-				var data = lib.filterMessageData(result[0]);
+				var data = this.data.message;
 				data.user = user;
-			
+				
 				user.emit('sendMessage', {status: 'success', sendId: sendId, messageId: data.messageId, date:data.date});
 				
 				// broadcast message
@@ -251,7 +267,7 @@ var init = function(user) {
 			function(callback) {
 				// check if the user is member of the group
 				this.db.getGroupMemberByUser({groupId: groupId, userId: user.userId,
-					lock: true}, callback);
+					update: true}, callback);
 			},
 			function(result, fields, callback) {
 				if (result.length == 0)
