@@ -2,6 +2,7 @@
  * Group management
  * user can create group chat for 2 or more users
  */
+var dbManager = require('./dbManager');
 
 function init(user) {
 	// make sure client update group list on addGroup, joinContactChat, getGroupList
@@ -180,7 +181,7 @@ function init(user) {
 	});
 	
 	// the user exit from group
-	// TODO: when a user exit, messages of the user will not be shown to the other users anymore...
+	// TODO: when a user exit, messages of the user will be removed, can improve it.
 	user.on('exitGroup', function(data) {
 		if (!session.validateRequest('exitGroup', user, true, data))
 			return;
@@ -190,96 +191,7 @@ function init(user) {
 		if (groupId !== groupId)
 			return;
 		
-		dbManager.trxPattern([
-			function(callback) {
-				this.db.getGroupMemberByUser({groupId: groupId, 
-					userId: user.userId, lock: true}, callback);
-			},
-			function(result, fields, callback) {
-				if (result.length == 0) {
-					return callback(new Error('You are already not in group'));
-				}
-				
-				// leave group chat
-				chatManager.leaveGroupChat({groupId: groupId, users: [user],
-					db: this.db}, callback);
-			},
-			function(errSessions, callback) {
-				if (errSessions)
-					chatManager.chatTryer.pushSessions(groupId, errSessions, false);
-				
-				this.db.removeGroupMember({groupId: groupId, 
-					userId: user.userId}, callback);
-			},
-			function(result, fields, callback) {
-				if (result.affectedRows === 0) {
-					return callback(new Error('failed to remove user from group'));
-				}
-				
-				invalidateContactGroup({groupId: groupId, db: this.db}, 
-						callback);
-			},
-			function(contact, callback) {
-				this.data.contact = contact;
-				
-				// remove group if there's no member in group
-				this.db.removeGroupIfNoMember({groupId: groupId, lock: true}, 
-						callback);
-			},
-			function(result, fields, callback) {
-				if (result.affectedRows > 0)
-					console.log('group ' + groupId + ' is removed from db');
-				
-				// get group member info
-				this.db.getGroupMembers({groupId: groupId, lock: true}, callback);
-			},
-			function(result, fields, callback) {
-				var totalMembers = result;
-				var contact = this.data.contact;
-				this.data.totalMembers = totalMembers;
-				
-				if (contact) {
-					// notify contact and the user
-					var sessions = session.getUsersSessions([{userId: contact.userId}, 
-						{userId: contact.userId2}]);
-					
-					for (var i = 0; i < sessions.length; i++) {
-						var contactUser = sessions[i];
-						
-						contactUser.emit('contactChatRemoved', {contactId: contact.contactId});
-					}
-				}
-				
-				// notify remaining users
-				var totalSessions = session.getUsersSessions(totalMembers);
-				
-				// notify every online member
-				for (var i = 0; i < totalSessions.length; i++) {
-					var userSession = totalSessions[i];
-					
-					// TODO: include user ack information(start, end)
-					userSession.emit('membersExit', {groupId: groupId, 
-						members: user.getUserInfo()});
-				}
-				
-				// notify the user
-				var sessions = session.getUserSessions(user);
-				
-				for(var i = 0; i < sessions.length; i++) {
-					var userSession = sessions[i];
-					
-					userSession.emit('exitGroup', {status: 'success', groupId: groupId});
-				}
-				
-				callback(null);
-			}
-		],
-		function(err) {
-			if (err) {
-				console.log('failed to exit from group\r\n' + err);
-				user.emit('exitGroup', {status: 'fail', errorMsg:'server error'});
-			}
-		});
+		exitGroup({groupId: groupId, user: user, trx: true});
 	});
 }
 
@@ -651,6 +563,102 @@ var addMembers = function(data, userCallback) {
 	{db: data.db});
 };
 
+var exitGroup = dbManager.composablePattern(function(pattern, callback) {
+	var groupId = this.data.groupId;
+	var user = this.data.user;
+	
+	pattern([
+		function(callback) {
+			this.db.getGroupMemberByUser({groupId: groupId, 
+				userId: user.userId, lock: true}, callback);
+		},
+		function(result, fields, callback) {
+			if (result.length == 0) {
+				return callback(new Error('You are already not in group'));
+			}
+			
+			// leave group chat
+			chatManager.leaveGroupChat({groupId: groupId, users: [user],
+				db: this.db}, callback);
+		},
+		function(errSessions, callback) {
+			if (errSessions)
+				chatManager.chatTryer.pushSessions(groupId, errSessions, false);
+			
+			this.db.removeGroupMember({groupId: groupId, 
+				userId: user.userId}, callback);
+		},
+		function(result, fields, callback) {
+			if (result.affectedRows === 0) {
+				return callback(new Error('failed to remove user from group'));
+			}
+			
+			invalidateContactGroup({groupId: groupId, db: this.db}, 
+					callback);
+		},
+		function(contact, callback) {
+			this.data.contact = contact;
+			
+			// remove group if there's no member in group
+			this.db.removeGroupIfNoMember({groupId: groupId, lock: true}, 
+					callback);
+		},
+		function(result, fields, callback) {
+			if (result.affectedRows > 0)
+				console.log('group ' + groupId + ' is removed from db');
+			
+			// get group member info
+			this.db.getGroupMembers({groupId: groupId, lock: true}, callback);
+		},
+		function(result, fields, callback) {
+			var totalMembers = result;
+			var contact = this.data.contact;
+			this.data.totalMembers = totalMembers;
+			
+			if (contact) {
+				// notify contact and the user
+				var sessions = session.getUsersSessions([{userId: contact.userId}, 
+					{userId: contact.userId2}]);
+				
+				for (var i = 0; i < sessions.length; i++) {
+					var contactUser = sessions[i];
+					
+					contactUser.emit('contactChatRemoved', {contactId: contact.contactId});
+				}
+			}
+			
+			// notify remaining users
+			var totalSessions = session.getUsersSessions(totalMembers);
+			
+			// notify every online member
+			for (var i = 0; i < totalSessions.length; i++) {
+				var userSession = totalSessions[i];
+				
+				userSession.emit('membersExit', {groupId: groupId, 
+					members: user.getUserInfo()});
+			}
+			
+			// notify the user
+			var sessions = session.getUserSessions(user);
+			
+			for(var i = 0; i < sessions.length; i++) {
+				var userSession = sessions[i];
+				
+				userSession.emit('exitGroup', {status: 'success', groupId: groupId});
+			}
+			
+			callback(null);
+		}
+	],
+	function(err) {
+		if (err) {
+			console.log('failed to exit from group\r\n' + err);
+			user.emit('exitGroup', {status: 'fail', errorMsg:'server error'});
+		}
+		
+		callback(err);
+	});
+});
 
 //when contact chat members changes, it's not contact chat anymore
 //input: data.groupId
@@ -759,10 +767,10 @@ module.exports = {init: init,
 		startNewGroup: startNewGroup,
 		getGroupList: getGroupList,
 		addGroup: addGroup,
-		addMembers: addMembers,};
+		addMembers: addMembers,
+		exitGroup: exitGroup,};
 
 var session = require('./session');
-var dbManager = require('./dbManager');
 var chatManager = require('./chatManager');
 var lib = require('./lib');
 var async = require('async');

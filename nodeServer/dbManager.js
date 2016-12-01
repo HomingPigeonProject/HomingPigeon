@@ -241,6 +241,10 @@ var queries = {
 			"GROUP BY e.id " +
 			"ORDER BY e.date desc ",
 
+	getEventParticipantByUser: "SELECT eventId, accountId, status " +
+			"FROM EventParticipants " +
+			"WHERE eventId = ? and accountId = ? ",
+			
 	getEventParticipants: "SELECT a.id as userId, a.email, a.nickname, " +
 			"a.lastSeen, a.picture, a.login " +
 			"FROM Accounts a INNER JOIN " +
@@ -457,6 +461,10 @@ var dbPrototype = {
 	getEventListByUser: function (data, callback) {
 		this.conn.query(selectLock(queries.getEventListByUser, data),
 				[data.userId], callback);
+	},
+	getEventParticipantByUser: function (data, callback) {
+		this.conn.query(selectLock(queries.getEventParticipantByUser, data),
+				[data.eventId, data.userId], callback);
 	},
 	getEventParticipants: function (data, callback) {
 		this.conn.query(selectLock(queries.getEventParticipants, data),
@@ -805,17 +813,45 @@ var trxPattern2 = function(userFuncs, userEndFunc, config) {
 	pattern.init.apply(pattern, arguments).run();
 }
 
-var pattern = function(data) {
-	if (trx)
-		pattern = dbManager.trxPattern;
-	else
-		pattern = dbManager.atomicPattern;
+// pattern that can be configured and used as subroutine of 
+// other composable or not composable patterns
+var composablePattern = function(wrap) {
+	// preserved attributes of data : trx, db, callback
+	var ret = function(data, callback) {
+		var pattern;
+		
+		if (data.trx)
+			pattern = trxPattern;
+		else
+			pattern = atomicPattern;
+		
+		if (!callback) {
+			callback = function (err) {};
+		}
+		
+		var start = function(funcs, callbackIn) {
+			// first function will set data
+			funcs.unshift(function(callback) {
+				this.data = data;
+				this.data.callback = callback;
+				
+				callback(null);
+			});
+			
+			pattern(funcs, callbackIn, {db: data.db});
+		}
+		
+		wrap.call({data: data}, start, callback);
+	}
+	
+	return ret;
 }
 
 module.exports = {
 	getConnection: getConnection,
 	atomicPattern: atomicPattern,
 	trxPattern: trxPattern,
+	composablePattern: composablePattern
 };
 
 // test codes

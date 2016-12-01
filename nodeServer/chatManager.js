@@ -2,8 +2,8 @@
  * Chat manager
  * user can join or exit contact chat, group chat
  */
-
 var rbTree = require('./RBTree');
+var dbManager = require('./dbManager');
 
 // set of active chats
 var allChatRoom = rbTree.createRBTree();
@@ -844,7 +844,6 @@ module.exports = {init: init,
 //end Android communication
 
 var session = require('./session');
-var dbManager = require('./dbManager');
 var group = require('./group');
 var chat = require('./chat');
 var lib = require('./lib');

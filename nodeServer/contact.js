@@ -2,6 +2,7 @@
  * Contact list management
  * a user can add, remove contacts and get contact list
  */
+var dbManager = require('./dbManager');
 
 var init = function(user) {
 	/* User operations
@@ -373,5 +374,4 @@ module.exports = {init: init,
 
 var session = require('./session');
 var lib = require('./lib');
-var dbManager = require('./dbManager');
 var async = require('async');

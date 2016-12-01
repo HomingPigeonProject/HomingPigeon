@@ -155,8 +155,6 @@ window.addEventListener('load', function() {
 				ackStart: ackStart, ackEnd: ackEnd});
 			
 			chatRoom.messageId = data.messages[0].messageId;
-		} else{
-			chatRoom.messageId = 0;
 		}
 	});
 	server.on('messageAck', function(data) {
@@ -200,7 +198,11 @@ window.addEventListener('load', function() {
 		console.log('sendMessage', data);
 		if (data.status == 'success') {
 			// my message send, add message id
-			chatRoom.messageId++;
+			if (chatRoom.messageId > 0)
+				chatRoom.messageId++;
+			else
+				chatRoom.messageId = data.messageId;
+			
 			chatRoom.nbNotSent--;
 		}
 	});
@@ -209,7 +211,10 @@ window.addEventListener('load', function() {
 		// if message was sent for the chat
 		if (chatRoom.groupId == data.groupId) {
 			
-			chatRoom.messageId++;
+			if (chatRoom.messageId > 0)
+				chatRoom.messageId++;
+			else
+				chatRoom.messageId = data.messageId;
 			
 			if (data.userId == me.userId) {
 				addMyMessage(data.content, chatRoom.members[data.userId].nickname, new Date(), 0, data.userId, data.nbread); // TODO
@@ -227,13 +232,17 @@ window.addEventListener('load', function() {
 				}
 			}
 		} else {
-			var str = data.content;
-			if (chatRoom.members[data.userId] != undefined) {
-				str = chatRoom.members[data.userId].nickname + " \n" + str;
-			}
-			notifyMessage(str);
-
 			// else, it is a notification
+			var content = data.content;
+			var group = getGroup(data.groupId);
+			var member = getMemberFromGroup(group, data.userId);
+			var name = '';
+			var picture = '';
+			if (member) {
+				name = member.nickname;
+				picture = member.picture;
+			}
+			notifyMessage(name, picture, content);
 		}
 	});
 	server.on('membersInvited', function(data) {
@@ -546,6 +555,19 @@ function addMember(group, member) {
 	}
 }
 
+function getMemberFromGroup(group, userId) {
+	if (!group)
+		return null;
+	
+	for (var i = 0; i < group.members.length; i++) {
+		var member = group.members[i];
+		
+		if (member.userId == userId)
+			return member;
+	}
+	
+	return null;
+}
 
 // find group and set for chat
 function setGroup(groupId) {
@@ -557,6 +579,7 @@ function setGroup(groupId) {
 
 			chatRoom.groupId = groupId;
 			chatRoom.members = {};
+			chatRoom.messageId = 0;
 			chatRoom.nbMember = 0;
 			chatRoom.nbNotSent = 0;
 
@@ -657,7 +680,9 @@ function notifySound() {
 }
 
 // Notification text
-function notifyMessage(message) {
+function notifyMessage(name, picture, message) {
+	name = name;
+	picture = picture || 'https://placehold.it/50/55C1E7/fff';
 	message = message;
 
   // Let's check if the browser supports notifications
@@ -668,8 +693,8 @@ function notifyMessage(message) {
   // Let's check whether notification permissions have already been granted
   else if (Notification.permission === "granted") {
     // If it's okay let's create a notification
-    var notification = new Notification(message);
-    setTimeout(function() { notification.close() }, 2000);
+	  var notification = new Notification(name, {icon: picture, body: message});
+    setTimeout(function() { notification.close() }, 4000);
   }
 
   // Otherwise, we need to ask the user for permission
@@ -677,8 +702,8 @@ function notifyMessage(message) {
     Notification.requestPermission(function (permission) {
       // If the user accepts, let's create a notification
       if (permission === "granted") {
-        var notification = new Notification(message);
-        setTimeout(function() { notification.close() }, 2000);
+        var notification = new Notification(name, {icon: picture, body: message});
+        setTimeout(function() { notification.close() }, 4000);
       }
     });
   }

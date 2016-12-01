@@ -3,6 +3,7 @@
  * user can create, check events
  * when time for event comes, group for event is created
  */
+var dbManager = require('./dbManager');
 
 function init(user) {
 	// read every events of the user
@@ -31,7 +32,7 @@ function init(user) {
 									callback);
 						},
 						function(result, fields, callback) {
-							event.participants = result;
+							event.participants = lib.filterUsersData(result);
 							
 							callback(null);
 						}
@@ -133,25 +134,82 @@ function init(user) {
 		});
 	});
 	
-	// user leaves event
+	// user leaves event and group of event
 	user.on('exitEvent', function(data) {
 		if (!session.validateRequest('exitEvent', user, false))
 			return;
 		
+		var eventId = parseInt(data.eventId);
+		
+		if (eventId !== eventId)
+			return;
+		
+		dbManager.trxPattern([
+			function(callback) {
+				this.db.getEventById({eventId: eventId}, callback);
+			},
+			function(result, fields, callback) {
+				if (result.length == 0)
+					return callback(new Error('You are not the event member or no such event'));
+				
+				this.data.event = result[0];
+				
+				// get participant is not should be consistent in transaction so don't lock
+				this.db.getEventParticipantByUser({eventId: eventId, userId: user.userId}, 
+						callback);
+			},
+			function(callback) {
+				if (result.length == 0)
+					return callback(new Error('You are not the event member or no such event'));
+				
+				this.db.getEventParticipants({eventId: eventId, update: true}, callback);
+			},
+			function(result, fiedls, callback) {
+				this.data.participants = result;
+				
+				this.db.removeEventParticipant({eventId: eventId, userId: user.userId},
+						callback);
+			},
+			function(result, fiedls, callback) {
+				if (result.affectedRows == 0)
+					return callback('Failed to exit event');
+				
+				var userSessions = session.getUserSessions(user);
+				var sessions = session.getUsersSessions(this.data.participants);
+				
+				// notify exited user
+				userSessions.forEach(function(user) {
+					user.emit('exitEvent', {status: 'success', eventId: eventId});
+				});
+				
+				// notify other participants
+				sessions.forEach(function(user) {
+					if (userSessions.indexOf(user) >= 0)
+						return;
+					user.emit('eventParticipantExited', {eventId: eventId, userId: user.userId});
+				});
+				
+				callback(null);
+			}
+		],
+		function(err) {
+			if (err) {
+				user.emit('exitEvent', {status: 'fail', errorMsg: 'server error'});
+			} else {
+				var groupId = this.data.event.groupId;
+				// if event has a group, exit from the group
+				if (groupId) {
+					group.exitGroup({groupId: groupId, user: user, trx: true});
+				}
+			}
+		});
 	});
 }
 
 // input: data.user, data.emails(array of email)
-var getParticipants = function(data, callback) {
-	var pattern;
-	
-	var user = data.user;
-	var emails = data.emails;
-	
-	if (data.trx)
-		pattern = dbManager.trxPattern;
-	else
-		pattern = dbManager.atomicPattern;
+var getParticipants = dbManager.composablePattern(function(pattern, callback) {
+	var user = this.data.user;
+	var emails = this.data.emails;
 	
 	if (!emails)
 		return callback(null, []);
@@ -159,16 +217,13 @@ var getParticipants = function(data, callback) {
 	pattern([
 		function(callback) {
 			var validps = [];
+			var db = this.db;
+			this.data.participants = validps;
 			
-			var parIter = function(i) {
-				if (i == emails.length) {
-					return callback(null, validps);
-				}
-				
-				var email = emails[i];
-				if (email)
-					email = email.toString().trim();
-				
+			lib.recursion(function(i) {
+				return i < emails.length;
+			},
+			function(i, callback) {
 				dbManager.atomicPattern([
 					function(callback) {
 						// get user info
@@ -178,11 +233,11 @@ var getParticipants = function(data, callback) {
 						if (result.length == 0)
 							return callback(new Error('no such user'));
 						
-						var peer = result[0];
+						var peer = result[i];
 						this.data.peer = peer;
 						
-						this.db.getAcceptedContact({userId: user.userId, userId2: peer.userId, lock: true},
-								callback);
+						this.db.getAcceptedContact({userId: user.userId, userId2: peer.userId, 
+							lock: true}, callback);
 					},
 					function(result, fields, callback) {
 						if (result.length == 0)
@@ -194,38 +249,24 @@ var getParticipants = function(data, callback) {
 						callback(null);
 					}
 				],
-				function(err) {
-					if (err)
-						callback(err);
-					else
-						parIter(i + 1);
-				},
-				{db: this.db});
-			};
-			
-			parIter(0);
+				callback,
+				{db: db});
+			},
+			callback);
 		}
 	],
-	function(err, participants) {
+	function(err) {
 		if (err)
 			callback(err);
 		else
-			callback(null, participants);
-	},
-	{db: data.db});
-};
+			callback(null, this.data.participants);
+	});
+});
 
 // input: data.eventId, data.participants(array of user info)
-var addParticipants = function(data, callback) {
-	var pattern;
-	
-	var eventId = data.eventId;
-	var participants = data.participants;
-	
-	if (data.trx)
-		pattern = dbManager.trxPattern;
-	else
-		pattern = dbManager.atomicPattern;
+var addParticipants = dbManager.composablePattern(function(pattern, callback) {
+	var eventId = this.data.eventId;
+	var participants = this.data.participants;
 	
 	if (!participants)
 		return userCallback(null);
@@ -264,19 +305,27 @@ var addParticipants = function(data, callback) {
 			callback(err);
 		else
 			callback(null);
-	},
-	{db: data.db});
-};
+	});
+});
 
 // Sees every events and starts events in its time
-var eventManager = function() {
-	
+var eventManagerProto = {
+	init: function() {
+		dbManager.trxPattern([
+			function(callback) {
+				
+			},
+		],
+		function(err) {
+			
+		});
+	},
 };
 
 module.exports = {init: init};
 
 var session = require('./session');
-var dbManager = require('./dbManager');
 var chatManager = require('./chatManager');
+var group = require('./group')
 var lib = require('./lib');
 var async = require('async');

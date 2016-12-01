@@ -3,6 +3,7 @@
  * users at first must send their session id to login
  */
 var rbTree = require('./RBTree');
+var dbManager = require('./dbManager');
 
 var users;
 
@@ -213,7 +214,6 @@ module.exports = {init: init,
 		removeUserSession: removeUserSession,
 		removeAllUserSession: removeAllUserSession};
 
-var dbManager = require('./dbManager');
 var contact = require('./contact');
 var chatManager = require('./chatManager');
 var lib = require('./lib');
