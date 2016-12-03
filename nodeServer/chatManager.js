@@ -76,7 +76,7 @@ var init = function(user) {
 					// create new group for contact
 					async.waterfall([
 						function(callback) {
-							group.startNewGroup({user: user, members: [contact.email],
+							group.addGroupAndStartChat({user: user, members: [contact.email],
 								trx: false, db: db}, callback);
 						},
 						function(group, sessions, callback) {
@@ -218,6 +218,10 @@ var init = function(user) {
 				if (result.affectedRows == 0)
 					return callback(new Error('Failed to save in database'));
 				
+				this.db.incrementNbNewMessagesOthers({groupId: groupId, userId: user.userId},
+						callback);
+			},
+			function(result, fields, callback) {
 				// get active chat
 				var chatRoom = allChatRoom.get(groupId);
 
@@ -230,7 +234,7 @@ var init = function(user) {
 				user.emit('sendMessage', {status: 'success', sendId: sendId, messageId: data.messageId, date:data.date});
 				
 				// broadcast message
-				// TODO: optimization, cache messageId, nbread on server 
+				// TODO: optimization -> cache messageId so set nbread on server 
 				chatRoom.sendMessage(data, callback);
 			}
 		],
@@ -349,27 +353,36 @@ var init = function(user) {
 				var acks = this.data.newAcks;
 				var db = this.db;
 
-				var updateIter = function(i) {
-					if (i == acks.length) {
-						return callback(null);
-					}
-
+				lib.recursion(function(i) {
+					return i < acks.length;
+				},
+				function(i, callback) {
 					var ack = acks[i];
 					
-					db.decrementMessageNbread({groupId: groupId, userId: user.userId,
-						ackStart: ack.ackStart, ackEnd: ack.ackEnd},
-						function(err, result, fields) {
-							if (err) {
-								callback(err);
-							} else {
-								updateIter(i + 1);
-							}
-						});
-				};
-
-				updateIter(0);
+					async.waterfall([
+						function(callback) {
+							db.decrementMessageNbread({groupId: groupId, userId: user.userId,
+								ackStart: ack.ackStart, ackEnd: ack.ackEnd}, callback);
+						},
+						function(result, fields, callback) {
+							db.getNbOthersMessagesInRange({groupId: groupId, userId: user.userId,
+								startId: ack.ackStart, endId: ack.ackEnd, update: true}, callback);
+						},
+						function(result, fields, callback) {
+							if (result.length != 1)
+								return callback(new Error('Failed to count message'));
+							
+							var nbNewMessages = result[0].nbNewMessages;
+							
+							db.subtractNbNewMessagesOthers({groupId: groupId, userId: user.userId,
+								nbNewMessages: nbNewMessages}, callback);
+						}
+					],
+					callback);
+				},
+				callback);
 			},
-			function(callback) {
+			function(data, callback) {
 				var acks = this.data.newAcks;
 
 				// notify ack to all other members
@@ -572,12 +585,12 @@ var leaveGroupChat = function(data, callback) {
 			var members;
 			// get active chat
 			chatRoom = allChatRoom.get(groupId);
-			members = chatRoom.onlineMembers;
-
 			// no active chatRoom
 			if (!chatRoom) {
 				return callback(null, null);
 			}
+			
+			members = chatRoom.onlineMembers;
 
 			// every sessions of users will leave chat
 			var sessions = session.getUsersSessions(users, true);

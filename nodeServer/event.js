@@ -1,9 +1,16 @@
 /**
  * Event management
- * user can create, check events
- * when time for event comes, group for event is created
+ * 
+ * user can create event with event name, description, participants, 
+ * discussion date and optionally meeting time and location.
+ * When time for event comes, group for event is created and
+ * all participants will be notified that event has been started.
+ * Then, event participants can have server chat and conference for the event.
+ * A user can exit event. When a user exit event, the user will automatically 
+ * exit group dedicated to the event if group was created.
  */
 var dbManager = require('./dbManager');
+var nodemailer = require('nodemailer');
 
 function init(user) {
 	// read every events of the user
@@ -24,7 +31,7 @@ function init(user) {
 	user.on('createEvent', function(data) {
 		if (!session.validateRequest('createEvent', user, true, data))
 			return;
-		//console.log(data);
+		console.log(data);
 		var emails = data.participants;
 		var nbParticipantsMax = parseInt(data.nbParticipantsMax || 128);
 		var name = data.name;
@@ -41,7 +48,7 @@ function init(user) {
 		
 		if (nbParticipantsMax !== nbParticipantsMax ||
 				(localization && !location) ||
-				(localization && isNan(ldate.getTime())) ||
+				(localization && isNaN(ldate.getTime())) ||
 				!lib.isArray(emails) ||
 				isNaN(date.getTime()) ||
 				!name)
@@ -104,21 +111,28 @@ function init(user) {
 				
 				var event = result[0];
 				var participants = this.data.participants;
-				var localization = (localization ? {location: location, date: ldate} : null);
+				var localData = (localization ? {location: location, date: ldate} : null);
 				
 				event.participants = participants;
-				event.localization = localization;
+				event.localization = localData;
 				event.creater = user.getUserInfo();
+				event.acked = new Buffer(1);
+				event.acked[0] = 0 // acked is 0 cause it's new event
 				
 				// reserve event
 				eventManager.reserveEvent(event);
 				
 				var sessions = session.getUsersSessions(participants);
 				
+				event = lib.filterEventData(event);
+				
 				// notify every online participants
 				sessions.forEach(function(session) {
-					session.emit('eventCreated', lib.filterEventData(event));
+					session.emit('eventCreated', event);
 				});
+				
+				// send email to every participants in background
+				eventManager.sendMailAsync(event);
 				
 				callback(null);
 			}
@@ -499,6 +513,18 @@ var getEvent = dbManager.composablePattern(function(pattern, callback) {
 var eventManager = {
 	init: function() {
 		var manager = this;
+		var fs = require('fs');
+		console.log(__dirname);
+		fs.readFile(__dirname + '\\mail.html', 'utf8', function (err,data) {
+			  if (err) {
+				  console.log(err);
+			    throw new Error('Failed to read mail.html');
+			  }
+			  console.log(data);
+			  manager.mailTemplate = data;
+			});
+		
+		var manager = this;
 		
 		dbManager.trxPattern([
 			function(callback) {
@@ -572,6 +598,7 @@ var eventManager = {
 			function(result, fields, callback) {
 				this.data.participants = result;
 				
+				// get event creator information
 				this.db.getUserById({userId: event.createrId, lock: true}, callback);
 			},
 			function(result, fields, callback) {
@@ -583,12 +610,13 @@ var eventManager = {
 				if (user && !lib.containsUser(user, participants)) 
 					user = null;
 				
-				group.addGroup({name: event.name, user: user, 
+				group.addGroupAndStartChat({name: event.name, user: user, 
 					members: participants.map(function(p) {return p.email;}), 
 					db: this.db}, callback);
 			},
-			function(group, callback) {
+			function(group, sessions, callback) {
 				this.data.group = group;
+				this.data.sessions = sessions;
 				var groupId = group.groupId;
 				
 				// update started bit
@@ -609,11 +637,28 @@ var eventManager = {
 				getEvent({eventId: eventId, db: this.db}, callback);
 			},
 			function(event, callback) {
-				var sessions = session.getUsersSessions(this.data.group.members);
+				var sessions = this.data.sessions;
+				var group = this.data.group;
+				var participants = this.data.participants;
+				var extend = require('util')._extend;
 				
-				// notify users that the event has been started
+				// notify users new group and that the event has been started
 				sessions.forEach(function(user) {
-					user.emit('eventStarted', event);
+					var copiedEvent = extend({}, event);
+					
+					// find participant info matching user and set ack attribute
+					for (var i = 0; i < participants.length; i++) {
+						var participant = participants[i];
+						
+						if (participant.userId == user.userId) {
+							copiedEvent.acked = participant.acked.readUIntLE(0, 1);
+							
+							user.emit('addGroup', {status: 'success', group: group});
+							user.emit('eventStarted', copiedEvent);
+							
+							break;
+						}
+					}
 				});
 				
 				callback(null);
@@ -623,7 +668,98 @@ var eventManager = {
 			callback(err);
 		});
 	}),
+	mailTemplate:null,
+	// send mail notification to users
+	sendMailAsync: function(event) {
+		var mailTemplate = this.mailTemplate;
+		
+		setTimeout(function() {
+			// gmail account id: homingpigeonHelper@gamil.com, password: udomk0yFQCK87yxwp4Fz
+			var transporter = nodemailer.createTransport('smtps://homingpigeonHelper%40gmail.com:udomk0yFQCK87yxwp4Fz@smtp.gmail.com');
+			
+			var participants = event.participants.filter(function(p) {return p;});
+			var creater;
+			
+			// find creater of the event
+			for (var i = 0; i < event.participants.length; i++) {
+				var participant = participants[i];
+				
+				if (event.creater && event.creater.userId && 
+						participant.userId == event.creater.userId)
+					creater = participant;
+			}
+			
+			// formatting functions
+			var getUserStr = function(user) {
+				if (!user)
+					return na;
+				
+				return user.nickname + '(' + user.email + ')';
+			};
+			
+			var getDateStr = function(date) {
+				if (!date)
+					return na;
+				
+				return date.toDateString() + ' ' + date.toLocaleTimeString();
+			};
+			
+			// present this when fields is not applicable
+			var na = 'N/A';
+			console.log(event);
+			var content = mailTemplate;
+			content = content.replace(new RegExp('%eventname', 'g'), event.name);
+			content = content.replace(new RegExp('%creater', 'g'), getUserStr(creater));
+			content = content.replace(new RegExp('%description', 'g'), event.description || na);
+			content = content.replace(new RegExp('%discussiondate', 'g'), getDateStr(event.date) || na);
+			if (event.localization) {
+				var localization = event.localization;
+				content = content.replace(new RegExp('%location', 'g'), localization.location || na);
+				content = content.replace(new RegExp('%meetingdate', 'g'), getDateStr(localization.date));	
+			}  else {
+				content = content.replace(new RegExp('%location', 'g'), na);
+				content = content.replace(new RegExp('%meetingdate', 'g'), na);	
+			}
+			if (participants)
+				var participantsStr = participants.map(function(p) {return getUserStr(p);}).join('<br>');
+			else
+				var participantsStr = na;
+			content = content.replace(new RegExp('%participants', 'g'), participantsStr);	
+			
+			lib.recursion(function(i) {
+				return i < participants.length;
+			},
+			function(i, callback) {
+				var participant = participants[i];
+				
+				// put user name
+				var finalContent = content.replace(new RegExp('%username', 'g'), participant.nickname);
+				
+				(function(to, content) {
+					// setup e-mail data with unicode symbols
+					var mailOptions = {
+					    from: '"HomingPigeon" <homingpigeonHelper@gamil.com>', // sender address
+					    to: to, // list of receivers
+					    subject: '[HomingPigeon] You just have received a new event!', // Subject line
+					    //text: 'Hello world ?', // plaintext body
+					    html: content // html body
+					};
+
+					// send mail with defined transport object
+					transporter.sendMail(mailOptions, function(err, info){
+					    if(err){
+					        console.log(err);
+					    } else {
+					    	console.log('Sent email to ' + participant.email + ': ' + info.response);
+					    }
+					    callback(err);
+					});
+				})(participant.email, finalContent);
+			});
+		}, 100);
+	},
 };
+
 
 // start event manager
 (function() {

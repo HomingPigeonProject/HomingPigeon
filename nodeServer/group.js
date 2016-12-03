@@ -54,7 +54,7 @@ function init(user) {
 				data.user = user;
 				data.db = this.db;
 				
-				startNewGroup(data, callback);
+				addGroupAndStartChat(data, callback);
 			},
 			function(group, sessions, callback) {
 				// notify every online member
@@ -262,23 +262,16 @@ var undoAcks = function(data, callback) {
 
 // create new group and chat room and notify members
 // input: data.user, data.name(group name), data.members(array of email)
-var startNewGroup = function(data, callback) {
-	var pattern;
-	
-	var user = data.user;
-	
-	if (data.trx)
-		pattern = dbManager.trxPattern;
-	else
-		pattern = dbManager.atomicPattern;
+var addGroupAndStartChat = dbManager.composablePattern(function(pattern, callback) {
+	var user = this.data.user;
 	
 	pattern([
 		function(callback) {
-			data.db = this.db;
-			data.trx = false;
+			this.data.db = this.db;
+			this.data.trx = false;
 			
 			// add group and members in database
-			addGroup(data, callback);
+			addGroup(this.data, callback);
 		},
 		function(group, callback) {
 			var members = group.members;
@@ -304,9 +297,8 @@ var startNewGroup = function(data, callback) {
 			
 			callback(null, this.data.group, this.data.sessions);
 		}
-	},
-	{db: data.db});
-};
+	});
+});
 
 // get group list of user
 // input: data.user
@@ -742,7 +734,7 @@ var contains = function(needle) {
 };
 
 module.exports = {init: init,
-		startNewGroup: startNewGroup,
+		addGroupAndStartChat: addGroupAndStartChat,
 		getGroupList: getGroupList,
 		addGroup: addGroup,
 		addMembers: addMembers,

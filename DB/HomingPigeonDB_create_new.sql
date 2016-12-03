@@ -43,6 +43,7 @@ CREATE TABLE GroupMembers (
     groupId int NOT NULL,
     accountId int NOT NULL,
     ackStart int NOT NULL,                          /* the member start read from this message id */
+    nbNewMessages int unsigned DEFAULT 0,           /* number of messages the user have not seen */
     alias varchar(128) DEFAULT NULL,                /* group alias only seen by the user instead of group name */
     CONSTRAINT GroupsMembers_pk PRIMARY KEY (groupId, accountId)
 );

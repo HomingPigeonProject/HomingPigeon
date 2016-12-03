@@ -32,9 +32,12 @@ var filterUsersData = function(users) {
 
 var filterGroupData = function(group) {
 	return {groupId: group.groupId, name: group.name, 
-		nbMembers: group.nbMembers, lastMessageDate: group.lastMessageDate,
-		lastMessageId: group.lastMessageId, alias: group.alias,
-		members: filterUsersData(group.members), contactId: group.contactId || null};
+		nbMembers: group.nbMembers, nbNewMessages: group.nbNewMessages, 
+		lastMessageDate: group.lastMessageDate, 
+		lastMessageId: group.lastMessageId, alias: group.alias, 
+		members: filterUsersData(group.members), 
+		contactId: group.contactId || null, 
+		eventId: group.eventId || null};
 };
 
 var filterMessageData = function(message) {

@@ -227,17 +227,17 @@ window.addEventListener('load', function() {
 					return new Date(b[0], --b[1], b[2], b[3], b[4], b[5]||0, b[6]||0).getTime();
 				}
 				
-				var date = parseYMDHM($('#eventLDateInput').val());
+				var date = parseYMDHM($('#eventDateInput').val());
 				var ldate = parseYMDHM($('#eventLDateInput').val());
 				
 				var localization = {location: $('#eventLLocationInput').val(), 
-						date: parseYMDHM($('#eventLDateInput').val())};
+						date: ldate};
 				if (!localization.location || !localization.date)
 					localization = null;
 				
 				server.emit('createEvent', {name: $('#eventNameInput').val(),
 					participants: participants, description: $('#eventDescInput').val(), 
-					date: parseYMDHM($('#eventDateInput').val())});
+					date: date, localization: localization});
 			});
 			$('#eventListButton').click(function() {
 				server.emit('getEventList');
