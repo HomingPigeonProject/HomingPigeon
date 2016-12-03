@@ -97,7 +97,7 @@ function init(user) {
 				// members should be array
 				if (lib.isArray(members)) {
 					addMembers({db: this.db, groupId: groupId, user: user, 
-						members: members, trx: false}, callback);
+						members: members}, callback);
 				} else {
 					callback(new Error('not array'));
 				}
@@ -261,7 +261,7 @@ var undoAcks = function(data, callback) {
 };
 
 // create new group and chat room and notify members
-// input: data.user, data.members(array of email)
+// input: data.user, data.name(group name), data.members(array of email)
 var startNewGroup = function(data, callback) {
 	var pattern;
 	
@@ -368,16 +368,15 @@ var getGroupList = function(data, callback) {
 
 // create group and members in database
 // input: data.user, data.name, data.members
-var addGroup = function(data, callback) {
+// TODO: event group add
+var addGroup = dbManager.composablePattern(function(pattern, callback){
 	var groupId;
-	var user = data.user
-	var name = data.name;
-	var members = data.members;
+	var user = this.data.user
+	var name = this.data.name;
+	var members = this.data.members;
 	
-	if (data.trx)
-		pattern = dbManager.trxPattern;
-	else
-		pattern = dbManager.atomicPattern;
+	// remove invalid emails
+	members = members.filter(function(email) {return email;});
 	
 	pattern([
 		// create group
@@ -396,13 +395,12 @@ var addGroup = function(data, callback) {
 			if (result.length == 0)
 				return callback(new Error('no last insert id'));
 			
-			members = data.members;
 			groupId = result[0].lastInsertId;
 			
 			// members should be array
 			if (lib.isArray(members)) {
 				// add calling user as a member
-				if (!contains.call(members, user.email))
+				if (user && !contains.call(members, user.email))
 					members.unshift(user.email);
 				
 				addMembers({db: this.db, groupId: groupId, user: user, 
@@ -431,8 +429,7 @@ var addGroup = function(data, callback) {
 			if (updated && result.affectedRows == 0)
 				return callback(new Error('failed to update name'));
 			
-			this.db.getGroupOfUserById({groupId: groupId, 
-				userId: user.userId, lock: true}, callback);
+			this.db.getGroupById({groupId: groupId, lock: true}, callback);
 		},
 		function(result, fields, callback) {
 			if (result.length == 0)
@@ -455,39 +452,31 @@ var addGroup = function(data, callback) {
 			var result = lib.filterGroupData(this.data.group);
 			callback(null, result);
 		}
-	},
-	{db: data.db});
-};
+	});
+});
 
 // 'user' adds users in 'members' to group 'groupId', calling 'callback' at the end
-var addMembers = function(data, userCallback) {
-	var pattern;
-	
+var addMembers = dbManager.composablePattern(function(pattern, callback) {
 	var addedMembers = [];
 	
-	var groupId = data.groupId;
-	var user = data.user;
-	var members = data.members;
-	
-	if (data.trx)
-		pattern = dbManager.trxPattern;
-	else
-		pattern = dbManager.atomicPattern;
+	var groupId = this.data.groupId;
+	var user = this.data.user;
+	var members = this.data.members;
 	
 	if (!members)
-		return userCallback(null, addedMembers);
-	
+		return callback(null, addedMembers);
+	console.log(members);
 	pattern([
 		function(callback) {
 			var db = this.db;
 			
 			// recursive function adding multiple users to group
-			var addMembersIter = function(i, bigCallback) {
+			lib.recursion(function(i) {
+				return i < members.length;
+			},
+			function(i, rCallback) {
 				var peer;
-				
-				if (i >= members.length)
-					return bigCallback(null);
-				
+
 				dbManager.atomicPattern([
 					// process data from client
 					function(callback) {
@@ -499,16 +488,15 @@ var addMembers = function(data, userCallback) {
 						this.db.getUserByEmail({email: email, lock: true}, callback);
 					},
 					function(result, fields, callback) {
-						
 						if (result.length == 0)
-							return addMembersIter(i + 1, bigCallback);
+							return rCallback(null);
 						
 						peer = result[0];
 						
-						// don't have to check contact when adding self
-						if (user.userId == peer.id)
+						// don't check if user is null or user adds itself
+						if (!user || user.userId == peer.id)
 							return callback(null, true, null, null);
-						
+						console.log('accept');
 						// user can invite only contacts
 						this.db.getAcceptedContact({userId: user.userId, userId2: peer.id, lock: true}, 
 						function(err, result, fields) {
@@ -518,7 +506,7 @@ var addMembers = function(data, userCallback) {
 					function(self, result, fields, callback) {
 						if (!self && result.length == 0)
 							return callback(new Error('You can add only your contacts'));
-						
+						console.log('added');
 						// check if the member added already
 						this.db.getGroupMemberByUser({groupId: groupId, userId: peer.id, lock: true},
 								callback);
@@ -526,7 +514,7 @@ var addMembers = function(data, userCallback) {
 					function(result, fields, callback) {
 						// ignore already added member
 						if (result.length > 0)
-							return addMembersIter(i + 1, bigCallback);
+							return rCallback(null);
 						
 						this.db.addGroupMember({groupId: groupId, userId: peer.id}, callback);
 					},
@@ -541,27 +529,21 @@ var addMembers = function(data, userCallback) {
 					}
 				],
 				function(err) {
-					if (err)
-						return bigCallback(err);
-					
-					addMembersIter(i + 1, bigCallback);
+					rCallback(err);
 				},
 				{db: db});
-			}
-			
-			// start from 0th user
-			addMembersIter(0, callback);
+			},
+			callback);
 		}
 	],
 	function(err) {
 		if (err) {
-			userCallback(err);
+			callback(err);
 		} else {
-			userCallback(null, addedMembers);
+			callback(null, addedMembers);
 		}
-	},
-	{db: data.db});
-};
+	});
+});
 
 var exitGroup = dbManager.composablePattern(function(pattern, callback) {
 	var groupId = this.data.groupId;
@@ -663,15 +645,8 @@ var exitGroup = dbManager.composablePattern(function(pattern, callback) {
 //when contact chat members changes, it's not contact chat anymore
 //input: data.groupId
 //output: contact
-var invalidateContactGroup = function(data, callback) {
-	var pattern;
-	
-	var groupId = data.groupId;
-	
-	if (data.trx)
-		pattern = dbManager.trxPattern;
-	else
-		pattern = dbManager.atomicPattern;
+var invalidateContactGroup = dbManager.composablePattern(function(pattern, callback) {
+	var groupId = this.data.groupId;
 	
 	pattern([
 		function(callback) {			
@@ -705,10 +680,13 @@ var invalidateContactGroup = function(data, callback) {
 		}
 	],
 	function(err) {
-		callback(err, this.data.contact);
-	},
-	{db: data.db});
-};
+		if (err) {
+			callback(err);
+		} else {
+			callback(null, this.data.contact);
+		}
+	});
+});
 
 
 // create default group name

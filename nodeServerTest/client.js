@@ -130,13 +130,118 @@ window.addEventListener('load', function() {
 			chatForm.appendChild(groupIdInput);
 			chatForm.appendChild(chatJoinButton);
 			chatForm.appendChild(chatRefreshButton);
+			
+			var eventListButton = document.createElement('button');
+			eventListButton.id = 'eventListButton';
+			eventListButton.type = 'button';
+			eventListButton.innerHTML = 'get event list';
 
+			var eventForm = document.createElement('form');
+			var eventNameInput = document.createElement('input');
+			var participantNameInput = document.createElement('input');
+			var eventAckInput = document.createElement('input');
+			var eventDescInput = document.createElement('input');
+			var eventDateInput = document.createElement('input');
+			var eventLLocationInput = document.createElement('input');
+			var eventLDateInput = document.createElement('input');
+			var eventCreateButton = document.createElement('button');
+			var eventExitButton = document.createElement('button');
+			var eventAckButton = document.createElement('button');
+			eventNameInput.id = 'eventNameInput';
+			eventNameInput.placeholder = 'put event name or id';
+			eventNameInput.type = 'text';
+			participantNameInput.id = 'participantNameInput';
+			participantNameInput.placeholder = 'put participants emails, ack';
+			participantNameInput.type = 'text';
+			eventDescInput.id = 'eventDescInput';
+			eventDescInput.placeholder = 'event description';
+			eventDescInput.type = 'text';
+			eventDescInput.style.height='100px';
+			eventAckInput.id = 'eventAckInput';
+			eventAckInput.placeholder = 'event ack';
+			eventAckInput.type = 'text';
+			eventDateInput.id = 'eventDateInput';
+			eventDateInput.placeholder = 'event description';
+			eventDateInput.type = 'datetime-local';
+			eventLLocationInput.id = 'eventLLocationInput';
+			eventLLocationInput.placeholder = 'location';
+			eventLLocationInput.type = 'text';
+			eventLDateInput.id = 'eventLDateInput';
+			eventLDateInput.placeholder = 'event description';
+			eventLDateInput.type = 'datetime-local';
+			eventCreateButton.id = 'eventCreateButton';
+			eventCreateButton.type = 'button';
+			eventCreateButton.innerHTML = 'add create';
+			eventExitButton.id = 'eventExitButton';
+			eventExitButton.type = 'button';
+			eventExitButton.innerHTML = 'exit event';
+			eventAckButton.id = 'eventAckButton';
+			eventAckButton.type = 'button';
+			eventAckButton.innerHTML = 'ack event';
+			
+			eventForm.appendChild(eventNameInput);
+			eventForm.appendChild(participantNameInput);
+			eventForm.appendChild(eventCreateButton);
+			eventForm.appendChild(eventExitButton);
+			eventForm.appendChild(eventAckButton);
+			
+			eventDescInput.value = 'fff';
+			eventDateInput.value = '2016-12-03T18:45';
+			
+			eventNameInput.value = 'test event';
+			participantNameInput.value = 'korea@kaist.ac.kr';
+			
+			var eventSecondLine = document.createElement('div');
+			eventSecondLine.appendChild(eventDescInput);
+			eventSecondLine.appendChild(eventDateInput);
+			eventSecondLine.appendChild(eventLLocationInput);
+			eventSecondLine.appendChild(eventLDateInput);
+			
 			controlDiv.appendChild(contactForm);
 			controlDiv.appendChild(groupListButton);
 			controlDiv.appendChild(groupForm);
 			controlDiv.appendChild(chatControlTitle);
 			controlDiv.appendChild(chatForm);
+			controlDiv.appendChild(eventListButton);
+			controlDiv.appendChild(eventForm);
+			controlDiv.appendChild(eventSecondLine);
 
+			$('#eventAckButton').click(function() {
+				server.emit('eventAck', {eventId: $('#eventNameInput').val(), 
+					ack: $('#participantNameInput').val()});
+			});
+			$('#eventExitButton').click(function() {
+				server.emit('eventExit', {eventId: $('#eventNameInput').val()});
+			});
+			$('#eventCreateButton').click(function() {
+				var participants = $('#participantNameInput').val().split(',');
+				for (var i = 0; i < participants.length; i++) 
+					participants[i] = participants[i].trim();
+				
+				function parseYMDHM(s) {
+					if (!s)
+						return s;
+					
+					// regex match non digit(\D) character '+'
+				    var b = s.split(/\D+/);
+					return new Date(b[0], --b[1], b[2], b[3], b[4], b[5]||0, b[6]||0).getTime();
+				}
+				
+				var date = parseYMDHM($('#eventLDateInput').val());
+				var ldate = parseYMDHM($('#eventLDateInput').val());
+				
+				var localization = {location: $('#eventLLocationInput').val(), 
+						date: parseYMDHM($('#eventLDateInput').val())};
+				if (!localization.location || !localization.date)
+					localization = null;
+				
+				server.emit('createEvent', {name: $('#eventNameInput').val(),
+					participants: participants, description: $('#eventDescInput').val(), 
+					date: parseYMDHM($('#eventDateInput').val())});
+			});
+			$('#eventListButton').click(function() {
+				server.emit('getEventList');
+			});
 			$('#chatRefreshButton').click(function() {
 				if (chatRoom.groupId)
 					server.emit('readMessage', {groupId: chatRoom.groupId});
@@ -186,6 +291,26 @@ window.addEventListener('load', function() {
 				server.emit('exitGroup', {groupId: $('#groupNameInput').val()});
 			});
 		}
+	});
+	server.on('eventStarted', function(data) {
+		console.log('eventStarted');
+		console.log(data);
+	});
+	server.on('eventAck', function(data) {
+		console.log('eventAck');
+		console.log(data);
+	});
+	server.on('eventParticipantExited', function(data) {
+		console.log('eventParticipantExited');
+		console.log(data);
+	});
+	server.on('eventExit', function(data) {
+		console.log('eventExit');
+		console.log(data);
+	});
+	server.on('eventCreated', function(data) {
+		console.log('eventCreated');
+		console.log(data);
 	});
 	server.on('readMessage', function(data) {
 		console.log('readMessage');
@@ -329,6 +454,10 @@ window.addEventListener('load', function() {
 		} else {
 			console.log('failed to remove contact...');
 		}
+	});
+	server.on('getEventList', function(data) {
+		if (data.status == 'success')
+			console.log(data);
 	});
 	server.on('getGroupList', function(data) {
 		if (data.status == 'success') {

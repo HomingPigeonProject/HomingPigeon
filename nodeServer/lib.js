@@ -1,6 +1,9 @@
 //gets result of getUserByEmail, or getUserById and
 //returns object of data only available to other users
 var filterUserData = function(user) {
+	if (!user)
+		return null;
+	
 	return {userId: user.userId || user.id, email: user.email, 
 		nickname: user.nickname, picture: user.picture,
 		lastSeen: user.lastSeen, login: user.login};
@@ -20,7 +23,7 @@ var filterUsersData = function(users) {
 	};
 	
 	for (var i = 0; i < users.length; i++) {
-		if (!contains(users[i]))
+		if (users[i] && !contains(users[i]))
 			result.push(filterUserData(users[i]));
 	}
 	
@@ -31,7 +34,7 @@ var filterGroupData = function(group) {
 	return {groupId: group.groupId, name: group.name, 
 		nbMembers: group.nbMembers, lastMessageDate: group.lastMessageDate,
 		lastMessageId: group.lastMessageId, alias: group.alias,
-		members: group.members, contactId: group.contactId || null};
+		members: filterUsersData(group.members), contactId: group.contactId || null};
 };
 
 var filterMessageData = function(message) {
@@ -39,6 +42,45 @@ var filterMessageData = function(message) {
 		userId: message.userId, nbread: message.nbread, 
 		date: message.date, importance: message.importance,
 		content: message.content, location: message.location};
+};
+
+var filterEventData = function(event) {
+	var acked = event.acked ? event.acked.readUIntLE(0, 1) : null; 
+	var started = event.started.readUIntLE(0, 1);
+	
+	return {eventId: event.eventId, name: event.name, description: event.description,  
+		nbParticipants: event.nbParticipants, started: started,
+		date: event.date, creater: filterUserData(event.creater), 
+		participants: filterUsersData(event.participants), 
+		localization: filterLocalizationData(event.localization), 
+		groupId: event.groupId || null, acked: acked};
+};
+
+var filterEventsData = function(events) {
+	var result = [];
+	
+	var contains = function(event) {
+		for (var i = 0; i < result.length; i++) {
+			if (result[i].eventId == event.eventId)
+				return true;
+		}
+		
+		return false;
+	};
+	
+	for (var i = 0; i < events.length; i++) {
+		if (events[i] && !contains(events[i]))
+			result.push(filterEventData(events[i]));
+	}
+	
+	return result;
+}
+
+var filterLocalizationData = function(localization) {
+	if (!localization)
+		return null;
+	
+	return {location: localization.location, date: localization.date};
 };
 
 var isArray = function(array) {
@@ -56,6 +98,9 @@ var isDate = function(date) {
 };
 
 var containsUser = function(user, array) {
+	if (!user)
+		return false;
+	
 	for (var member in array) {
 		if (member && member.userId == user.userId)
 			return true;
@@ -94,12 +139,12 @@ var callbackRecursionProto = {
 
 var recursionConstructor = function(main, cond, callback) {
 	this.data = {};
-	this.userCallback = callback;
+	this.userCallback = callback || function() {};
 	this.main = main;
 	this.cond = cond;
 	var obj = this;
-	this.appliedCallback = function(err) {
-		obj.callback(err);
+	this.appliedCallback = function() {
+		obj.callback.apply(obj, arguments);
 	};
 };
 
@@ -113,6 +158,9 @@ module.exports = {filterUserData: filterUserData,
 		filterUsersData: filterUsersData,
 		filterGroupData: filterGroupData,
 		filterMessageData: filterMessageData,
+		filterEventData: filterEventData,
+		filterEventsData: filterEventsData,
+		filterLocalizationData: filterLocalizationData,
 		isArray: isArray,
 		isDate: isDate,
 		containsUser: containsUser,

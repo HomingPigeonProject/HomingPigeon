@@ -65,10 +65,14 @@ function init(user) {
 					function(callback) {
 						// join every active group the user belongs to
 						chatManager.initUser(user, callback);
+					},
+					function(callback) {
+						event.initUser(user, callback);
 					}
 				], 
 				function(err) {
 					if (err) {
+						console.log(err);
 						console.log(user.email + ' joining group failed');
 						
 						// fail init, close connection;
@@ -216,5 +220,6 @@ module.exports = {init: init,
 
 var contact = require('./contact');
 var chatManager = require('./chatManager');
+var event = require('./event');
 var lib = require('./lib');
 var async = require('async');

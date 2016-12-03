@@ -24,12 +24,12 @@ pool.on('connection', function (connection) {
 
 // sql queries
 var queries = {
-	getUserById: "SELECT *, id as userId FROM Accounts WHERE id = ? ",
+	getUserById: "SELECT *, id as userId FROM Accounts WHERE id = ? %",
 
-	getUserByEmail: "SELECT *, id as userId FROM Accounts WHERE email = ? ",
+	getUserByEmail: "SELECT *, id as userId FROM Accounts WHERE email = ? %",
 
 	getUserBySession: "SELECT *, id as userId " +
-			"FROM Accounts INNER JOIN Sessions ON Accounts.id = Sessions.accountId " +
+			"FROM Accounts INNER JOIN Sessions ON Accounts.id = Sessions.accountId %" +
 			"WHERE sessionId = ? ",
 
 	getAcceptedContactListByUser: "SELECT r.userId, r.email, r.nickname, r.picture, " +
@@ -44,7 +44,7 @@ var queries = {
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
 			"WHERE c.accountId = ? and c.accepted = 1)) r " +
 			"LEFT JOIN Groups g ON r.contactId = g.contactId " +
-			"ORDER BY r.nickname ",
+			"ORDER BY r.nickname %",
 
 	getPendingContactListByUser: "SELECT r.userId, r.email, r.nickname, r.picture, r.login, r.invited " +
 			"FROM ((SELECT c.id as contactId, a.id as userId, a.email, a.nickname, a.picture, " +
@@ -56,7 +56,7 @@ var queries = {
 			"a.login, 0 as invited " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
 			"WHERE c.accountId = ? and c.accepted = 0)) r " +
-			"ORDER BY r.contactId desc ",
+			"ORDER BY r.contactId desc %",
 
 	getContact: "SELECT r.userId, r.email, r.nickname, r.picture, " +
 			"r.login, r.lastSeen, r.contactId, g.id as groupId " +
@@ -70,7 +70,7 @@ var queries = {
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
 			"WHERE c.accountId = ? and a.id = ?)) r " +
 			"LEFT JOIN Groups g ON r.contactId = g.contactId " +
-			"ORDER BY r.nickname ",
+			"ORDER BY r.nickname %",
 
 	getAcceptedContact: "SELECT r.userId, r.email, r.nickname, r.picture, " +
 			"r.login, r.lastSeen, r.contactId, g.id as groupId " +
@@ -84,7 +84,7 @@ var queries = {
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
 			"WHERE c.accountId = ? and a.id = ? and c.accepted = 1)) r " +
 			"LEFT JOIN Groups g ON r.contactId = g.contactId " +
-			"ORDER BY r.nickname ",
+			"ORDER BY r.nickname %",
 
 	getPendingContact: "SELECT * " +
 			"FROM ((SELECT accountId as requestUserId, accountId2 as acceptUserId " +
@@ -93,12 +93,12 @@ var queries = {
 			"UNION " +
 			"(SELECT accountId as requestUserId, accountId2 as acceptUserId " +
 			"FROM Contacts  " +
-			"WHERE accountId = ? and accountId2 = ? and accepted = 0)) result ",
+			"WHERE accountId = ? and accountId2 = ? and accepted = 0)) result %",
 
 	getContactByGroup: "SELECT c.accountId as userId, c.accountId2 as userId2, " +
 			"c.id as contactId, c.accepted, g.id as groupId " +
 			"FROM Contacts c INNER JOIN Groups g ON c.id = g.contactId " +
-			"WHERE g.id = ? ",
+			"WHERE g.id = ? %",
 
 	getGroupById: "SELECT g.id as groupId, g.name, g.contactId, g.nbMembers, " +
 			"max(m.date) as lastMessageDate, max(m.messageId) as lastMessageId " +
@@ -107,7 +107,7 @@ var queries = {
 			"FROM GroupMembers gm RIGHT JOIN " +
 			"Groups g ON gm.groupId = g.id " +
 			"WHERE g.id = ? " +
-			"LOCK IN SHARE MODE) g ON g.id = m.groupId ",
+			"%) g ON g.id = m.groupId %",
 
 	getGroupOfUserById: "SELECT g.id as groupId, g.name, g.contactId, g.alias, " +
 			"g.nbMembers, max(m.date) as lastMessageDate, " +
@@ -118,8 +118,8 @@ var queries = {
 			"(SELECT g.id, g.name, g.contactId, gm.alias " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
 			"WHERE gm.groupId = ? and gm.accountId = ? " +
-			"LOCK IN SHARE MODE) g ON g.id = gm.groupId " +
-			"LOCK IN SHARE MODE) g ON g.id = m.groupId ",
+			"%) g ON g.id = gm.groupId " +
+			"%) g ON g.id = m.groupId %",
 
 
 	getGroupListByUser: "SELECT g.id as groupId, g.name, g.contactId, g.alias, " +
@@ -131,11 +131,11 @@ var queries = {
 			"(SELECT g.id, g.name, g.contactId, gm.alias " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
 			"WHERE gm.accountId = ? and g.contactId is null " +
-			"LOCK IN SHARE MODE) g on g.id = gm.groupId " +
+			"%) g on g.id = gm.groupId " +
 			"GROUP BY g.id " +
-			"LOCK IN SHARE MODE) g on g.id = m.groupId " +
+			"%) g on g.id = m.groupId " +
 			"GROUP BY g.id " +
-			"ORDER BY lastMessageDate desc ",
+			"ORDER BY lastMessageDate desc %",
 
 	getContactGroupListByUser: "SELECT g.id as groupId, g.name, g.contactId, g.alias, " +
 			"g.nbMembers, max(m.date) as lastMessageDate, " +
@@ -146,11 +146,11 @@ var queries = {
 			"(SELECT g.id, g.name, g.contactId, gm.alias " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
 			"WHERE gm.accountId = ? and g.contactId is not null " +
-			"LOCK IN SHARE MODE) g on g.id = gm.groupId " +
+			"%) g on g.id = gm.groupId " +
 			"GROUP BY g.id " +
-			"LOCK IN SHARE MODE) g on g.id = m.groupId " +
+			"%) g on g.id = m.groupId " +
 			"GROUP BY g.id " +
-			"ORDER BY lastMessageDate desc ",
+			"ORDER BY lastMessageDate desc %",
 
 	getAllGroupListByUser: "SELECT g.id as groupId, g.name, g.contactId, g.alias, " +
 			"g.nbMembers, max(m.date) as lastMessageDate, " +
@@ -161,17 +161,17 @@ var queries = {
 			"(SELECT g.id, g.name, g.contactId, gm.alias " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
 			"WHERE gm.accountId = ? " +
-			"LOCK IN SHARE MODE) g on g.id = gm.groupId " +
+			"%) g on g.id = gm.groupId " +
 			"GROUP BY g.id " +
-			"LOCK IN SHARE MODE) g on g.id = m.groupId " +
+			"%) g on g.id = m.groupId " +
 			"GROUP BY g.id " +
-			"ORDER BY lastMessageDate desc ",
+			"ORDER BY lastMessageDate desc %",
 
 	getGroupMemberByUser: "SELECT * FROM GroupMembers " +
-			"WHERE groupId = ? and accountId = ? ",
+			"WHERE groupId = ? and accountId = ? %",
 
 	getGroupMembersByUser: "SELECT * FROM GroupMembers " +
-		"WHERE groupId = ? and accountId in (?) ",
+		"WHERE groupId = ? and accountId in (?) %",
 
 	getGroupMembers: "SELECT a.id as userId, a.email, a.nickname, " +
 			"a.picture, a.lastSeen, a.login " +
@@ -179,19 +179,19 @@ var queries = {
 			"(SELECT gm.accountId " +
 			"FROM Groups g INNER JOIN GroupMembers gm ON g.id = gm.groupId " +
 			"WHERE g.id = ? " +
-			"LOCK IN SHARE MODE) m ON a.id = m.accountId ",
+			"%) m ON a.id = m.accountId %",
 
 	getGroupMemberNumber: "SELECT count(accountId) as nbMembers " +
 			"FROM GroupMembers " +
-			"WHERE groupId = ? ",
+			"WHERE groupId = ? %",
 
 	getLastMessageIdByGroupId: "SELECT max(messageId) as messageId " +
-			"FROM Messages WHERE GroupId = ? ",
+			"FROM Messages WHERE GroupId = ? %",
 	
 	getLastInsertMessage: "SELECT messageId, accountId as userId, groupId, " +
 			"content, date, importance, location, nbread, leftGroup " +
 			"FROM Messages " +
-			"WHERE id = (SELECT last_insert_id()) ",
+			"WHERE id = (SELECT last_insert_id()) %",
 			
 	getRecentMessages: "SELECT messageId, accountId as userId, groupId, " +
 			"content, date, importance, location, nbread, leftGroup " +
@@ -201,7 +201,7 @@ var queries = {
 			"FROM GroupMembers " +
 			"WHERE groupId = ? and accountId = ?) " +
 			"ORDER BY messageId desc " +
-			"LIMIT ? ",
+			"LIMIT ? %",
 
 	getMessagesFromId: "SELECT * " +
 			"FROM Messages " +
@@ -211,39 +211,60 @@ var queries = {
 			"FROM GroupMembers " +
 			"WHERE groupId = ? and accountId = ?) " +
 			"ORDER BY messageId desc " +
-			"LIMIT ? ",
+			"LIMIT ? %",
 
 	getAcksOfGroupByUser: "SELECT ackStart, ackEnd " +
 			"FROM MessageAcks " +
 			"WHERE groupId = ? and accountId = ? " +
-			"ORDER BY ackStart ",
+			"ORDER BY ackStart %",
 
 	getConflictingAcks: "SELECT * " +
 			"FROM MessageAcks " +
 			"WHERE groupId = ? and accountId = ? and " +
 			"(? <= ackStart <= ? + 1 or ? - 1 <= ackEnd <= ?) " +
-			"ORDER BY ackStart ",
+			"ORDER BY ackStart %",
 
-	getEventById: "SELECT e.id as eventId, count(ep.accountId) as nbParticipants, " +
-			"e.nbParticipantsMax, e.date, e.description, e.groupId " +
+	getEventById: "SELECT e.id as eventId, e.name, e.description, e.nbParticipantsMax, e.nbParticipants, " +
+			"e.started, e.date, e.createrId, g.id as groupId " +
+			"FROM Groups g RIGHT JOIN " +
+			"(SELECT e.id, e.name, e.description, e.nbParticipantsMax, count(ep.accountId) as nbParticipants, " +
+			"e.started, e.date, e.createrId " +
 			"FROM EventParticipants ep RIGHT JOIN " +
 			"Events e ON e.id = ep.eventId " +
 			"WHERE e.id = ?  " +
-			"GROUP BY e.id ",
-
-	getEventListByUser: "SELECT e.id as eventId, count(*) as nbParticipants, " +
-			"e.nbParticipantsMax, e.date, e.description, e.groupId " +
-			"FROM EventParticipants ep RIGHT JOIN " +
-			"(SELECT * " +
-			"FROM Events e INNER JOIN EventParticipants ep ON e.id = ep.eventId " +
-			"WHERE ep.accountId = ? " +
-			"LOCK IN SHARE MODE) e ON e.id = ep.eventId " +
 			"GROUP BY e.id " +
-			"ORDER BY e.date desc ",
+			"%) e ON g.eventId = e.id %",
 
-	getEventParticipantByUser: "SELECT eventId, accountId, status " +
+	getUpcomingEvents: "SELECT e.id as eventId, e.name, e.description, e.nbParticipantsMax, e.nbParticipants, " +
+			"e.started, e.date, e.createrId, g.id as groupId " +
+			"FROM Groups g RIGHT JOIN " +
+			"(SELECT e.id, e.name, e.description, e.nbParticipantsMax, count(ep.accountId) as nbParticipants, " +
+			"e.started, e.date, e.createrId " +
+			"FROM EventParticipants ep RIGHT JOIN Events e " +
+			"ON e.id = ep.eventId " +
+			"WHERE e.started = 0 " +
+			"GROUP BY e.id " +
+			"ORDER BY e.date " +
+			"%) e on g.eventId = e.id %",
+			
+	getEventListByUser: "SELECT e.id as eventId, e.name, e.description, e.nbParticipantsMax, e.nbParticipants, " +
+			"e.started, e.date, e.createrId, e.acked, g.id as groupId " +
+			"FROM Groups g RIGHT JOIN " +
+			"(SELECT e.id, e.name, e.description, e.nbParticipantsMax, count(ep.accountId) as nbParticipants, " +
+			"e.started, e.date, e.createrId, e.acked " +
+			"FROM EventParticipants ep RIGHT JOIN " +
+			"(SELECT e.id, e.name, e.description, e.nbParticipantsMax, e.started, e.date, " +
+			"e.createrId, ep.acked " +
+			"FROM EventParticipants ep INNER JOIN Events e ON e.id = ep.eventId " +
+			"WHERE ep.accountId = ? " +
+			"%) e ON e.id = ep.eventId " +
+			"GROUP BY e.id " +
+			"ORDER BY e.date " +
+			"%) e on g.eventId = e.id %",
+
+	getEventParticipantByUser: "SELECT eventId, accountId, acked, status " +
 			"FROM EventParticipants " +
-			"WHERE eventId = ? and accountId = ? ",
+			"WHERE eventId = ? and accountId = ? %",
 			
 	getEventParticipants: "SELECT a.id as userId, a.email, a.nickname, " +
 			"a.lastSeen, a.picture, a.login " +
@@ -251,9 +272,15 @@ var queries = {
 			"(SELECT ep.accountId, ep.status " +
 			"FROM Events e INNER JOIN EventParticipants ep ON e.id = ep.eventId " +
 			"WHERE e.id = ? " +
-			"LOCK IN SHARE MODE) p ON a.id = p.accountId ",
+			"%) p ON a.id = p.accountId %",
 
-	getEventParticipantNumber: "SELECT nbParticipants FROM Events WHERE id = ? ",
+	getEventParticipantNumber: "SELECT count(accountId) " +
+			"FROM EventParticipants " +
+			"WHERE eventId = ? %",
+	
+	getEventLocalization: "SELECT eventId, location, date " +
+			"FROM Localisations " +
+			"WHERE eventId = ? %",
 
 	addUser: "INSERT INTO Accounts(email, password, login, nickname) VALUES(?)",
 
@@ -275,6 +302,8 @@ var queries = {
 	addEvent: "INSERT INTO Events SET ?",
 
 	addEventParticipant: "INSERT INTO EventParticipants SET ?",
+	
+	addEventLocalization: "INSERT INTO Localisations SET ?",
 
 	removeUser: "DELETE FROM Accounts WHERE email = ?",
 
@@ -314,23 +343,32 @@ var queries = {
 
 	updateContactGroupChat: "UPDATE Groups SET contactId = ? " +
 			"WHERE id = ? ",
+			
+	updateEventGroupChat: "UPDATE Groups SET eventId = ? " +
+			"WHERE id = ?",		
 
 	updateMessageNbread: "UPDATE Messages SET nbread = nbread + (?) " +
 			"WHERE groupId = ? and GREATEST(" +
 			"(SELECT ackStart FROM GroupMembers WHERE groupId = ? and accountId = ?), " +
 			"?) <= messageId and messageId <= ? and accountId != ? ",
+			
+	updateEventStarted: "UPDATE Events SET started = 1 " +
+			"WHERE id = ? ",
+			
+	updateEventParticipantAck: "UPDATE EventParticipants SET acked = ? " +
+			"WHERE eventId = ? and accountId = ? ",
 
 	lastInsertId: "SELECT LAST_INSERT_ID() as lastInsertId"
 };
 
 var selectLock = function(query, data) {
 	if (data.hasOwnProperty('lock') && data.lock) {
-		return query + ' LOCK IN SHARE MODE';
+		return query.replace(new RegExp('%', 'g'), 'LOCK IN SHARE MODE');
+	} else if (data.hasOwnProperty('update') && data.update) {
+		return query.replace(new RegExp('%', 'g'), 'FOR UPDATE');
+	} else {
+		return query.replace(new RegExp('%', 'g'), '')
 	}
-	if (data.hasOwnProperty('update') && data.update) {
-		return query + ' FOR UPDATE';
-	}
-	return query;
 }
 
 // db operations
@@ -458,6 +496,9 @@ var dbPrototype = {
 		this.conn.query(selectLock(queries.getEventById, data),
 				[data.eventId], callback);
 	},
+	getUpcomingEvents: function (data, callback) {
+		this.conn.query(selectLock(queries.getUpcomingEvents, data), callback);
+	},
 	getEventListByUser: function (data, callback) {
 		this.conn.query(selectLock(queries.getEventListByUser, data),
 				[data.userId], callback);
@@ -472,6 +513,10 @@ var dbPrototype = {
 	},
 	getEventParticipantNumber: function (data, callback) {
 		this.conn.query(selectLock(queries.getEventParticipantNumber, data),
+				[data.eventId], callback);
+	},
+	getEventLocalization: function (data, callback) {
+		this.conn.query(selectLock(queries.getEventLocalization, data),
 				[data.eventId], callback);
 	},
 	addUser: function(data, callback)  {
@@ -506,14 +551,17 @@ var dbPrototype = {
 	},
 	addEvent: function(data, callback)  {
 		this.conn.query(queries.addEvent,
-				{nbParticipants:0, nbParticipantsMax:data.nbParticipantsMax,
-			length:0, date:data.date, description:data.description,
-			groupId:data.groupId}, callback);
+				{name: data.name, nbParticipants:0, nbParticipantsMax:data.nbParticipantsMax,
+			length:0, date:data.date, description:data.description, createrId: data.userId}, callback);
 	},
 	addEventParticipant: function(data, callback)  {
 		this.conn.query(queries.addEventParticipant,
-				{eventId:data.eventId, accountId:data.userId,
-			status:null}, callback);
+				{eventId:data.eventId, accountId:data.userId, status:'s'}, callback);
+	},
+	addEventLocalization: function(data, callback)  {
+		this.conn.query(queries.addEventLocalization,
+				{eventId:data.eventId, location:data.location,
+			date:data.date}, callback);
 	},
 	removeUser: function(data, callback)  {
 		this.conn.query(queries.removeUser, [data.email], callback);
@@ -566,6 +614,10 @@ var dbPrototype = {
 		this.conn.query(queries.updateContactGroupChat,
 				[data.contactId, data.groupId], callback);
 	},
+	updateEventGroupChat: function(data, callback) {
+		this.conn.query(queries.updateEventGroupChat,
+				[data.eventId, data.groupId], callback);
+	},
 	incrementMessageNbread: function(data, callback) {
 		this.conn.query(queries.updateMessageNbread,
 				[1, data.groupId, data.groupId, data.userId, 
@@ -575,6 +627,14 @@ var dbPrototype = {
 		this.conn.query(queries.updateMessageNbread,
 				[-1, data.groupId, data.groupId, data.userId, 
 					data.ackStart, data.ackEnd, data.userId], callback);
+	},
+	updateEventStarted: function(data, callback) {
+		this.conn.query(queries.updateEventStarted,
+				[data.eventId], callback);
+	},
+	updateEventParticipantAck: function(data, callback) {
+		this.conn.query(queries.updateEventParticipantAck,
+				[data.acked, data.eventId, data.userId], callback);
 	},
 	lastInsertId: function(callback)  {
 		this.conn.query(queries.lastInsertId, callback);
