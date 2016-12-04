@@ -171,7 +171,7 @@ window.addEventListener('load', function() {
 			eventLDateInput.type = 'datetime-local';
 			eventCreateButton.id = 'eventCreateButton';
 			eventCreateButton.type = 'button';
-			eventCreateButton.innerHTML = 'add create';
+			eventCreateButton.innerHTML = 'create event';
 			eventExitButton.id = 'eventExitButton';
 			eventExitButton.type = 'button';
 			eventExitButton.innerHTML = 'exit event';

@@ -31,7 +31,7 @@ function init(user) {
 	user.on('createEvent', function(data) {
 		if (!session.validateRequest('createEvent', user, true, data))
 			return;
-		console.log(data);
+		
 		var emails = data.participants;
 		var nbParticipantsMax = parseInt(data.nbParticipantsMax || 128);
 		var name = data.name;
@@ -393,7 +393,7 @@ var getParticipants = dbManager.composablePattern(function(pattern, callback) {
 						if (result.length == 0)
 							return callback(new Error('no such user'));
 						
-						var peer = result[i];
+						var peer = result[0];
 						this.data.peer = peer;
 						
 						this.db.getAcceptedContact({userId: user.userId, userId2: peer.userId, 
@@ -514,13 +514,12 @@ var eventManager = {
 	init: function() {
 		var manager = this;
 		var fs = require('fs');
-		console.log(__dirname);
+		
 		fs.readFile(__dirname + '\\mail.html', 'utf8', function (err,data) {
 			  if (err) {
 				  console.log(err);
 			    throw new Error('Failed to read mail.html');
 			  }
-			  console.log(data);
 			  manager.mailTemplate = data;
 			});
 		
@@ -544,8 +543,6 @@ var eventManager = {
 					
 					var event = result[i];
 					var date = this.data.date;
-					
-					//console.log(event);
 					
 					if (event.date <= date) {
 						manager.startEvent({event: event, db: db}, callback);
@@ -706,7 +703,7 @@ var eventManager = {
 			
 			// present this when fields is not applicable
 			var na = 'N/A';
-			console.log(event);
+			
 			var content = mailTemplate;
 			content = content.replace(new RegExp('%eventname', 'g'), event.name);
 			content = content.replace(new RegExp('%creater', 'g'), getUserStr(creater));
