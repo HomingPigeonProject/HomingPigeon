@@ -263,7 +263,7 @@ var init = function(user) {
 					} else {
 						newAcks.push({ackStart: ackStart, ackEnd: ack.ackStart - 1});
 					}
-					
+
 					var curAckStart = ack.ackEnd + 1;
 					var curAckEnd;
 
@@ -282,7 +282,7 @@ var init = function(user) {
 
 						curAckStart = ack.ackEnd + 1;
 					}
-					
+
 					if (ack2.ackEnd >= ackEnd) {
 						mergedAckEnd = ack2.ackEnd;
 					} else {
@@ -427,9 +427,9 @@ var init = function(user) {
 		});
 	});
 	//how to send location when we get it, we send it back to all the chatroom
-	user.on("shareLocation",function(data){
-		chatRoom.emit("getLocation",data);
-	});
+	//user.on("shareLocation",function(data){
+		//user.emit("getLocation",data);
+	//});
 //end shareLocation
 };
 
