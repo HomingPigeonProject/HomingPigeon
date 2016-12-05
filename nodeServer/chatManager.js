@@ -2,8 +2,8 @@
  * Chat manager
  * user can join or exit contact chat, group chat
  */
-
 var rbTree = require('./RBTree');
+var dbManager = require('./dbManager');
 
 // set of active chats
 var allChatRoom = rbTree.createRBTree();
@@ -76,7 +76,7 @@ var init = function(user) {
 					// create new group for contact
 					async.waterfall([
 						function(callback) {
-							group.startNewGroup({user: user, members: [contact.email],
+							group.addGroupAndStartChat({user: user, members: [contact.email],
 								trx: false, db: db}, callback);
 						},
 						function(group, sessions, callback) {
@@ -144,8 +144,8 @@ var init = function(user) {
 					return callback(new Error('You are not member of the group'));
 
 				// get at most 100 messages
-				this.db.getRecentMessages({groupId: groupId, nbMessages: nbMessageMax,
-					lock: true}, callback);
+				this.db.getRecentMessages({groupId: groupId, userId: user.userId,
+					nbMessages: nbMessageMax, lock: true}, callback);
 			}
 		],
 		function(err, result) {
@@ -161,59 +161,94 @@ var init = function(user) {
 	user.on('sendMessage', function(data) {
 		if (!session.validateRequest('sendMessage', user, true, data))
 			return;
-		// make sure client update group list on addGroup, joinContactChat, getGroupList
-		//console.log('message to ' + data.groupId + '(' + data.content + ')');
+		
 		var groupId = parseInt(data.groupId);
 		var content = data.content || '';
 		var importance = data.importance || 0;
-		var location = data.location;
+		var location = data.location || null;
 		var date = new Date();
+		
+		// client defined id for the message
+		// used for identifying message sent feedback
+		var sendId = data.sendId;
+		
+		if (groupId !== groupId)
+			return;
 
 		dbManager.trxPattern([
 			function(callback) {
+				// get group member count
+				this.db.getGroupMemberNumber({groupId: groupId, update: true}, callback)
+			},
+			function(result, fields, callback) {
+				if (result.length == 0)
+					return callback(new Error('failed to get group member count'));
+				
+				this.data.nbMembers = result[0].nbMembers;
+				
 				// check if the user is member of the group
 				this.db.getGroupMemberByUser({groupId: groupId, userId: user.userId,
-					lock: true}, callback);
+					update: true}, callback);
 			},
 			function(result, fields, callback) {
 				if (result.length == 0)
 					return callback(new Error('You are not member of the group'));
-
+				
+				this.db.getLastMessageIdByGroupId({groupId: groupId, update: true}, callback);
+			},
+			function(result, fields, callback) {
+				if (result.length == 0)
+					return callback(new Error('Failed to get message id'));
+				
+				var nbMembers = this.data.nbMembers;
+				var messageId = parseInt(result[0].messageId) + 1 || 1;
+				
+				console.log(messageId);
+				
+				var data = {groupId: groupId, userId: user.userId, content: content,
+						importance: importance, location: location, date: date, 
+						nbread: nbMembers - 1, messageId: messageId};
+				
+				this.data.message = lib.filterMessageData(data);
+				
+				// save message in database
+				this.db.addMessage(data, callback);
+			},
+			function(result, fields, callback) {
+				if (result.affectedRows == 0)
+					return callback(new Error('Failed to save in database'));
+				
+				this.db.incrementNbNewMessagesOthers({groupId: groupId, userId: user.userId},
+						callback);
+			},
+			function(result, fields, callback) {
 				// get active chat
 				var chatRoom = allChatRoom.get(groupId);
 
 				if (!chatRoom)
 					return callback(null);
-
+				
+				var data = this.data.message;
+				data.user = user;
+				
+				user.emit('sendMessage', {status: 'success', sendId: sendId, messageId: data.messageId, date:data.date});
+				
 				// broadcast message
-				chatRoom.sendMessage({user: user, content: content, nbread: 1,
-					importance: importance, location: location, date: date}, callback);
-			},
-			function(callback) {
-				var message = {groupId: groupId, userId: user.userId, content: content,
-						nbread: 1, importance: importance, location: location, date: date};
-
-				// save message in database
-				this.db.addMessage(message, callback);
-			},
-			function(result, fields, callback) {
-				if (result.affectedRows == 0)
-					return callback(new Error('Failed to save in database'));
-
-				callback(null);
+				// TODO: optimization -> cache messageId so set nbread on server 
+				chatRoom.sendMessage(data, callback);
 			}
 		],
 		function(err) {
 			if (err) {
 				console.log('failed to save message\r\n' + err);
 
-				user.emit('sendMessage', {status: 'fail', errorMsg: 'failed to send message'});
-			} else {
-				user.emit('sendMessage', {status: 'success'});
+				user.emit('sendMessage', {status: 'fail', sendId: sendId, 
+					errorMsg: 'failed to send message'});
 			}
 		});
 	});
 
+	// TODO: solve deadlock problem
 	// user have read messages id from data.ackStart to ackEnd inclusive
 	user.on('ackMessage', function(data) {
 		if (!session.validateRequest('ackMessage', user, true, data))
@@ -222,19 +257,21 @@ var init = function(user) {
 		var groupId = data.groupId;
 		var ackStart = parseInt(data.ackStart);
 		var ackEnd = parseInt(data.ackEnd);
-
+		
 		// check NaN, +-Infinity
 		if (!isFinite(ackStart) || !isFinite(ackEnd))
 			return;
 
 		if (ackStart > ackEnd)
 			return;
+		
 		console.log('groupId ' + groupId + ' ack ' + ackStart + ' ~ ' + ackEnd);
+		
 		dbManager.trxPattern([
 			function(callback) {
 				// check if the user is member of the group
 				this.db.getGroupMemberByUser({groupId: groupId, userId: user.userId,
-					lock: true}, callback);
+					update: true}, callback);
 			},
 			function(result, fields, callback) {
 				if (result.length == 0)
@@ -316,51 +353,44 @@ var init = function(user) {
 				var acks = this.data.newAcks;
 				var db = this.db;
 
-				var updateIter = function(i) {
-					if (i == acks.length) {
-						return callback(null);
-					}
-
+				lib.recursion(function(i) {
+					return i < acks.length;
+				},
+				function(i, callback) {
 					var ack = acks[i];
-
-					db.incrementMessageNbread({groupId: groupId, userId: user.userId,
-						ackStart: ack.ackStart, ackEnd: ack.ackEnd},
-						function(err, result, fields) {
-							if (err) {
-								callback(err);
-							} else {
-								updateIter(i + 1);
-							}
-						});
-				};
-
-				updateIter(0);
+					
+					async.waterfall([
+						function(callback) {
+							db.decrementMessageNbread({groupId: groupId, userId: user.userId,
+								ackStart: ack.ackStart, ackEnd: ack.ackEnd}, callback);
+						},
+						function(result, fields, callback) {
+							db.getNbOthersMessagesInRange({groupId: groupId, userId: user.userId,
+								startId: ack.ackStart, endId: ack.ackEnd, update: true}, callback);
+						},
+						function(result, fields, callback) {
+							if (result.length != 1)
+								return callback(new Error('Failed to count message'));
+							
+							var nbNewMessages = result[0].nbNewMessages;
+							
+							db.subtractNbNewMessagesOthers({groupId: groupId, userId: user.userId,
+								nbNewMessages: nbNewMessages}, callback);
+						}
+					],
+					callback);
+				},
+				callback);
 			},
-			function(callback) {
+			function(data, callback) {
 				var acks = this.data.newAcks;
 
-				var notifyIter = function(i) {
-					if (i == acks.length) {
-						return callback(null);
-					}
-
-					var ack = acks[i];
-
-					notifyAck({groupId: groupId, user: user,
-						ackStart: ack.ackStart, ackEnd: ack.ackEnd},
-						function(err) {
-							if (err) {
-								callback(err);
-							} else {
-								notifyIter(i + 1);
-							}
-						});
-				};
-
-				notifyIter(0);
+				// notify ack to all other members
+				notifyAcks({groupId: groupId, user: user, acks: acks}, callback);
 			}
 		],
 		function(err) {
+			console.log('end ack' + err);
 			if (err) {
 				user.emit('ackMessage', {status: 'fail', errorMsg: 'failed to update ack'});
 			}
@@ -555,12 +585,12 @@ var leaveGroupChat = function(data, callback) {
 			var members;
 			// get active chat
 			chatRoom = allChatRoom.get(groupId);
-			members = chatRoom.onlineMembers;
-
 			// no active chatRoom
 			if (!chatRoom) {
 				return callback(null, null);
 			}
+			
+			members = chatRoom.onlineMembers;
 
 			// every sessions of users will leave chat
 			var sessions = session.getUsersSessions(users, true);
@@ -582,11 +612,10 @@ var leaveGroupChat = function(data, callback) {
 	});
 };
 
-var notifyAck = function(data, callback) {
+var notifyAcks = function(data, callback) {
 	var user = data.user;
 	var groupId = data.groupId;
-	var ackStart = data.ackStart;
-	var ackEnd = data.ackEnd;
+	var acks = data.acks;
 
 	async.waterfall([
 		// check if the user is group member
@@ -598,12 +627,28 @@ var notifyAck = function(data, callback) {
 			if (!chatRoom) {
 				return callback(null);
 			}
-
+			
 			// sender will not get ack of itself
 			var sessions = session.getUserSessions(user, true);
+			
+			var ackIter = function(i) {
+				if (i == acks.length) {
+					return callback(null);
+				}
+				
+				var ack = acks[i];
+				
+				chatRoom.sendAck({user: user, users: [], 
+					ackStart: ack.ackStart, ackEnd: ack.ackEnd},
+					function(err) {
+						if (err)
+							callback(err);
+						else
+							ackIter(i + 1);
+					});
+			};
 
-			chatRoom.sendAck({users: sessions, user: user, ackStart: ackStart,
-				ackEnd: ackEnd}, callback);
+			ackIter(0);
 		},
 	],
 	function(err) {
@@ -615,6 +660,7 @@ var notifyAck = function(data, callback) {
 	});
 };
 
+// TODO: Undo ack is deprecated
 var undoAcks = function(data, callback) {
 	var user = data.user;
 	var groupId = data.groupId;
@@ -799,7 +845,7 @@ module.exports = {init: init,
 		joinGroupChat: joinGroupChat,
 		leaveGroupChat: leaveGroupChat,
 		leaveAllGroupChat: leaveAllGroupChat,
-		notifyAck: notifyAck,
+		notifyAcks: notifyAcks,
 		undoAcks: undoAcks,
 		chatTryer: chatTryer};
 
@@ -811,7 +857,6 @@ module.exports = {init: init,
 //end Android communication
 
 var session = require('./session');
-var dbManager = require('./dbManager');
 var group = require('./group');
 var chat = require('./chat');
 var lib = require('./lib');

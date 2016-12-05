@@ -130,13 +130,118 @@ window.addEventListener('load', function() {
 			chatForm.appendChild(groupIdInput);
 			chatForm.appendChild(chatJoinButton);
 			chatForm.appendChild(chatRefreshButton);
+			
+			var eventListButton = document.createElement('button');
+			eventListButton.id = 'eventListButton';
+			eventListButton.type = 'button';
+			eventListButton.innerHTML = 'get event list';
 
+			var eventForm = document.createElement('form');
+			var eventNameInput = document.createElement('input');
+			var participantNameInput = document.createElement('input');
+			var eventAckInput = document.createElement('input');
+			var eventDescInput = document.createElement('input');
+			var eventDateInput = document.createElement('input');
+			var eventLLocationInput = document.createElement('input');
+			var eventLDateInput = document.createElement('input');
+			var eventCreateButton = document.createElement('button');
+			var eventExitButton = document.createElement('button');
+			var eventAckButton = document.createElement('button');
+			eventNameInput.id = 'eventNameInput';
+			eventNameInput.placeholder = 'put event name or id';
+			eventNameInput.type = 'text';
+			participantNameInput.id = 'participantNameInput';
+			participantNameInput.placeholder = 'put participants emails, ack';
+			participantNameInput.type = 'text';
+			eventDescInput.id = 'eventDescInput';
+			eventDescInput.placeholder = 'event description';
+			eventDescInput.type = 'text';
+			eventDescInput.style.height='100px';
+			eventAckInput.id = 'eventAckInput';
+			eventAckInput.placeholder = 'event ack';
+			eventAckInput.type = 'text';
+			eventDateInput.id = 'eventDateInput';
+			eventDateInput.placeholder = 'event description';
+			eventDateInput.type = 'datetime-local';
+			eventLLocationInput.id = 'eventLLocationInput';
+			eventLLocationInput.placeholder = 'location';
+			eventLLocationInput.type = 'text';
+			eventLDateInput.id = 'eventLDateInput';
+			eventLDateInput.placeholder = 'event description';
+			eventLDateInput.type = 'datetime-local';
+			eventCreateButton.id = 'eventCreateButton';
+			eventCreateButton.type = 'button';
+			eventCreateButton.innerHTML = 'create event';
+			eventExitButton.id = 'eventExitButton';
+			eventExitButton.type = 'button';
+			eventExitButton.innerHTML = 'exit event';
+			eventAckButton.id = 'eventAckButton';
+			eventAckButton.type = 'button';
+			eventAckButton.innerHTML = 'ack event';
+			
+			eventForm.appendChild(eventNameInput);
+			eventForm.appendChild(participantNameInput);
+			eventForm.appendChild(eventCreateButton);
+			eventForm.appendChild(eventExitButton);
+			eventForm.appendChild(eventAckButton);
+			
+			eventDescInput.value = 'fff';
+			eventDateInput.value = '2016-12-03T18:45';
+			
+			eventNameInput.value = 'test event';
+			participantNameInput.value = 'korea@kaist.ac.kr';
+			
+			var eventSecondLine = document.createElement('div');
+			eventSecondLine.appendChild(eventDescInput);
+			eventSecondLine.appendChild(eventDateInput);
+			eventSecondLine.appendChild(eventLLocationInput);
+			eventSecondLine.appendChild(eventLDateInput);
+			
 			controlDiv.appendChild(contactForm);
 			controlDiv.appendChild(groupListButton);
 			controlDiv.appendChild(groupForm);
 			controlDiv.appendChild(chatControlTitle);
 			controlDiv.appendChild(chatForm);
+			controlDiv.appendChild(eventListButton);
+			controlDiv.appendChild(eventForm);
+			controlDiv.appendChild(eventSecondLine);
 
+			$('#eventAckButton').click(function() {
+				server.emit('eventAck', {eventId: $('#eventNameInput').val(), 
+					ack: $('#participantNameInput').val()});
+			});
+			$('#eventExitButton').click(function() {
+				server.emit('eventExit', {eventId: $('#eventNameInput').val()});
+			});
+			$('#eventCreateButton').click(function() {
+				var participants = $('#participantNameInput').val().split(',');
+				for (var i = 0; i < participants.length; i++) 
+					participants[i] = participants[i].trim();
+				
+				function parseYMDHM(s) {
+					if (!s)
+						return s;
+					
+					// regex match non digit(\D) character '+'
+				    var b = s.split(/\D+/);
+					return new Date(b[0], --b[1], b[2], b[3], b[4], b[5]||0, b[6]||0).getTime();
+				}
+				
+				var date = parseYMDHM($('#eventDateInput').val());
+				var ldate = parseYMDHM($('#eventLDateInput').val());
+				
+				var localization = {location: $('#eventLLocationInput').val(), 
+						date: ldate};
+				if (!localization.location || !localization.date)
+					localization = null;
+				
+				server.emit('createEvent', {name: $('#eventNameInput').val(),
+					participants: participants, description: $('#eventDescInput').val(), 
+					date: date, localization: localization});
+			});
+			$('#eventListButton').click(function() {
+				server.emit('getEventList');
+			});
 			$('#chatRefreshButton').click(function() {
 				if (chatRoom.groupId)
 					server.emit('readMessage', {groupId: chatRoom.groupId});
@@ -187,6 +292,26 @@ window.addEventListener('load', function() {
 			});
 		}
 	});
+	server.on('eventStarted', function(data) {
+		console.log('eventStarted');
+		console.log(data);
+	});
+	server.on('eventAck', function(data) {
+		console.log('eventAck');
+		console.log(data);
+	});
+	server.on('eventParticipantExited', function(data) {
+		console.log('eventParticipantExited');
+		console.log(data);
+	});
+	server.on('eventExit', function(data) {
+		console.log('eventExit');
+		console.log(data);
+	});
+	server.on('eventCreated', function(data) {
+		console.log('eventCreated');
+		console.log(data);
+	});
 	server.on('readMessage', function(data) {
 		console.log('readMessage');
 		console.log(data);
@@ -208,18 +333,19 @@ window.addEventListener('load', function() {
 		console.log('ack');
 		console.log(data);
 	});
-	server.on('messageAckUndo', function(data) {
-		console.log('undo ack');
-		console.log(data);
-	});
 	server.on('newMessage', function(data) {
 		// if message was sent for the chat
 		if (chatRoom.groupId == data.groupId) {
 			//console.log(chatRoom.members);
 			if (data.userId == me.userId)
-				addMyMessage(data.content, chatRoom.members[data.userId].nickname, data.date.toString());
-			else
-				addMessage(data.content, chatRoom.members[data.userId].nickname, data.date.toString());
+				addMyMessage(data.content, chatRoom.members[data.userId].nickname, data.date.toString(),
+						data.importance, data.nbread);
+			else {
+				addMessage(data.content, chatRoom.members[data.userId].nickname, data.date.toString(),
+						data.importance, data.nbread);
+				server.emit('ackMessage', {groupId: data.groupId,
+					ackStart: data.messageId, ackEnd: data.messageId});
+			}
 		} else {
 			var str = data.content;
 			if (chatRoom.members[data.userId] != undefined) {
@@ -232,21 +358,20 @@ window.addEventListener('load', function() {
 			console.log(data);
 		}
 	});
-	server.on('membersJoin', function(data) {
-		//console.log('membersJoin');
-		//console.log(data);
-	});
-	server.on('membersLeave', function(data) {
-		//console.log('membersLeave');
-		//console.log(data);
-	});
 	server.on('membersInvited', function(data) {
 		console.log('membersInvited');
 		console.log(data);
+		var group = getGroup(data.groupId);
+		
+		data.members.forEach(function(member) {
+			addMember(group, member);
+		});
 	});
 	server.on('membersExit', function(data) {
 		console.log('membersExit');
 		console.log(data);
+		var group = getGroup(data.groupId);
+		
 	});
 	server.on('exitGroup', function(data) {
 		if (data.status == 'success') {
@@ -330,6 +455,10 @@ window.addEventListener('load', function() {
 			console.log('failed to remove contact...');
 		}
 	});
+	server.on('getEventList', function(data) {
+		if (data.status == 'success')
+			console.log(data);
+	});
 	server.on('getGroupList', function(data) {
 		if (data.status == 'success') {
 			console.log(data);
@@ -388,20 +517,22 @@ function reset() {
 
 function addOldMessages(messages) {
 	var chats = $('.chat > .chatMessage');
-	var j = 0;
+	var j = messages.length - 1;
 
-	for (; j < messages.length; j++) {
+	for (; j >= 0; j--) {
 		var chat = $('.chat');
 		var newMessage = messages[j];
 
 		var content = newMessage.content;
 		var date = newMessage.date;
 		var name = chatRoom.members[newMessage.userId].nickname;
-
+		var importance = newMessage.importance;
+		var nbread = newMessage.importance;
+		
 		if (newMessage.userId == me.userId)
-			chat.prepend(makeMyMessage(content, me.nickname, date));
+			addMyMessage(content, me.nickname, date, importance, nbread);
 		else
-			chat.prepend(makeMessage(content, name, date));
+			addMessage(content, name, date, importance, nbread);
 
 		$('.chatTog').animate({ scrollTop: 50000 }, 1);
 	}
@@ -429,21 +560,75 @@ function setGroup(groupId) {
 	}
 }
 
-function makeMyMessage(msg, name, date) {
-	return '<li class="chatMessage right clearfix"><span class="chat-img pull-right"><img src="http://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" /></span><div class="chat-body clearfix"><div class="header"><strong class="pull-right primary-font">'+name+'</strong><small class="text-muted"><i class="fa fa-clock-o fa-fw"></i> '+date+'</small></div><p>'+msg+'</p></div></li>';
+function getGroup(groupId) {
+	for (var i in groups)
+		if (groups[i].groupId == groupId) {
+			return groups[i];
+		}
+	
+	return null;
 }
 
-function makeMessage(msg, name, date) {
-	return '<li class="chatMessage left clearfix"><span class="chat-img pull-left"><img src="http://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" /></span><div class="chat-body clearfix"><div class="header"><strong class="primary-font">'+name+'</strong><small class="pull-right text-muted"><i class="fa fa-clock-o fa-fw"></i>'+date+'</small></div><p>'+msg+'</p></div></li>';
+// add member to group
+function addMember(group, member) {
+	group.members.push(member);
+	if (chatRoom.groupId == group.groupId)
+		chatRoom.members[member.userId] = member;
 }
 
-function addMyMessage(msg, name, date){
-	$('.chat').append(makeMyMessage(msg, name, date));/*'<div class="message"></p>' + name + ' : ' + msg +   '</p></div>');*/
+function makeMyMessage(msg, name, date, importance, nread) {
+	var id = date + "-" + name + "-" + importance + "-" + msg;
+	var r = '<li class="chatMessage right clearfix" ' + 'id="' + id +'">' +
+						'<span class="chat-img pull-right">' +
+							'<img src="https://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" />' +
+						'</span>' +
+						'<div class="chat-body clearfix">' +
+							'<div class="header">' +
+								'<strong class="pull-right primary-font">' +
+									name +
+								'</strong>' +
+								'<small class="text-muted">' +
+									'<i class="fa fa-clock-o fa-fw"></i> ' +
+									date.toLocaleString().toString() + " " + importance.toString() +
+								'</small>' +
+							'</div>' +
+							'<p>'+msg+'</p>' +
+						'</div>' +
+					'</li>';
+	return r;
+}
+
+function makeMessage(msg, name, date, importance, nread) {
+	var id = date + "-" + name + "-" + importance + "-" + msg;
+	var r = '<li class="chatMessage left clearfix" ' + 'id="' + id + '">' +
+						'<span class="chat-img pull-left">' +
+							'<img src="https://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle"/> ' +
+						'</span>' +
+						'<div class="chat-body clearfix">' +
+							'<div class="header">' +
+								'<strong class="primary-font">' +
+									name +
+								'</strong>' +
+								'<small class="pull-right text-muted">' +
+									'<i class="fa fa-clock-o fa-fw">' + '</i>' +
+									date.toLocaleString().toString() + " " + importance.toString() +
+								'</small>' +
+							'</div>' +
+							'<p>' + msg + '</p>' +
+						'</div>' +
+					'</li>';
+
+
+	return r;
+}
+
+function addMyMessage(msg, name, date, importance, nread){
+	$('.chat').append(makeMyMessage(msg, name, date, importance, nread));
 	$('.chatTog').animate({ scrollTop: 50000 }, 1);
 }
 
-function addMessage(msg, name, date){
-	$('.chat').append(makeMessage(msg, name, date));/*'<div class="message"></p>' + name + ' : ' + msg +   '</p></div>');*/
+function addMessage(msg, name, date, importance, nread){
+	$('.chat').append(makeMessage(msg, name, date, importance, nread));
 	$('.chatTog').animate({ scrollTop: 50000 }, 1);
 }
 
@@ -451,10 +636,10 @@ function addMessage(msg, name, date){
 function sentMessage(){
     if ($('.messageInput').val() != "" && logined){
     	var content = $('.messageInput').val();
-      server.emit('sendMessage', {groupId: chatRoom.groupId, content: content, importance: 0, location: null} );
+      server.emit('sendMessage', {groupId: chatRoom.groupId, content: content, importance: 0, location: 'test'} );
 
-      addMyMessage(content, me.nickname , new Date().toString(), true);
-      $('.messageInput').val(''); //reset the messageInput
+      addMyMessage(content, me.nickname , new Date().toString(), 0, chatRoom.members.length - 1);
+      $('.messageInput').val('');
     }
 }
 

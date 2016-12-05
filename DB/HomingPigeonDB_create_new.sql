@@ -34,6 +34,7 @@ CREATE TABLE Groups (
     id int NOT NULL AUTO_INCREMENT,
     name varchar(128) DEFAULT NULL,                   /* Group name */
     contactId int,                                    /* Contact id if this group is for contact chat */
+    eventId int,                                      /* Event id if this group is for event chat */
     CONSTRAINT Groups_pk PRIMARY KEY (id)
 );
 
@@ -42,7 +43,7 @@ CREATE TABLE GroupMembers (
     groupId int NOT NULL,
     accountId int NOT NULL,
     ackStart int NOT NULL,                          /* the member start read from this message id */
-    ackMessageId int DEFAULT NULL,                  /* the member have read until this message id */
+    nbNewMessages int unsigned DEFAULT 0,           /* number of messages the user have not seen */
     alias varchar(128) DEFAULT NULL,                /* group alias only seen by the user instead of group name */
     CONSTRAINT GroupsMembers_pk PRIMARY KEY (groupId, accountId)
 );
@@ -54,10 +55,10 @@ CREATE TABLE Messages (
     messageId int unsigned,                          /* Message id in this group */
     accountId int NOT NULL,
     date timestamp NOT NULL,
-    nbread int NOT NULL DEFAULT 1,                   /* Number of read */
+    nbread int NOT NULL DEFAULT 1,                   /* Number of not read */
     importance decimal(1) NOT NULL DEFAULT 0,        /* 0: Normal, 1: Important, 2: Very Important */
     content text NOT NULL,
-    location varchar(25),                            /* Location sharing */
+    location varchar(64),                            /* Location sharing */
     leftGroup bit(1) DEFAULT 0,                      /* Left group? */
     CONSTRAINT Messages_pk PRIMARY KEY (id)
 );
@@ -82,20 +83,22 @@ CREATE TABLE Localisations (
 
 CREATE TABLE Events (
     id int NOT NULL AUTO_INCREMENT,
-    name varchar(128) DEFAULT NULL,
+    name varchar(128) NOT NULL,
     nbParticipants int NOT NULL DEFAULT 0,
     nbParticipantsMax int NOT NULL,
-    length int NOT NULL,                       /* ??? */
+    length int NOT NULL,                       /* Don't know what it means */
     date timestamp NOT NULL,                   /* Meeting time in chat */
     description varchar(1024),                 /* Text description of event */
-    groupId int,                               /* Chat room id for discussion */ 
+    started bit(1) NOT NULL DEFAULT 0,         /* If the event started? */
+    createrId int,                             /* Event creater account id */
     CONSTRAINT Events_pk PRIMARY KEY (id)
 );
 
 CREATE TABLE EventParticipants (
     eventId int NOT NULL,
     accountId int NOT NULL,
-    status varchar(25) NOT NULL,
+    acked decimal(1) NOT NULL DEFAULT 0,           /* 0: not seen, 1: seen event, 2: seen started */
+    status varchar(25),
     CONSTRAINT EventParticipants_pk PRIMARY KEY (eventId, accountId)
 );
 
@@ -121,7 +124,9 @@ ALTER TABLE Groups ADD INDEX Groups_ContactId_Id (contactId, id);
 
 ALTER TABLE Groups ADD CONSTRAINT Groups_ContactId FOREIGN KEY (contactId)
     REFERENCES Contacts (id) ON UPDATE CASCADE ON DELETE CASCADE;
-
+    
+ALTER TABLE Groups ADD CONSTRAINT Groups_EventId FOREIGN KEY (eventId)
+    REFERENCES Events (id) ON UPDATE CASCADE ON DELETE CASCADE;
 
 -- GroupMembers
 ALTER TABLE GroupMembers ADD INDEX GroupMembers_Accounts_Groups (accountId, groupId);
@@ -138,27 +143,24 @@ ALTER TABLE Messages ADD INDEX Messages_GroupId_Id (groupId, id);
 ALTER TABLE Messages ADD INDEX Messages_GroupId_Timestamp (groupId, date);
 ALTER TABLE Messages ADD INDEX Messages_GroupId_MessageId (groupId, messageId);
 
-ALTER TABLE Messages ADD CONSTRAINT Messages_Accounts FOREIGN KEY (accountId) 
-    REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
-
-ALTER TABLE Messages ADD CONSTRAINT Messages_GroupId FOREIGN KEY (groupId)
-    REFERENCES Groups (id) ON UPDATE CASCADE ON DELETE CASCADE;
+ALTER TABLE Messages ADD CONSTRAINT Messages_GroupId_Accounts FOREIGN KEY (groupId, accountId) 
+    REFERENCES GroupMembers (groupId, accountId) ON UPDATE CASCADE ON DELETE CASCADE;
     
 -- MessageAcks
 ALTER TABLE MessageAcks ADD INDEX MessageAcks_AckStart (ackStart, ackEnd);
 ALTER TABLE MessageAcks ADD INDEX MessageAcks_AckEnd (ackEnd, ackStart);
 
-ALTER TABLE MessageAcks ADD CONSTRAINT MessageAcks_Accounts FOREIGN KEY (accountId) 
-    REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
-    
-ALTER TABLE MessageAcks ADD CONSTRAINT MessageAcks_GroupId FOREIGN KEY(groupId)
-    REFERENCES Groups (id) ON UPDATE CASCADE ON DELETE CASCADE;
+ALTER TABLE MessageAcks ADD CONSTRAINT MessageAcks_GroupId_Accounts FOREIGN KEY (groupId, accountId) 
+    REFERENCES GroupMembers (groupId, accountId) ON UPDATE CASCADE ON DELETE CASCADE;
     
 -- Localisations
 ALTER TABLE Localisations ADD CONSTRAINT Localisations_EventId FOREIGN KEY (eventId)
     REFERENCES Events (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
 -- Events
+ALTER TABLE Events ADD CONSTRAINT Events_AccountId FOREIGN KEY (createrId)
+    REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
+    
 ALTER TABLE EventParticipants ADD INDEX EventParticipants_Accounts_Events (accountId, eventId);
 
 ALTER TABLE EventParticipants ADD CONSTRAINT EventParticipants_EventId FOREIGN KEY (eventId)
@@ -167,17 +169,19 @@ ALTER TABLE EventParticipants ADD CONSTRAINT EventParticipants_EventId FOREIGN K
 ALTER TABLE EventParticipants ADD CONSTRAINT EventParticipants_AccountId FOREIGN KEY (accountId)
     REFERENCES Accounts (id) ON UPDATE CASCADE ON DELETE CASCADE;
     
+/*
 ALTER TABLE Contacts ADD status TINYINT DEFAULT 0;
 ALTER TABLE GroupMembers ADD status TINYINT DEFAULT 0;
-
+*/
 -- Message trigger
+/*
 delimiter #
 
 create trigger Group_Message_Id before insert on Messages
 for each row
 begin
 declare mId int unsigned default 0;
-select if(max(messageId), max(messageId) + 1, 0) into mId from Messages where groupId = new.groupId;
+select if(max(messageId), max(messageId) + 1, 0) into mId from Messages where groupId = new.groupId lock in share mode;
   if not (mId > 0) then
     set mId = 1;
   end if;
@@ -185,3 +189,4 @@ select if(max(messageId), max(messageId) + 1, 0) into mId from Messages where gr
 end#
 
 delimiter ;
+*/
