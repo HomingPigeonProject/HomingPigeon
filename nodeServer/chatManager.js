@@ -104,6 +104,8 @@ var init = function(user) {
 			function(callback) {
 				var group = this.data.group;
 				var sessions = session.getUsersSessions(this.data.resMembers);
+				// For poor client, only notify request user
+				//var sessions = session.getUserSessions(user);
 
 				var sendMsg = lib.filterGroupData(group);
 				sendMsg.status = 'success';
