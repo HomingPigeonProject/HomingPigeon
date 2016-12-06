@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -10,32 +9,42 @@
   <link href="../../bootstrap/dist/css/sb-admin-2.css" rel="stylesheet">
   <link href="../../bootstrap/metisMenu/dist/metisMenu.min.css" rel="stylesheet">
   <link href="../../bootstrap/morrisjs/morris.css" rel="stylesheet">
-  <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
+  <link href="../../assets/fullcalendar.css" rel="stylesheet">
+  <link href="../../assets/fullcalendar.print.css" rel="stylesheet" media="print">
+  <script src="../../bootstrap/js/jquery.js"></script>
   <script type="text/javascript" src='https://maps.google.com/maps/api/js?libraries=places&key=AIzaSyA5WMwx4Wc9SvD-MdXgv4k8P71qBzlOQaQ'></script>
+  <script src="../../bootstrap/js/bootstrap.min.js"></script>
+  <script src="../../assets/moment.js"></script>
   <script src="../../locationpicker.jquery.js"></script>
+  <script src="../../assets/jquery-ui.min.js"></script>
   <link rel="stylesheet" type="text/css" href="style.css">
+  <meta name = "viewport" id = "viewport_device">
 
   <title>Home</title>
+<script>
+if(navigator.userAgent.match(/iPhone/i) || navigator.userAgent.match(/iPod/i) || navigator.userAgent.match(/Android/i)
+    || navigator.userAgent.match(/BlackBerry/i) || navigator.userAgent.match(/IEMobile/i)){
+        $("#viewport_device").attr("content", "initial-scale = 1.00");
+        $("#viewport_device").attr("content", "minimum-scale = 0.50");
+    }
+    else if(navigator.userAgent.match(/iPad/i)){
+        $("#viewport_device").attr("content", "initial-scale = 1.00");
+    }
+</script>
 
   <!-- Hidden variables -->
   <div id="phpUserId" style="display: none;">
-
-  </div>
+    5  </div>
   <div id="phpSessionId" style="display: none;">
-
-  </div>
+    6p3c60epmamrvqlgn7ifvo9p37  </div>
   <div id="phpURL" style="display: none;">
-
-  </div>
+    /HomingPigeon/HP/Home/index.php  </div>
 
 </head>
 
 <body>
 <div id="main">
-
-  </div>
-
-  <div id="left">
+ 
       <div id='control'>
         
         <label id='loginStatus'>status : not logined</label>
@@ -58,14 +67,72 @@
           <button id="createGroupButton" class="btn" type="button">create group</button>
         </form>
       </div>
+      
+      
+  <div class="row">
+    <div class ="col-lg-4">
+      <div id='control'>
+        <div class="chat-panel panel panel-default">
+            <div class="panel-heading">
+                <i class="fa fa-users fa-fw"></i>Add Contact/Group
+            </div>
+
+<br/>
+        <div class="input-group">
+        <form>
+          <div class="row">
+            <div class="col-lg-9">
+            <input id="contactInput" type="text" class="form-control" placeholder="contact email"></input>
+          </div><div class="col-lg-3">
+            <button id="contactAddButton" class="btn btn-primary" type="button">add contact</button>
+          </div></div>
+        </form>
+      </div>
+<br/>
+      <div class="input-group form-inline">
+        <form>
+          <div class="row">
+            <div class="col-lg-9">
+          <input id="createGroupNameInput" type="text"  class="form-control" placeholder="group name"></input>
+          </div><div class="col-lg-3">
+          <button id="createGroupButton" class="btn btn-primary" type="button">create group</button>
+          </div></div>
+        </form>
+      </div>
+<br/>
 
       <div id="list-group">
 
+
+
+<!-- old one
         <div id="pending-contact-list-full">
           <p class="listTitle">Pending Contacts</p>
           <div id="pending-contact-list">
           </div>
         </div>
+!-->
+        <div id="pending-contact-list-full" class="chat-panel panel panel-default">
+            <div class="panel-heading">
+                <i class="fa fa-user fa-fw"></i>Pending Contacts
+            </div>
+              <ul id="pending-contact-list" style="list-style-type: none;padding:0px;">
+              </ul>
+          </div>
+          <div id="contact-list-full" class="chat-panel panel panel-default">
+              <div class="panel-heading">
+                  <i class="fa fa-user fa-fw"></i>Contacts
+              </div>
+              <ul id="contact-list" style="list-style-type: none;padding:0px;">
+              </ul>
+            </div>
+            <div id="group-list-full" class="chat-panel panel panel-default">
+                <div class="panel-heading">
+                    <i class="fa fa-users fa-fw"></i>Groups
+                </div>
+              <ul id="group-list" style="list-style-type: none;padding:0px;">
+              </ul>
+              </div>
 
         <!--
         <div id="pending-group-list-full">
@@ -74,6 +141,9 @@
           </div>
         </div>
         -->
+
+
+<!-- old one
 
         <div id="contact-list-full">
           <p class="listTitle">Contacts</p>
@@ -87,17 +157,17 @@
           </div>
         </div>
 
+!-->
+
       </div>
-
+    </div>
   </div>
-
-  <div id="right">
+  </div>
 
     <!-- Text chat -->
     <div id='chat'>
 
-    <div class="col-lg-8">
-      <br/><br/><br/><br/>
+    <div class="col-lg-7">
       <div class="chat-panel panel panel-default">
         <div id="panel-heading" class="panel-heading">
             <i class="fa fa-comments fa-fw"></i> Chat
@@ -109,51 +179,59 @@
         </div>
            <div class="panel-body chatTog">
              <ul class="chat" id="ul-chatbox-messages">
-               <!-- Here are displayed the messages -->
              </ul>
            </div>
            <div class="panel-footer chatTog">
-             <div class="input-group">
-               <input id="btn-input" type="text" class="form-control input-sm messageInput" placeholder="Type your message here..." />
+             <div class="row">
+               <div class="col-lg-8"> <input id="btn-input" type="text" class="form-control input-sm messageInput" placeholder="Type your message here..." /></div>
+               <div class="col-lg-2">
                <span class="input-group-btn">
-                 <button class="btn btn-warning btn-sm" id="btn-chat">Send</button>
+                 <button class="btn btn-warning" id="btn-chat">Send</button>
                </span>
-
-               <form>
-                 <select id="importance-list" size="1">
-                   <option>normal
-                   <option>important
-                   <option>very important
-                 </select>
-               </form>
-
              </div>
-           </div>
+                <div class="col-lg-2">
+                  <form>
+                  <select id="importance-list" class="form-control" size="1">
+                    <option>normal</option>
+                    <option>important</option>
+                    <option>very important</option>
+                  </select>
+                  </form>
+                </div>
+              </div>
            <!-- End of Text chat -->
-           
+
            <!--- Download summary -->
-           <div id="summary-option">
+            <div id="summary-option">
+                 <hr>
+            <div class="row">
+                <div class="col-lg-4">
+                  <label> Select the option for the Summary : </label>
+                 </div>
+              <div class="col-lg-4">
+                 <form>
+                   <select id="importance-choice-dl" class="form-control" size="1">
+                     <option>normal</option>
+                     <option>important</option>
+                     <option>very important</option>
+                   </select>
+                    </form>
+                  </div>
+                  <div class="col-lg-4">
+                    <button id="imp-dl-btn" class="btn btn-primary" type="submit">Download Summary</button>
+                  </div>
+              </div>
 
-             <form>
-               <select id="importance-choice-dl" size="1">
-                 <option>normal
-                 <option>important
-                 <option>very important
-               </select>
-             </form>
-             <button id="imp-dl-btn" type="submit">Download Summary</button>
-
+            </div>
+                           <!---End of download summary option -->
            </div>
-           <!---End of download summary option -->
-
-
 
       </div>
     </div>
   </div>
-
-<div>
-  <div class="col-lg-7"  width="700" height="400">
+  </div>
+<div class="row">
+  <div class="col-lg-6">
     </script>
     <br/><br/>
     <div class="chat-panel panel panel-default">
@@ -172,6 +250,7 @@
                 <div class="col-sm-9"><input type="text" class="form-control adress" id="us6-address"/>
                   <br/>
                   <button class="btn btn-primary shareLocation">Share actual position</button>
+                  <button class="btn btn-primary updateLocation">Show message location</button>
                 </div>
             </div>
             <div id="us6" style="width: 700px; height: 400px;"></div>
@@ -203,14 +282,102 @@
                     enableAutocomplete: true
                 });
             </script>
+
+            <script>
+            $(".updateLocation").on('click', function(){
+                var input = $(".long").val();
+                var input2 = $(".latt").val();
+                $('#us6').locationpicker({
+                    location: {
+                        latitude: input,
+                        longitude: input2
+                    },
+                    radius: 0,
+                    inputBinding: {
+                        latitudeInput: $('#us6-lat'),
+                        longitudeInput: $('#us6-lon'),
+                        radiusInput: $('#us6-radius'),
+                        locationNameInput: $('#us6-address')
+                    },
+                    markerInCenter: true,
+                    enableAutocomplete: true
+                });
+              });
+            </script>
         </div>
       </div>
   </div>
 </div>
+<br/>
+<br/>
+<div class="col-lg-5">
+  <div class="panel panel-default">
+    <!-- Create an event -->
+    <div class="panel-heading">
+        <i class="fa fa-calendar-plus-o fa-fw"></i> Events
+        <div class="btn-group pull-right">
+        </div>
+    </div>
+    <div class="events-div">
+      <form>
+             <input id="eventNameInput" placeholder="event name" class="form-control" type="text"></input>
+        <br/><input id="eventParticipantNameInput" placeholder="put participants emails, separate with ','" class="form-control" type="text"></input>
+        <br/><input id="eventDescInput" placeholder="event description" class="form-control" type="text"></input>
+        <br/><input id="eventDateInput"  class="form-control"type='datetime-local'></input>
+        <br/><input id="eventLLocationInput"  class="form-control"type="text" placeholder="location"></input>
+        <br/><input id="eventLDateInput"  class="form-control" type='datetime-local'></input>
+      </form>
+      <br/>
+      <div class="row"><div class="col-sm-5"></div>
+          <button id="eventCreateButton" class="btn btn-primary">Create Event</button>
+      </div>
+      <br/>
+    </div>
+
+
+      <div class="panel-heading">
+          <i class="fa fa-calendar fa-fw"></i> Calendar
+          <div class="btn-group pull-right">
+          </div>
+      </div>
+    <div id="calendar"></div>
+  </div>
+</div>
 </div>
 
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
-    <script src="../../bootstrap/js/jquery.js"></script>
+<script src="fullcalendar.js"></script>
+<script>
+/*
+  $('#calendar').fullCalendar({
+    header: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'month,agendaWeek,agendaDay'
+    },
+    eventClick: function(event) {
+      console.log(event);
+    },
+    editable: true,
+    droppable: true, // this allows things to be dropped onto the calendar
+    drop: function() {
+    // is the "remove after drop" checkbox checked?
+      if ($('#drop-remove').is(':checked')) {
+        // if so, remove the element from the "Draggable Events" list
+        $(this).remove();
+      }
+    }
+  });
+  var event={id:1 , title: 'Now ?', start:  new Date(), editable: false};
+  $('#calendar').fullCalendar('renderEvent', event, true);
+
+  var date = new Date(2016,11,7,16,42,00,00);
+  var event={id:2 , title: '<a>PROJECT DEADLINE</a>', start:  date, editable: false};
+  $('#calendar').fullCalendar('renderEvent', event, true);
+*/
+</script>
+
+
+    <script src="../../locationpicker.jquery.js"></script>
     <script src='../../js/socket.io.js'></script>
     <script src='client.js'></script>
 

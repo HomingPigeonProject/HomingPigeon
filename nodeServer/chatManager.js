@@ -629,7 +629,7 @@ var notifyAcks = function(data, callback) {
 			}
 			
 			// sender will not get ack of itself
-			var sessions = session.getUserSessions(user, true);
+			var sessions = session.getUserSessions(user);
 			
 			var ackIter = function(i) {
 				if (i == acks.length) {

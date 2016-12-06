@@ -156,3 +156,20 @@
      -moz-border-radius: @radius;
           border-radius: @radius;
 }
+
+.listElem {
+	border-bottom:1px solid #EAEAEA;
+	padding:16px;
+	padding-bottom:14px;
+}
+.listElem:last-child {
+	border-bottom:0px solid gray;
+	margin-bottom:0px;
+}
+.listElem:hover {
+	background-color:#EAEAEA;
+}
+.listElem .listElemRight {
+	width:100px;
+	height:100%;
+}

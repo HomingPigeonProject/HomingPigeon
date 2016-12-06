@@ -313,6 +313,42 @@ function printContactList(contacts, parentDiv, pending) {
 		var contact = contacts[i];
 		var invited = contact["invited"];
 
+		// also add the links to the chats
+		var url = document.getElementById("phpURL").textContent;
+		
+		var contactHTML = '<li class="clearfix listElem contactElem">' + 
+			        '<span class="chat-img pull-left" style="position:relative;">' + 
+			        '<span class="bg-info nbread pull-left" style="display:block;">ff</span>' + 
+			        '<img src="https://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" />' + 
+			    '</span>' + 
+			    '<div class="pull-left" style="padding-left:10px;">' + 
+			    '<strong class="primary-font group-contactName">' + contact.nickname + '</strong>' + 
+			    '<div class="chat-body clearfix">' + 
+			        '<div class="header">' + 
+				        '<ul style="list-style-type: none;padding-left:0;">' + 
+			            '<li class="primary-font"><small>a030603@kaist.ac.kr</small></li>' + 
+			            '<li class="text-muted">' + 
+			            '<i class="fa fa-clock-o fa-fw"></i><small>13 mins ago</small>' + 
+			            '</li>' + 
+			            '</ul>' + 
+			        '</div>' + 
+			     '</div>' + 
+			    '</div>' + 
+			        '<div class="pull-right listElemRight">' + 
+			        '<button id="' + contact.email + '" class="btn btn-primary contactChatButton" style="width:100%" ' + 
+			        'data-groupId="' + contact.groupId + '" data-nickname="' + contact.nickname + '">Chat</button>' + 
+			        '<a class="btn btn-success conferenceLink" style="width:100%" target="_blank"' + 
+			        'href="../Conference/page.php?c">Conference</a>' + 
+			        '</div>' +
+			        '<ul class="dropdown-menu">' +
+			        '<li><a href="#">Remove</a></li>' +
+			      '</ul>' + 
+			'</li>';
+		console.log(contactHTML)
+		
+		$(parentDiv).append(contactHTML);
+		continue;
+		
 		var div = document.createElement("div");
 		div.className ="contact";
 
@@ -320,10 +356,6 @@ function printContactList(contacts, parentDiv, pending) {
 		contactName.textContent = contact["nickname"];
 		contactName.className="group-contactName";
 		div.appendChild(contactName);
-
-
-		// also add the links to the chats
-		var url = document.getElementById("phpURL").textContent;
 
 		if (pending && invited) {
 			var denyContactButton = document.createElement("button");
@@ -372,13 +404,15 @@ function printContactList(contacts, parentDiv, pending) {
 			div.appendChild(document.createElement('br'));
 			div.appendChild(contactChatButton);
 
-
-
 			console.log("contact : ", contact);
 		}
 		parentDiv.appendChild(div);
 	}
-
+	$('.contactElem').unbind('contextmenu').bind('contextmenu', function(e) {
+		e.preventDefault();
+		console.log('hey');
+		$(this).dropdown("toggle");
+	});
 	$('.acceptContactButton').unbind("click").bind("click", function() {
 		server.emit('acceptContact', {email: this.id});
 		server.emit('getPendingContactList'); // reload the pending contact list to remove
@@ -395,8 +429,8 @@ function printContactList(contacts, parentDiv, pending) {
 	$('.contactChatButton').unbind("click").bind("click", function() {
 		resetChatBox();
 		var contactEmail = this.id;
-		var groupId = this['data-groupId'];
-		var nickName = this['data-nickname'];
+		var groupId = $(this).data('groupid');
+		var nickName = $(this).data('nickname');
 		if (!groupId) {
 			console.log("join contact chat");
 			server.emit('joinContactChat', {email: contactEmail});
