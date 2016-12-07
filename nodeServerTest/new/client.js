@@ -115,6 +115,7 @@ window.addEventListener('load', function() {
 		server.emit('getPendingContactList');
 	});
 	server.on('contactDenied', function (data) {
+		console.log('denied', data);
 		server.emit('getPendingContactList');
 	});
 	server.on('contactRemoved', function (data) {
@@ -124,6 +125,7 @@ window.addEventListener('load', function() {
 		server.emit('getPendingContactList');
 	});
 	server.on('getPendingContactList', function(data) {
+		console.log('getPendingContactList', data);
 		if (data.status == 'success') {
 			var pcontacts = data.contacts;
 			var pendingContactListDiv = document.getElementById("pending-contact-list");
@@ -269,9 +271,11 @@ window.addEventListener('load', function() {
 	});
 	server.on('membersExit', function(data) {
 		console.log('membersExit', data);
+		server.emit('getGroupList');
 	});
 	server.on('contactChatRemoved', function(data) {
 		console.log('contact chat removed', data);
+		server.emit('getContactList');
 	});
 	server.on('joinContactChat', function(data) {
 		if (data.status == 'success') {
@@ -516,8 +520,12 @@ function printGroupList(groups, parentDiv, pending) {
 				        '<a class="btn btn-success conferenceLink" style="width:100%" target="_blank"' + 
 				        'href="../Conference/page.php?g' + group.groupId + '">Conference</a>';
 			
-			var toggleList = '<li><a id="' + group.groupId + '" href="#" class="addContactToGroupButton2">Invite Contacts</a></li>' + 
+			var toggleList = '<li><a id="' + group.groupId + '" href="#" class="showGroupMemberButton" ' + 
+						'data-toggle="modal" data-target="#myModal">Show members</a></li>' + 
+						'<li><a id="' + group.groupId + '" href="#" class="inviteContactToGroupButton" ' + 
+						'data-toggle="modal" data-target="#myModal">Invite contacts</a></li>' + 
 						'<li><a id="' + group.groupId + '" href="#" class="exitGroupButton2">Remove</a></li>';
+			
 			var lastMessageDate = calcAgo(parseYMDHM(group.lastMessageDate));
 			var lastMessageDateStr = lastMessageDate ? '<i class="fa fa-clock-o fa-fw"></i><small>' + lastMessageDate + '</small>' : '';
 			
@@ -541,56 +549,6 @@ function printGroupList(groups, parentDiv, pending) {
 			
 			$(parentDiv).append(contactHTML);
 			continue;
-			var div = document.createElement("div");
-			div.className ="group";
-
-			var groupName = document.createElement("p");
-			groupName.textContent = group["name"];
-			groupName.className="group-contactName";
-			div.appendChild(groupName);
-
-			var url = document.getElementById("phpURL").textContent;
-
-			var groupConferenceLink = document.createElement('a');
-			groupConferenceLink.className = "conferenceLink";
-			groupConferenceLink.appendChild(document.createTextNode("conference"));
-			groupConferenceLink.title = "conference";
-			groupConferenceLink.target = "_blank ";
-			groupConferenceLink.href = "../Conference/page.php?" + "g" + group["groupId"];
-
-			var groupChatButton = document.createElement("button");
-			groupChatButton.className = "groupChatButton";
-			groupChatButton.innerHTML = "join chat";
-			groupChatButton.id = group["groupId"];
-			groupChatButton["data-groupName"] = group["name"];
-
-			var exitGroupButton = document.createElement("button");
-			exitGroupButton.className = "exitGroupButton";
-			exitGroupButton.innerHTML = "❌";
-			exitGroupButton.id = group["groupId"];
-
-			var addContactToGroupForm = document.createElement('form');
-			var addContactToGroupEmail = document.createElement('input');
-			addContactToGroupEmail.type = 'test';
-			addContactToGroupEmail.placeholder = 'contact email';
-			addContactToGroupEmail.className = "addContactToGroupEmail";
-			var addContactToGroupButton = document.createElement('button');
-			addContactToGroupButton.className = "addContactToGroupButton";
-			addContactToGroupButton.innerHTML = "➕";
-			addContactToGroupButton.id = group["groupId"];
-
-			addContactToGroupForm.appendChild(addContactToGroupEmail);
-			addContactToGroupForm.appendChild(addContactToGroupButton);
-
-			div.appendChild(exitGroupButton);
-			div.appendChild(groupConferenceLink);
-			div.appendChild(document.createElement('br'));
-			//div.appendChild(groupChatLink);
-			div.appendChild(groupChatButton);
-
-			div.appendChild(addContactToGroupForm);
-
-			parentDiv.appendChild(div);
 		}
 
 	}
@@ -620,13 +578,107 @@ function printGroupList(groups, parentDiv, pending) {
 		server.emit('exitGroup', {groupId: this.id});
 		server.emit('getGroupList');
 	});
-	$('.addContactToGroupButton').unbind("click").bind("click", function(){
-		var truc = new Array();
-		truc.push($(this).prev().val()); // the email given in the input field
-		server.emit('inviteGroupMembers', {groupId: this.id, members: truc});
+	$('.showGroupMemberButton').unbind("click").bind("click", function(){
+		$('#myModal').modal('toggle');
+		var title = 'Group Members';
+		var body = '<div id="modalContactList"></div>';
+		var footer = '';
+		
+		var group = getGroup(this.id);
+		console.log(group);
+		if (group) {
+			
+			setModal(title, body, footer);
+			
+			var emails = createModalContactList(group.members, function(userId) {
+				return true;
+			});
+		}
 	});
-
+	$('.inviteContactToGroupButton').unbind("click").bind("click", function(){
+		$('#myModal').modal('toggle');
+		var title = 'Invite Contacts to Group';
+		var body = '<p>Please select contacts you want</p>' +
+					'<div id="modalContactList"></div>';
+		var footer = '<button id="inviteContactToGroupConfirmButton" class="btn btn-primary">Invite</button>';
+		var id = this.id;
+		var group = getGroup(id);
+		console.log(group);
+		if (group) {
+			
+			setModal(title, body, footer);
+			
+			var emails = createModalContactList(contactList, function(userId) {
+				if (getMemberFromGroup(group, userId)) 
+					return false;
+				return true;
+			});
+			
+			// when click invite button
+			$('#inviteContactToGroupConfirmButton').bind("click", function() {
+				server.emit('inviteGroupMembers', {groupId: id, members: emails});
+				console.log('sent', emails)
+				$('#myModal').modal('toggle');
+			});
+		}
+	});
 }
+
+function setModal(title, body, footer) {
+	$('#myModal #myModalLabel').html(title);
+	$('#myModal .modal-body').html(body);
+	$('#myModal .modal-footer').html(footer);
+}
+
+function createModalContactList(users, filter) {
+	var arrayLength = users.length;
+	var emails = [];
+	
+	$('#myModal #modalContactList').append('<ul class="contactList" style="list-style-type: none;padding:0px;"></ul>');
+	
+	for (var i = 0; i < arrayLength; i++) {
+		var user = users[i];
+		
+		if (!filter(user.userId))
+			continue;
+		
+		var lastSeen = calcAgo(parseYMDHM(user.lastSeen));
+		lastSeenStr = lastSeen ? '<i class="fa fa-clock-o fa-fw"></i><small>' + lastSeen + '</small>' : '';
+		
+		var contactHTML = '<li class="clearfix listElem modalContact" data-contactEmail="' + user.email + '">' + 
+        '<span class="chat-img pull-left" style="position:relative;">' + 
+        '<img src="https://placehold.it/50/55C1E7/fff" alt="User Avatar" class="img-circle" />' + 
+		    '</span>' + 
+		    '<div class="pull-left" style="padding-left:10px;">' + 
+		    '<strong class="primary-font group-contactName">' + user.nickname + '</strong>' + 
+		    '<div class="chat-body clearfix">' + 
+		        '<div class="header">' + 
+			        '<ul style="list-style-type: none;padding-left:0;">' + 
+		            '<li class="primary-font"><small>' + user.email + '</small></li>' + 
+		            '<li class="text-muted">' + lastSeenStr + '</li>' + 
+		            '</ul>' + 
+		        '</div>' + 
+		     '</div>' + 
+		    '</div>' + 
+		'</li>';
+		
+		$('#myModal #modalContactList .contactList').append(contactHTML);
+	}
+	$('.modalContact').unbind('click').bind('click', function(e) {
+		e.preventDefault();
+		// by clicking add or remove contacts
+		var index = emails.indexOf($(this).data('contactemail'));
+		$(this).toggleClass('selected');
+		if (index < 0) {
+			emails.push($(this).data('contactemail'));
+		} else {
+			emails.splice(index, 1);
+		}
+	});
+	
+	return emails;
+}
+
 function resetChatBox() {
 	var ul = document.getElementById("ul-chatbox-messages");
 	ul.innerHTML="";

@@ -457,7 +457,7 @@ var addMembers = dbManager.composablePattern(function(pattern, callback) {
 	
 	if (!members)
 		return callback(null, addedMembers);
-	console.log(members);
+	//console.log(members);
 	pattern([
 		function(callback) {
 			var db = this.db;
@@ -488,7 +488,7 @@ var addMembers = dbManager.composablePattern(function(pattern, callback) {
 						// don't check if user is null or user adds itself
 						if (!user || user.userId == peer.id)
 							return callback(null, true, null, null);
-						console.log('accept');
+						
 						// user can invite only contacts
 						this.db.getAcceptedContact({userId: user.userId, userId2: peer.id, lock: true}, 
 						function(err, result, fields) {
@@ -498,7 +498,7 @@ var addMembers = dbManager.composablePattern(function(pattern, callback) {
 					function(self, result, fields, callback) {
 						if (!self && result.length == 0)
 							return callback(new Error('You can add only your contacts'));
-						console.log('added');
+						
 						// check if the member added already
 						this.db.getGroupMemberByUser({groupId: groupId, userId: peer.id, lock: true},
 								callback);
