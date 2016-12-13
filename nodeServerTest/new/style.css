@@ -156,3 +156,47 @@
      -moz-border-radius: @radius;
           border-radius: @radius;
 }
+
+.listElem {
+	position:relative;
+	border-bottom:1px solid #EAEAEA;
+	padding:16px;
+	padding-bottom:14px;
+}
+.listElem:last-child {
+	border-bottom:0px solid gray;
+	margin-bottom:0px;
+}
+.listElem:hover {
+	background-color:#EAEAEA;
+}
+.listElem .listElemRight {
+	width:100px;
+	height:100%;
+}
+.listElem.selected {
+	padding-left: 32px;
+	padding-right: 0px;
+	background-color:#FFE08C;
+}
+
+.vertical-alignment-helper {
+    display:table;
+    height: 100%;
+    width: 100%;
+    pointer-events:none;
+}
+.vertical-align-center {
+    /* To center vertically */
+    display: table-cell;
+    vertical-align: middle;
+    pointer-events:none;
+}
+.modal-content {
+    /* Bootstrap sets the size of the modal in the modal-dialog class, we need to inherit it */
+    width:inherit;
+    height:inherit;
+    /* To center horizontally */
+    margin: 0 auto;
+    pointer-events:all;
+}

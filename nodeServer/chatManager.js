@@ -104,6 +104,8 @@ var init = function(user) {
 			function(callback) {
 				var group = this.data.group;
 				var sessions = session.getUsersSessions(this.data.resMembers);
+				// For poor client, only notify request user
+				//var sessions = session.getUserSessions(user);
 
 				var sendMsg = lib.filterGroupData(group);
 				sendMsg.status = 'success';
@@ -157,6 +159,8 @@ var init = function(user) {
 		});
 	});
 
+	// TODO: max(messageId) + 1 is not alway true, because when user exits
+	//       messages of the users are removed
 	// store message in database and broadcast to all other users
 	user.on('sendMessage', function(data) {
 		if (!session.validateRequest('sendMessage', user, true, data))
@@ -203,7 +207,7 @@ var init = function(user) {
 				var nbMembers = this.data.nbMembers;
 				var messageId = parseInt(result[0].messageId) + 1 || 1;
 				
-				console.log(messageId);
+				//console.log(messageId);
 				
 				var data = {groupId: groupId, userId: user.userId, content: content,
 						importance: importance, location: location, date: date, 
@@ -390,7 +394,7 @@ var init = function(user) {
 			}
 		],
 		function(err) {
-			console.log('end ack' + err);
+			//console.log('end ack' + err);
 			if (err) {
 				user.emit('ackMessage', {status: 'fail', errorMsg: 'failed to update ack'});
 			}
@@ -629,7 +633,7 @@ var notifyAcks = function(data, callback) {
 			}
 			
 			// sender will not get ack of itself
-			var sessions = session.getUserSessions(user, true);
+			var sessions = session.getUserSessions(user);
 			
 			var ackIter = function(i) {
 				if (i == acks.length) {

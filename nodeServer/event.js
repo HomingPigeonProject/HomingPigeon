@@ -12,6 +12,7 @@
 var dbManager = require('./dbManager');
 var nodemailer = require('nodemailer');
 
+// TODO: Event deadlock, event -> participants order
 function init(user) {
 	// read every events of the user
 	user.on('getEventList', function(data) {

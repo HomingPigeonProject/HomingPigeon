@@ -39,13 +39,13 @@ var queries = {
 			"FROM ((SELECT a.id as userId, a.email, a.nickname, a.picture, " +
 			"a.login, a.lastSeen, c.id as contactId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId " +
-			"WHERE c.accountId2 = ? and c.accepted = 1) " +
+			"WHERE c.accountId2 = ? and c.accepted = 1 %) " +
 			"UNION " +
 			"(SELECT a.id as userId, a.email, a.nickname, a.picture, " +
 			"a.login, a.lastSeen, c.id as contactId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
-			"WHERE c.accountId = ? and c.accepted = 1)) r " +
-			"LEFT JOIN Groups g ON r.contactId = g.contactId) r " +
+			"WHERE c.accountId = ? and c.accepted = 1 %)) r " +
+			"LEFT JOIN Groups g ON r.contactId = g.contactId %) r " +
 			"LEFT JOIN GroupMembers gm on r.groupId = gm.groupId " +
 			"WHERE gm.accountId is null or gm.accountId = ? " +
 			"ORDER BY r.nickname %",
@@ -54,12 +54,12 @@ var queries = {
 			"FROM ((SELECT c.id as contactId, a.id as userId, a.email, a.nickname, a.picture, " +
 			"a.login, 1 as invited " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId " +
-			"WHERE c.accountId2 = ? and c.accepted = 0) " +
+			"WHERE c.accountId2 = ? and c.accepted = 0 %) " +
 			"UNION " +
 			"(SELECT c.id as contactId, a.id as userId, a.email, a.nickname, a.picture, " +
 			"a.login, 0 as invited " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
-			"WHERE c.accountId = ? and c.accepted = 0)) r " +
+			"WHERE c.accountId = ? and c.accepted = 0 %)) r " +
 			"ORDER BY r.contactId desc %",
 
 	getContact: "SELECT r.userId, r.email, r.nickname, r.picture, " +
@@ -67,12 +67,12 @@ var queries = {
 			"FROM ((SELECT a.id as userId, a.email, a.nickname, a.picture, " +
 			"a.login, a.lastSeen, c.id as contactId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId " +
-			"WHERE c.accountId2 = ? and a.id = ?) " +
+			"WHERE c.accountId2 = ? and a.id = ? %) " +
 			"UNION " +
 			"(SELECT a.id as userId, a.email, a.nickname, a.picture, " +
 			"a.login, a.lastSeen, c.id as contactId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
-			"WHERE c.accountId = ? and a.id = ?)) r " +
+			"WHERE c.accountId = ? and a.id = ? %)) r " +
 			"LEFT JOIN Groups g ON r.contactId = g.contactId " +
 			"ORDER BY r.nickname %",
 
@@ -81,23 +81,23 @@ var queries = {
 			"FROM ((SELECT a.id as userId, a.email, a.nickname, a.picture, " +
 			"a.login, a.lastSeen, c.id as contactId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId " +
-			"WHERE c.accountId2 = ? and a.id = ? and c.accepted = 1) " +
+			"WHERE c.accountId2 = ? and a.id = ? and c.accepted = 1 %) " +
 			"UNION " +
 			"(SELECT a.id as userId, a.email, a.nickname, a.picture, " +
 			"a.login, a.lastSeen, c.id as contactId " +
 			"FROM Accounts a INNER JOIN Contacts c ON a.id = c.accountId2 " +
-			"WHERE c.accountId = ? and a.id = ? and c.accepted = 1)) r " +
+			"WHERE c.accountId = ? and a.id = ? and c.accepted = 1 %)) r " +
 			"LEFT JOIN Groups g ON r.contactId = g.contactId " +
 			"ORDER BY r.nickname %",
 
 	getPendingContact: "SELECT * " +
 			"FROM ((SELECT accountId as requestUserId, accountId2 as acceptUserId " +
 			"FROM Contacts " +
-			"WHERE accountId2 = ? and accountId = ? and accepted = 0) " +
+			"WHERE accountId2 = ? and accountId = ? and accepted = 0 %) " +
 			"UNION " +
 			"(SELECT accountId as requestUserId, accountId2 as acceptUserId " +
 			"FROM Contacts  " +
-			"WHERE accountId = ? and accountId2 = ? and accepted = 0)) result %",
+			"WHERE accountId = ? and accountId2 = ? and accepted = 0 %)) result %",
 
 	getContactByGroup: "SELECT c.accountId as userId, c.accountId2 as userId2, " +
 			"c.id as contactId, c.accepted, g.id as groupId " +
@@ -124,7 +124,6 @@ var queries = {
 			"WHERE gm.groupId = ? and gm.accountId = ? " +
 			"%) g ON g.id = gm.groupId " +
 			"%) g ON g.id = m.groupId %",
-
 
 	getGroupListByUser: "SELECT g.id as groupId, g.name, g.contactId, g.eventId, g.nbNewMessages," +
 			"g.alias, g.nbMembers, max(m.date) as lastMessageDate, max(m.messageId) as lastMessageId " +
@@ -347,6 +346,8 @@ var queries = {
 			"WHERE ((accountId = ? and accountId2 = ?) or (accountId2 = ? and accountId = ?)) and " +
 			"accepted = 0 ",
 
+	updateLastSeen: "UPDATE Accounts set lastSeen = NOW() where id = ? ",
+	
 	updateGroupName: "UPDATE Groups SET name = ? WHERE id = ? ",
 
 	updateContactGroupChat: "UPDATE Groups SET contactId = ? " +
@@ -623,6 +624,10 @@ var dbPrototype = {
 	acceptPendingContact: function(data, callback) {
 		this.conn.query(queries.acceptPendingContact,
 				[data.userId, data.userId2, data.userId, data.userId2], callback);
+	},
+	updateLastSeen: function(data, callback) {
+		this.conn.query(queries.updateLastSeen,
+				[data.userId], callback);
 	},
 	updateGroupName: function(data, callback) {
 		this.conn.query(queries.updateGroupName,

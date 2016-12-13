@@ -24,17 +24,23 @@ function init(user) {
 		dbManager.trxPattern([
 			function(callback) {
 				this.db.getUserById({userId: data.userId, lock: true}, callback);
+			},
+			function(result, fields, callback) {
+				if (result.length == 0)
+					return callback(new Error('session not found'));
+				
+				this.data.result = result;
+				
+				this.db.updateLastSeen({userId: data.userId}, callback);
 			}
 		],
-		function(err, result) {
+		function(err) {
+			var result = this.data.result;
 			// err.code, err.errno
 			if (err) {
 				user.emit('login', {status: 'fail', errorMsg: 'failed to loign'});
 				
 				console.log('login error\r\n' + err);
-			} else if (result.length < 1) {
-				// session not found
-				user.emit('login', {status: 'fail', errorMsg: 'session not found'});
 			} else {
 				// login
 				var data = result[0];

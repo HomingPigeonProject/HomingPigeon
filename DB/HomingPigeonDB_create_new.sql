@@ -97,7 +97,7 @@ CREATE TABLE Events (
 CREATE TABLE EventParticipants (
     eventId int NOT NULL,
     accountId int NOT NULL,
-    acked decimal(1) NOT NULL DEFAULT 0,           /* 0: not seen, 1: seen event, 2: seen started */
+    acked bit(2) NOT NULL DEFAULT 0,           /* 0: not seen, 1: seen event, 2: seen started */
     status varchar(25),
     CONSTRAINT EventParticipants_pk PRIMARY KEY (eventId, accountId)
 );
